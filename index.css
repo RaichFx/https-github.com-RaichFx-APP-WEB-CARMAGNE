@@ -1,0 +1,231 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* Dynamic Theme variables */
+:root {
+  --bg-color: #F4F5F7;
+  --bg-gradient: radial-gradient(circle at 15% 15%, rgba(204, 255, 0, 0.15) 0%, transparent 45%),
+                 radial-gradient(circle at 85% 85%, rgba(56, 189, 248, 0.2) 0%, transparent 45%),
+                 radial-gradient(circle at 50% 50%, #F4F5F7 0%, #FFFFFF 100%);
+  --glow-1: rgba(204, 255, 0, 0.15);
+  --glow-2: rgba(56, 189, 248, 0.15);
+  --panel-bg: rgba(255, 255, 255, 0.45);
+  --panel-border: rgba(0, 0, 0, 0.08);
+  --panel-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --text-main: #1C1C1E;
+  --text-muted: #8E8E93;
+  --accent-color: #CCFF00; /* Neon Green */
+  --accent-text: #000000;
+  --btn-glass-bg: rgba(0, 0, 0, 0.04);
+  --btn-glass-border: rgba(0, 0, 0, 0.08);
+  --btn-glass-text: #1C1C1E;
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(0, 0, 0, 0.12);
+  --input-text: #1C1C1E;
+  --scrollbar-track: #F4F5F7;
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --island-bg: rgba(0, 0, 0, 0.08);
+  --island-text: #1C1C1E;
+  --modal-bg: #FFFFFF;
+  --modal-border: rgba(0, 0, 0, 0.08);
+  --modal-text-main: #1C1C1E;
+  --modal-text-muted: #3A3A3C;
+}
+
+.dark-theme {
+  --bg-color: #050505;
+  --bg-gradient: radial-gradient(circle at 10% 20%, rgba(204, 255, 0, 0.05) 0%, transparent 40%),
+                 radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
+                 radial-gradient(circle at 50% 50%, #050505 0%, #0D0D0E 100%);
+  --glow-1: rgba(204, 255, 0, 0.08);
+  --glow-2: rgba(16, 185, 129, 0.06);
+  --panel-bg: rgba(255, 255, 255, 0.04);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --panel-shadow: 0 24px 80px rgba(0, 0, 0, 0.8);
+  --text-main: #FFFFFF;
+  --text-muted: #8E8E93;
+  --accent-color: #CCFF00;
+  --accent-text: #050505;
+  --btn-glass-bg: rgba(255, 255, 255, 0.05);
+  --btn-glass-border: rgba(255, 255, 255, 0.1);
+  --btn-glass-text: #FFFFFF;
+  --input-bg: rgba(10, 10, 10, 0.8);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --input-text: #FFFFFF;
+  --scrollbar-track: #050505;
+  --scrollbar-thumb: rgba(204, 255, 0, 0.2);
+  --island-bg: rgba(0, 0, 0, 0.6);
+  --island-text: #FFFFFF;
+  --modal-bg: #0D0D0E;
+  --modal-border: rgba(255, 255, 255, 0.1);
+  --modal-text-main: #FFFFFF;
+  --modal-text-muted: #A1A1AA;
+}
+
+/* Font pairing settings */
+.font-bebas {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-color) !important;
+  color: var(--text-main);
+  overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* Glassmorphism Liquid & Mirror style effects */
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+}
+
+.mirror-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+}
+
+.mirror-panel-hover:hover {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+  transform: translateY(-2px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.liquid-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background: var(--bg-gradient);
+  overflow: hidden;
+  transition: background 0.4s ease;
+}
+
+.liquid-glow-1 {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, var(--glow-1) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: floatGlow1 25s ease-in-out infinite alternate;
+}
+
+.liquid-glow-2 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, var(--glow-2) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: floatGlow2 35s ease-in-out infinite alternate;
+}
+
+@keyframes floatGlow1 {
+  0% { transform: translate(-20%, -20%) scale(1); }
+  100% { transform: translate(40%, 30%) scale(1.2); }
+}
+
+@keyframes floatGlow2 {
+  0% { transform: translate(60%, 40%) scale(1.1); }
+  100% { transform: translate(-30%, -30%) scale(0.9); }
+}
+
+/* Neon utilities */
+.text-neon {
+  color: var(--accent-color);
+  text-shadow: 0 0 12px rgba(204, 255, 0, 0.3);
+}
+
+.text-neon-green {
+  color: #10b981;
+}
+
+.border-neon {
+  border-color: var(--panel-border);
+}
+
+.border-neon:focus {
+  border-color: var(--accent-color);
+}
+
+.shadow-neon {
+  box-shadow: 0 0 20px rgba(204, 255, 0, 0.1);
+}
+
+/* Base style modifiers */
+input, select, textarea {
+  background: var(--input-bg) !important;
+  border: 1px solid var(--input-border) !important;
+  color: var(--input-text) !important;
+  border-radius: 12px !important;
+  transition: all 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 0 8px rgba(204, 255, 0, 0.2) !important;
+  outline: none !important;
+}
+
+button {
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Glass Buttons */
+.btn-neon {
+  background: var(--accent-color);
+  color: var(--accent-text);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(204, 255, 0, 0.25);
+}
+
+.btn-neon:hover {
+  background: #e1ff33;
+  transform: translateY(-1px);
+}
+
+.btn-neon:active {
+  transform: translateY(1px);
+}
+
+.btn-glass {
+  background: var(--btn-glass-bg);
+  border: 1px solid var(--btn-glass-border);
+  color: var(--btn-glass-text);
+}
+
+.btn-glass:hover {
+  background: rgba(128, 128, 128, 0.1);
+  color: var(--text-main);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color);
+}

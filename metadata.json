@@ -1,0 +1,12 @@
+{
+  "name": "CARMAGNE INSTAL SL",
+  "description": "Sistema integral de control de presencia, fichaje, partes semanales con IA y gestión de nóminas.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
