@@ -694,8 +694,15 @@ export const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setReportPhoto(reader.result as string);
+    reader.onloadend = async () => {
+      try {
+        // Compress image to fit within Firestore 1MB limits
+        const compressed = await compressImage(reader.result as string, 800, 800, 0.7);
+        setReportPhoto(compressed);
+      } catch (err) {
+        console.error("Error compressing report photo:", err);
+        setReportPhoto(reader.result as string);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -760,13 +767,13 @@ export const App: React.FC = () => {
           const compressed = await compressImage(reader.result as string, 300, 300, 0.75);
           const updated = { ...selectedWorker, photoUrl: compressed };
           const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
-          StorageService.saveWorkers(updatedList);
+          await StorageService.saveWorkers(updatedList);
           setWorkers(updatedList);
           setSelectedWorker(updated);
           alert("Foto de perfil actualizada.");
         } catch (err) {
           console.error("Error compressing image", err);
-          alert("Hubo un error al procesar la imagen.");
+          alert("Hubo un error al procesar o guardar la imagen.");
         }
       };
       reader.readAsDataURL(file);
@@ -776,6 +783,11 @@ export const App: React.FC = () => {
   const handleAddCertificate = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && selectedWorker) {
+      if (file.size > 900 * 1024) {
+        alert("El archivo supera el límite de tamaño permitido (900 KB). Por favor, sube un archivo más pequeño.");
+        if (certFileInputRef.current) certFileInputRef.current.value = '';
+        return;
+      }
       const name = certNameInput.trim() || file.name.split('.')[0];
       const reader = new FileReader();
       reader.onloadend = async () => {
@@ -798,7 +810,7 @@ export const App: React.FC = () => {
           };
           
           const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
-          StorageService.saveWorkers(updatedList);
+          await StorageService.saveWorkers(updatedList);
           setWorkers(updatedList);
           setSelectedWorker(updated);
           setCertNameInput('');
@@ -806,14 +818,14 @@ export const App: React.FC = () => {
           alert("Certificado subido con éxito.");
         } catch (err) {
           console.error("Error upload cert", err);
-          alert("Error al subir el certificado.");
+          alert("Error al subir el certificado a Firebase.");
         }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleDeleteCertificate = (certId: string) => {
+  const handleDeleteCertificate = async (certId: string) => {
     if (selectedWorker && confirm("¿Estás seguro de que deseas eliminar este certificado?")) {
       const currentCerts = selectedWorker.certificates || [];
       const updated = {
@@ -821,9 +833,14 @@ export const App: React.FC = () => {
         certificates: currentCerts.filter(c => c.id !== certId)
       };
       const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
-      StorageService.saveWorkers(updatedList);
-      setWorkers(updatedList);
-      setSelectedWorker(updated);
+      try {
+        await StorageService.saveWorkers(updatedList);
+        setWorkers(updatedList);
+        setSelectedWorker(updated);
+      } catch (err) {
+        console.error("Error deleting certificate:", err);
+        alert("Error al eliminar el certificado en Firebase.");
+      }
     }
   };
 

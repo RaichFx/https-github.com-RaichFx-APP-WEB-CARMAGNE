@@ -410,12 +410,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           if (selectedWorkerProfile) {
             const updated = { ...selectedWorkerProfile, photoUrl: compressed };
             const updatedList = workers.map(w => w.id === selectedWorkerProfile.id ? updated : w);
-            StorageService.saveWorkers(updatedList);
+            await StorageService.saveWorkers(updatedList);
             setSelectedWorkerProfile(updated);
           }
         } catch (err) {
           console.error("Error compressing image", err);
-          alert("Hubo un error al procesar la imagen.");
+          alert("Hubo un error al procesar o guardar la imagen en Firebase.");
         }
       };
       reader.readAsDataURL(file);
@@ -425,6 +425,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const handleAddCertificate = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && selectedWorkerProfile) {
+      if (file.size > 900 * 1024) {
+        alert("El archivo supera el límite de tamaño permitido (900 KB). Por favor, sube un archivo más pequeño.");
+        if (certFileInputRef.current) certFileInputRef.current.value = '';
+        return;
+      }
       const name = certNameInput.trim() || file.name.split('.')[0];
       const reader = new FileReader();
       reader.onloadend = async () => {
@@ -447,14 +452,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           };
           
           const updatedList = workers.map(w => w.id === selectedWorkerProfile.id ? updated : w);
-          StorageService.saveWorkers(updatedList);
+          await StorageService.saveWorkers(updatedList);
           setSelectedWorkerProfile(updated);
           setCertNameInput('');
           if (certFileInputRef.current) certFileInputRef.current.value = '';
           alert("Certificado subido con éxito.");
         } catch (err) {
           console.error("Error upload cert", err);
-          alert("Error al subir el certificado.");
+          alert("Error al subir el certificado a Firebase.");
         }
       };
       reader.readAsDataURL(file);
@@ -469,8 +474,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         certificates: currentCerts.filter(c => c.id !== certId)
       };
       const updatedList = workers.map(w => w.id === selectedWorkerProfile.id ? updated : w);
-      await StorageService.saveWorkers(updatedList);
-      setSelectedWorkerProfile(updated);
+      try {
+        await StorageService.saveWorkers(updatedList);
+        setSelectedWorkerProfile(updated);
+      } catch (err) {
+        console.error("Error deleting certificate:", err);
+        alert("Error al eliminar el certificado en Firebase.");
+      }
     }
   };
 
