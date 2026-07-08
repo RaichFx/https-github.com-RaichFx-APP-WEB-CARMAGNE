@@ -3,18 +3,18 @@
 /* Dynamic Theme variables */
 :root {
   --bg-color: #F4F5F7;
-  --bg-gradient: radial-gradient(circle at 15% 15%, rgba(204, 255, 0, 0.15) 0%, transparent 45%),
-                 radial-gradient(circle at 85% 85%, rgba(56, 189, 248, 0.2) 0%, transparent 45%),
+  --bg-gradient: radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.12) 0%, transparent 45%),
+                 radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
                  radial-gradient(circle at 50% 50%, #F4F5F7 0%, #FFFFFF 100%);
-  --glow-1: rgba(204, 255, 0, 0.15);
-  --glow-2: rgba(56, 189, 248, 0.15);
+  --glow-1: rgba(59, 130, 246, 0.12);
+  --glow-2: rgba(16, 185, 129, 0.12);
   --panel-bg: rgba(255, 255, 255, 0.45);
   --panel-border: rgba(0, 0, 0, 0.08);
   --panel-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
   --text-main: #1C1C1E;
   --text-muted: #8E8E93;
-  --accent-color: #CCFF00; /* Neon Green */
-  --accent-text: #000000;
+  --accent-color: #3B82F6; /* Professional Brand Blue */
+  --accent-text: #FFFFFF;
   --btn-glass-bg: rgba(0, 0, 0, 0.04);
   --btn-glass-border: rgba(0, 0, 0, 0.08);
   --btn-glass-text: #1C1C1E;
@@ -33,18 +33,18 @@
 
 .dark-theme {
   --bg-color: #050505;
-  --bg-gradient: radial-gradient(circle at 10% 20%, rgba(204, 255, 0, 0.05) 0%, transparent 40%),
-                 radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
+  --bg-gradient: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 40%),
+                 radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 40%),
                  radial-gradient(circle at 50% 50%, #050505 0%, #0D0D0E 100%);
-  --glow-1: rgba(204, 255, 0, 0.08);
+  --glow-1: rgba(59, 130, 246, 0.06);
   --glow-2: rgba(16, 185, 129, 0.06);
   --panel-bg: rgba(255, 255, 255, 0.04);
   --panel-border: rgba(255, 255, 255, 0.1);
   --panel-shadow: 0 24px 80px rgba(0, 0, 0, 0.8);
   --text-main: #FFFFFF;
   --text-muted: #8E8E93;
-  --accent-color: #CCFF00;
-  --accent-text: #050505;
+  --accent-color: #3B82F6; /* Professional Brand Blue */
+  --accent-text: #FFFFFF;
   --btn-glass-bg: rgba(255, 255, 255, 0.05);
   --btn-glass-border: rgba(255, 255, 255, 0.1);
   --btn-glass-text: #FFFFFF;
@@ -52,7 +52,7 @@
   --input-border: rgba(255, 255, 255, 0.1);
   --input-text: #FFFFFF;
   --scrollbar-track: #050505;
-  --scrollbar-thumb: rgba(204, 255, 0, 0.2);
+  --scrollbar-thumb: rgba(59, 130, 246, 0.2);
   --island-bg: rgba(0, 0, 0, 0.6);
   --island-text: #FFFFFF;
   --modal-bg: #0D0D0E;
@@ -147,7 +147,7 @@ body {
 /* Neon utilities */
 .text-neon {
   color: var(--accent-color);
-  text-shadow: 0 0 12px rgba(204, 255, 0, 0.3);
+  text-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
 }
 
 .text-neon-green {
@@ -163,7 +163,7 @@ body {
 }
 
 .shadow-neon {
-  box-shadow: 0 0 20px rgba(204, 255, 0, 0.1);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
 }
 
 /* Base style modifiers */
@@ -177,7 +177,7 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--accent-color) !important;
-  box-shadow: 0 0 8px rgba(204, 255, 0, 0.2) !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.2) !important;
   outline: none !important;
 }
 
@@ -191,11 +191,11 @@ button {
   background: var(--accent-color);
   color: var(--accent-text);
   font-weight: 700;
-  box-shadow: 0 4px 15px rgba(204, 255, 0, 0.25);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
 }
 
 .btn-neon:hover {
-  background: #e1ff33;
+  background: #2563eb;
   transform: translateY(-1px);
 }
 

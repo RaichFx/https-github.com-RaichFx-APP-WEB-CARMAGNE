@@ -70,6 +70,60 @@ const safeClone = (obj: any) => {
   return clone(obj);
 };
 
+const stripHeavyBase64 = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') {
+    if (typeof obj === 'string' && obj.startsWith('data:') && obj.length > 2048) {
+      return '';
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(stripHeavyBase64);
+  }
+  const result: any = {};
+  for (const key of Object.keys(obj)) {
+    result[key] = stripHeavyBase64(obj[key]);
+  }
+  return result;
+};
+
+export const compressImage = (dataUrl: string, maxWidth = 400, maxHeight = 400, quality = 0.7): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      } else {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+};
+
 const loadLocal = <T>(key: string, initial: T): T => {
   try {
     const saved = localStorage.getItem(key);
@@ -79,7 +133,8 @@ const loadLocal = <T>(key: string, initial: T): T => {
 
 const saveLocal = <T>(key: string, data: T): void => {
   try {
-    const cleaned = safeClone(data);
+    const cloned = safeClone(data);
+    const cleaned = stripHeavyBase64(cloned);
     localStorage.setItem(key, JSON.stringify(cleaned));
   } catch (e) { console.error("Error saving to local", e); }
 };

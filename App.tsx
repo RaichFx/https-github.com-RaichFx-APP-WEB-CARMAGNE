@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   User, MapPin, CheckCircle, 
   LogOut, Coffee, ArrowRight, ShieldAlert, Lock, Fingerprint, Delete, UserPlus, Save, ChevronLeft, Calendar, History, Clock, Smartphone, X, Mic, MicOff, FileText, Cloud, ExternalLink, Briefcase, Phone, KeyRound, BellRing, Search, Download, CalendarDays, Zap, Wrench, Package, Info, Plus, Trash2, Timer, Filter, ChevronDown, Shield, AlertTriangle, AlertCircle, Image as ImageIcon, Upload, ClipboardList, Sun, Moon
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { StorageService, ELECTRICAL_TOOLS_LIST, ELECTRICAL_BRANDS_LIST } from './services/storageService';
+import { StorageService, ELECTRICAL_TOOLS_LIST, ELECTRICAL_BRANDS_LIST, compressImage } from './services/storageService';
 import { LocationService } from './services/locationService';
 import { TelegramService } from './services/telegramService';
 import { Worker, Site, WorkLog, LogType, GeoLocationData, WorkMode, AdminUser, ToolRecord, AppConfig, WeeklyReport, Payslip } from './types';
@@ -21,6 +21,7 @@ enum Step {
   WORKER_TOOLS = 17,
   WORKER_REPORTS = 18,
   WORKER_PAYSLIPS = 19,
+  WORKER_PROFILE = 20,
   SELECT_SITE = 2,
   SELECT_ACTION = 3,
   REPORT_EXIT = 4, 
@@ -147,6 +148,11 @@ export const App: React.FC = () => {
   // New Tool Form State
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [newToolForm, setNewToolForm] = useState({ name: '', brand: '', model: '' });
+
+  // Worker Profile States and Refs
+  const workerPhotoInputRef = useRef<HTMLInputElement>(null);
+  const certFileInputRef = useRef<HTMLInputElement>(null);
+  const [certNameInput, setCertNameInput] = useState('');
   
   const [exitReportText, setExitReportText] = useState('');
   const [exitWorkMode, setExitWorkMode] = useState<WorkMode>('HORAS');
@@ -506,13 +512,24 @@ export const App: React.FC = () => {
         <div className="md:col-span-4 flex flex-col gap-4 md:justify-between md:h-full">
           {/* iOS Profile widget with glassmorphism */}
           <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] rounded-[2rem] p-5 shadow-[var(--panel-shadow)] relative overflow-hidden flex items-center justify-between group transition-all duration-300 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black text-lg border border-white/20 shadow-md">
-                {selectedWorker?.name.charAt(0)}
-              </div>
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentStep(Step.WORKER_PROFILE)}>
+              {selectedWorker?.photoUrl ? (
+                <img 
+                  src={selectedWorker.photoUrl} 
+                  alt={selectedWorker.name} 
+                  className="w-12 h-12 rounded-full object-cover border border-white/20 shadow-md"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black text-lg border border-white/20 shadow-md">
+                  {selectedWorker?.name.charAt(0)}
+                </div>
+              )}
               <div>
-                <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest block">Operario</span>
-                <span className="text-base font-black text-[var(--text-main)] block leading-tight">{selectedWorker?.name}</span>
+                <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest block flex items-center gap-1 hover:text-white transition-colors">
+                  <span>Operario</span>
+                  <ExternalLink size={10} className="text-blue-400" />
+                </span>
+                <span className="text-base font-black text-[var(--text-main)] block leading-tight hover:text-[#CCFF00] transition-colors">{selectedWorker?.name}</span>
               </div>
             </div>
             {/* Action Buttons: Theme Switcher & Logout */}
@@ -531,7 +548,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* Quick Shortcuts Grid (iOS-style icon widgets) */}
-          <div className="grid grid-cols-2 gap-3 md:flex-1 md:overflow-y-auto custom-scrollbar pr-1 shrink-0">
+          <div className="grid grid-cols-2 gap-3 md:flex-1 md:overflow-y-auto custom-scrollbar pr-1 shrink-0 pb-1">
             {/* Navigation: History */}
             <button onClick={() => setCurrentStep(Step.WORKER_HISTORY)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-emerald-500/30 transition-all duration-300">
               <div className="text-emerald-500 bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/10"><History size={24} /></div>
@@ -551,6 +568,11 @@ export const App: React.FC = () => {
             <button onClick={() => setCurrentStep(Step.WORKER_PAYSLIPS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-fuchsia-500/30 transition-all duration-300">
               <div className="text-fuchsia-500 bg-fuchsia-500/10 p-3 rounded-2xl border border-fuchsia-500/10"><FileText size={24} /></div>
               <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Nóminas</span>
+            </button>
+            {/* Navigation: Profile (Spans full width) */}
+            <button onClick={() => setCurrentStep(Step.WORKER_PROFILE)} className="col-span-2 bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex items-center justify-center gap-3 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
+              <div className="text-blue-500 bg-blue-500/10 p-2.5 rounded-xl border border-blue-500/10"><User size={20} /></div>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Ver Mi Perfil & Certificados</span>
             </button>
           </div>
         </div>
@@ -723,6 +745,250 @@ export const App: React.FC = () => {
     } finally {
       setSubmittingReport(false);
     }
+  };
+
+  const handleWorkerPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && selectedWorker) {
+      if (!file.type.startsWith('image/')) {
+        alert("Por favor, sube un archivo de imagen.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const compressed = await compressImage(reader.result as string, 300, 300, 0.75);
+          const updated = { ...selectedWorker, photoUrl: compressed };
+          const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
+          StorageService.saveWorkers(updatedList);
+          setWorkers(updatedList);
+          setSelectedWorker(updated);
+          alert("Foto de perfil actualizada.");
+        } catch (err) {
+          console.error("Error compressing image", err);
+          alert("Hubo un error al procesar la imagen.");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAddCertificate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && selectedWorker) {
+      const name = certNameInput.trim() || file.name.split('.')[0];
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          let fileData = reader.result as string;
+          if (file.type.startsWith('image/')) {
+            fileData = await compressImage(fileData, 1000, 1000, 0.8);
+          }
+          const newCert = {
+            id: `CERT-${Date.now()}`,
+            name: name,
+            fileBase64: fileData,
+            uploadDate: new Date().toLocaleDateString('es-ES'),
+            size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+          };
+          const currentCerts = selectedWorker.certificates || [];
+          const updated = {
+            ...selectedWorker,
+            certificates: [...currentCerts, newCert]
+          };
+          
+          const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
+          StorageService.saveWorkers(updatedList);
+          setWorkers(updatedList);
+          setSelectedWorker(updated);
+          setCertNameInput('');
+          if (certFileInputRef.current) certFileInputRef.current.value = '';
+          alert("Certificado subido con éxito.");
+        } catch (err) {
+          console.error("Error upload cert", err);
+          alert("Error al subir el certificado.");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDeleteCertificate = (certId: string) => {
+    if (selectedWorker && confirm("¿Estás seguro de que deseas eliminar este certificado?")) {
+      const currentCerts = selectedWorker.certificates || [];
+      const updated = {
+        ...selectedWorker,
+        certificates: currentCerts.filter(c => c.id !== certId)
+      };
+      const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
+      StorageService.saveWorkers(updatedList);
+      setWorkers(updatedList);
+      setSelectedWorker(updated);
+    }
+  };
+
+  const renderWorkerProfile = () => {
+    if (!selectedWorker) return null;
+    const certificates = selectedWorker.certificates || [];
+
+    return (
+      <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4">
+        <div className="flex items-center justify-between gap-4 mb-6 shrink-0">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} 
+              className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10"
+            >
+              <ChevronLeft size={20}/>
+            </button>
+            <div>
+              <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Mi Perfil Profesional</h2>
+              <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Visualiza y gestiona tus datos</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="md:flex-1 md:overflow-y-auto space-y-6 pb-6 custom-scrollbar pr-1">
+          {/* Top Info Card with Photo */}
+          <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] p-6 rounded-[2rem] shadow-[var(--panel-shadow)] flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
+            {/* Foto de perfil */}
+            <div className="relative group cursor-pointer" onClick={() => workerPhotoInputRef.current?.click()}>
+              {selectedWorker.photoUrl ? (
+                <img 
+                  src={selectedWorker.photoUrl} 
+                  alt={selectedWorker.name} 
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-2 border-blue-500/30 group-hover:border-blue-500 transition-colors shadow-lg"
+                />
+              ) : (
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-blue-600/10 border-2 border-dashed border-blue-500/20 text-blue-500 flex flex-col items-center justify-center group-hover:border-blue-500 transition-all shadow-inner">
+                  <User size={36} />
+                  <span className="text-[8px] font-black uppercase mt-2 text-blue-400">Subir Foto</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Upload size={18} className="text-white" />
+              </div>
+            </div>
+            <input 
+              type="file" 
+              ref={workerPhotoInputRef} 
+              className="hidden" 
+              accept="image/*" 
+              onChange={handleWorkerPhotoUpload} 
+            />
+
+            <div className="space-y-1 flex-1">
+              <div className="flex items-center gap-2.5 justify-center sm:justify-start">
+                <h3 className="text-xl sm:text-2xl font-black text-[var(--text-main)] uppercase tracking-tight">{selectedWorker.name}</h3>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] font-bold tracking-widest uppercase">
+                ID: <span className="font-mono text-[var(--text-main)]">{selectedWorker.id}</span>
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center sm:justify-start mt-3">
+                <span className="text-[9px] font-black tracking-wider uppercase px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  {selectedWorker.role || 'Electricista'}
+                </span>
+                {selectedWorker.phone && (
+                  <span className="text-[9px] font-black tracking-wider uppercase px-2.5 py-1 rounded-lg bg-zinc-800 text-[var(--text-muted)] flex items-center gap-1">
+                    <Phone size={10} /> {selectedWorker.phone}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Ficha técnica del operario */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">DNI / NIE / Pasaporte</p>
+              <p className="text-sm font-black text-[var(--text-main)] uppercase mt-1">{selectedWorker.dni || 'S/DNI'}</p>
+            </div>
+            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código PIN de Acceso</p>
+              <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin || '0000'}</p>
+            </div>
+            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código QR asignado</p>
+              <p className="text-sm font-mono font-black text-blue-400 mt-1 truncate">{selectedWorker.qrCode || 'S/QR'}</p>
+            </div>
+            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Modo de trabajo habitual</p>
+              <p className="text-sm font-black text-[var(--text-main)] uppercase mt-1">{selectedWorker.defaultMode || 'HORAS'}</p>
+            </div>
+          </div>
+
+          {/* Certificados / Documentos section */}
+          <div className="space-y-4">
+            <div className="border-t border-[var(--panel-border)] pt-5">
+              <h4 className="text-sm font-black text-[var(--text-main)] uppercase tracking-widest">Mis Certificados y Documentos</h4>
+              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Sube y gestiona tus aptitudes médicas, prevención, etc.</p>
+            </div>
+
+            {/* Formulario rápido para subir certificado */}
+            <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)] space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input 
+                  type="text" 
+                  placeholder="Nombre del documento (Ej: Prevención de Riesgos 20h)" 
+                  value={certNameInput}
+                  onChange={(e) => setCertNameInput(e.target.value)}
+                  className="flex-1 bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500"
+                />
+                <button 
+                  onClick={() => certFileInputRef.current?.click()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase px-5 py-3 rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shrink-0"
+                >
+                  <Upload size={14} /> Seleccionar archivo
+                </button>
+                <input 
+                  type="file" 
+                  ref={certFileInputRef} 
+                  className="hidden" 
+                  onChange={handleAddCertificate} 
+                />
+              </div>
+            </div>
+
+            {/* List of Certificates */}
+            {certificates.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {certificates.map(cert => (
+                  <div key={cert.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] flex flex-col justify-between gap-3 hover:border-blue-500/20 transition-all shadow-[var(--panel-shadow)]">
+                    <div>
+                      <h5 className="font-black text-[var(--text-main)] text-xs uppercase tracking-tight truncate" title={cert.name}>{cert.name}</h5>
+                      <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase mt-1">Subido: {cert.uploadDate} {cert.size && `• ${cert.size}`}</p>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <a 
+                        href={cert.fileBase64} 
+                        download={cert.name}
+                        title="Descargar Certificado"
+                        className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white transition-all text-[9px] font-black uppercase flex items-center gap-1 px-3"
+                      >
+                        <Download size={12} /> Descargar
+                      </a>
+                      <button 
+                        onClick={() => handleDeleteCertificate(cert.id)}
+                        title="Eliminar Certificado"
+                        className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-all"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-8 bg-zinc-900/5 dark:bg-white/5 border border-dashed border-[var(--panel-border)] rounded-2xl">
+                <FileText className="mx-auto text-[var(--text-muted)] mb-2" size={24} />
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">No has subido ningún certificado aún.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderWorkerReports = () => {
@@ -942,6 +1208,7 @@ export const App: React.FC = () => {
       case Step.WORKER_DASHBOARD: return renderWorkerDashboard();
       case Step.WORKER_REPORTS: return renderWorkerReports();
       case Step.WORKER_PAYSLIPS: return renderWorkerPayslips();
+      case Step.WORKER_PROFILE: return renderWorkerProfile();
       case Step.SELECT_SITE: return (
         <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden">
            <div className="flex items-center gap-4 mb-4 shrink-0">

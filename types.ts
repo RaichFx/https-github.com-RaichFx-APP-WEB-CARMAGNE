@@ -19,6 +19,8 @@ export interface Worker {
   role?: string;
   phone?: string;
   defaultMode?: WorkMode;
+  photoUrl?: string;
+  certificates?: { id: string; name: string; fileBase64: string; uploadDate: string; size?: string }[];
 }
 
 export interface Site {
