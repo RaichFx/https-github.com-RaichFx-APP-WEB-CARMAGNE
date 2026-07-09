@@ -238,6 +238,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [isSyncingSheets, setIsSyncingSheets] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
+  const [operationNotAllowed, setOperationNotAllowed] = useState(false);
+  const [googleApiError, setGoogleApiError] = useState<{ apiName: string; message: string; code?: number } | null>(null);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailModal, setEmailModal] = useState<{
     isOpen: boolean;
@@ -529,7 +532,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       }
     } catch (err: any) {
       console.error("Error al iniciar sesión con Google:", err);
-      alert("Error al iniciar sesión con Google. Por favor, vuelve a intentarlo.");
+      if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
+        console.log("Inicio de sesión de Google cancelado por el usuario.");
+        return;
+      }
+      if (err.code === "auth/unauthorized-domain" || (err.message && err.message.includes("unauthorized-domain"))) {
+        setUnauthorizedDomain(window.location.hostname);
+      } else if (err.code === "auth/operation-not-allowed" || (err.message && err.message.includes("operation-not-allowed"))) {
+        setOperationNotAllowed(true);
+      } else {
+        alert("Error al iniciar sesión con Google: " + (err.message || err));
+      }
     }
   };
 
@@ -565,12 +578,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           },
           body: JSON.stringify({
             properties: {
-              title: 'Copa Navarra 2026 - Registro de Personal y Fichajes'
+              title: 'CARMAGNE INSTAL 2024 - Registro de Personal y Fichajes'
             }
           })
          });
          if (!createRes.ok) {
-           throw new Error('Error al crear la hoja de cálculo');
+                       const errData = await createRes.json().catch(() => ({})); setGoogleApiError({ apiName: "Google Sheets API", message: errData.error?.message || "Error al crear la hoja de cálculo", code: errData.error?.code || createRes.status }); throw new Error(errData.error?.message || 'Error al crear la hoja de cálculo');
          }
          const createData = await createRes.json();
          spreadsheetId = createData.spreadsheetId;
@@ -621,7 +634,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
            body: JSON.stringify({ values })
          });
          if (!response.ok) {
-           throw new Error(`Error escribiendo en la pestaña ${sheetName}`);
+                       const errData = await response.json().catch(() => ({})); setGoogleApiError({ apiName: "Google Sheets API", message: errData.error?.message || `Error escribiendo en la pestaña ${sheetName}`, code: errData.error?.code || response.status }); throw new Error(errData.error?.message || `Error escribiendo en la pestaña ${sheetName}`);
          }
        };
 
@@ -661,8 +674,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
      }
      try {
        const to = googleUser.email;
-       const subject = "🧪 Copa Navarra 2026 - Prueba de Integración de Gmail";
-       const body = `Hola ${googleUser.displayName},\n\nEste es un correo de prueba automático de la integración de Gmail de la aplicación "Copa Navarra - Torneo de Invierno 2026".\n\nTu cuenta se ha vinculado correctamente y tienes todos los permisos necesarios para enviar las nóminas oficiales de los operarios y sus certificados.\n\n¡Un saludo!`;
+       const subject = "🧪 CARMAGNE INSTAL 2024 - Prueba de Integración de Gmail";
+       const body = `Hola ${googleUser.displayName},\n\nEste es un correo de prueba automático de la integración de Gmail de la aplicación "CARMAGNE INSTAL 2024".\n\nTu cuenta se ha vinculado correctamente y tienes todos los permisos necesarios para enviar las nóminas oficiales de los operarios y sus certificados.\n\n¡Un saludo!`;
 
        const nl = "\n";
        const parts = [
@@ -693,7 +706,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
        } else {
          const errData = await response.json();
          console.error("Error Gmail API:", errData);
-         alert("Error al enviar correo vía Gmail: " + JSON.stringify(errData));
+                   setGoogleApiError({ apiName: "Gmail API", message: errData.error?.message || JSON.stringify(errData), code: errData.error?.code || response.status });
        }
      } catch (err: any) {
        console.error("Error al enviar correo de prueba:", err);
@@ -736,6 +749,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         } else {
           const errData = await response.json();
           console.error("Gmail Send Error:", errData);
+                    setGoogleApiError({ apiName: "Gmail API", message: errData.error?.message || JSON.stringify(errData), code: errData.error?.code || response.status });
           throw new Error(errData.error?.message || "Error al enviar correo con Gmail API");
         }
       } else {
@@ -3685,6 +3699,177 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {unauthorizedDomain && (
+        <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
+          <div className={`w-full max-w-lg rounded-[2.5rem] border p-8 shadow-2xl relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-zinc-200'}`}>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <span className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full text-[8px] font-black tracking-wider uppercase font-sans">
+                  Firebase Security Alert
+                </span>
+                <h3 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter mt-2 font-sans" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                  Dominio No Autorizado en Firebase
+                </h3>
+              </div>
+              <button onClick={() => setUnauthorizedDomain(null)} className="text-zinc-500 hover:text-[var(--text-main)] p-2">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-sans text-[var(--text-muted)]">
+              <p className="leading-relaxed">
+                Para permitir el inicio de sesión con Google desde este entorno de vista previa, debes añadir este dominio a la lista de dominios autorizados de tu proyecto Firebase.
+              </p>
+
+              <div className={`p-4 rounded-xl border space-y-1 ${theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
+                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Dominio a autorizar:</p>
+                <div className="flex items-center justify-between gap-2">
+                  <code className="text-emerald-500 dark:text-emerald-400 font-mono text-[11px] select-all break-all">{unauthorizedDomain}</code>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(unauthorizedDomain);
+                      alert("¡Dominio copiado al portapapeles!");
+                    }}
+                    className={`shrink-0 text-[9px] font-black uppercase px-3 py-1.5 rounded-lg tracking-wider ${theme === 'dark' ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-800'}`}
+                  >
+                    Copiar
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-black text-[var(--text-main)] uppercase text-[10px] tracking-wider">Pasos para solucionarlo:</h4>
+                <ol className="list-decimal pl-4 space-y-2.5 leading-relaxed">
+                  <li>Ve a tu <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Firebase Console <ExternalLink size={10} /></a>.</li>
+                  <li>Selecciona tu proyecto <strong>CARMAGNE INSTAL 2024</strong>.</li>
+                  <li>Ve a la sección <strong>Authentication</strong> en el menú izquierdo.</li>
+                  <li>Entra en la pestaña <strong>Settings</strong> (Configuración) y haz clic en <strong>Authorized domains</strong> (Dominios autorizados).</li>
+                  <li>Haz clic en <strong>Add domain</strong> (Añadir dominio) y pega el dominio copiado arriba.</li>
+                </ol>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <button 
+                  onClick={() => setUnauthorizedDomain(null)}
+                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {operationNotAllowed && (
+        <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
+          <div className={`w-full max-w-lg rounded-[2.5rem] border p-8 shadow-2xl relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-zinc-200'}`}>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-full text-[8px] font-black tracking-wider uppercase font-sans">
+                  Firebase Setup Alert
+                </span>
+                <h3 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter mt-2 font-sans" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                  Proveedor de Google No Activado
+                </h3>
+              </div>
+              <button onClick={() => setOperationNotAllowed(false)} className="text-zinc-500 hover:text-[var(--text-main)] p-2">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-sans text-[var(--text-muted)]">
+              <p className="leading-relaxed">
+                El método de inicio de sesión con Google (Google Sign-In) no está habilitado actualmente en la configuración de autenticación de tu proyecto Firebase.
+              </p>
+
+              <div className="space-y-2">
+                <h4 className="font-black text-[var(--text-main)] uppercase text-[10px] tracking-wider">Pasos para activarlo:</h4>
+                <ol className="list-decimal pl-4 space-y-2.5 leading-relaxed">
+                  <li>Ve a tu <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Firebase Console <ExternalLink size={10} /></a>.</li>
+                  <li>Selecciona tu proyecto <strong>CARMAGNE INSTAL 2024</strong>.</li>
+                  <li>En el panel izquierdo, haz clic en la sección de <strong>Authentication</strong>.</li>
+                  <li>Entra en la pestaña de <strong>Sign-in method</strong> (Método de inicio de sesión).</li>
+                  <li>Haz clic en el botón <strong>Add new provider</strong> (Añadir nuevo proveedor).</li>
+                  <li>Selecciona <strong>Google</strong> de la lista de proveedores adicionales.</li>
+                  <li>Activa el interruptor para habilitarlo, introduce un nombre público si te lo solicita y pon tu correo de asistencia técnica.</li>
+                  <li>Haz clic en <strong>Save</strong> (Guardar) para confirmar la activación.</li>
+                </ol>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <button 
+                  onClick={() => setOperationNotAllowed(false)}
+                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {googleApiError && (
+        <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
+          <div className={`w-full max-w-lg rounded-[2.5rem] border p-8 shadow-2xl relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-zinc-200'}`}>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <span className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full text-[8px] font-black tracking-wider uppercase font-sans">
+                  Google Cloud API Alert
+                </span>
+                <h3 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter mt-2 font-sans" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                  Habilitar {googleApiError.apiName}
+                </h3>
+              </div>
+              <button onClick={() => setGoogleApiError(null)} className="text-zinc-500 hover:text-[var(--text-main)] p-2">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-sans text-[var(--text-muted)]">
+              <p className="leading-relaxed">
+                Para que la integración con <strong>{googleApiError.apiName}</strong> funcione, debes habilitar este servicio de Google en el panel de desarrolladores de tu proyecto Google Cloud (asociado a tu Firebase).
+              </p>
+
+              <div className={`p-4 rounded-xl border space-y-1 ${theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-rose-50 border-rose-100'}`}>
+                <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Detalle del Error:</p>
+                <p className="font-mono text-[10px] text-[var(--text-main)] break-all leading-relaxed">{googleApiError.message}</p>
+                {googleApiError.code && <p className="text-[9px] text-zinc-500">Código de estado HTTP: {googleApiError.code}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-black text-[var(--text-main)] uppercase text-[10px] tracking-wider">Pasos para habilitarlo:</h4>
+                <ol className="list-decimal pl-4 space-y-2.5 leading-relaxed">
+                  <li>Inicia sesión con tu cuenta de administrador de Google en <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Google Cloud Console <ExternalLink size={10} /></a>.</li>
+                  <li>Selecciona tu proyecto <strong>CARMAGNE INSTAL 2024</strong> en la barra superior.</li>
+                  <li>En el buscador superior, escribe <strong>"{googleApiError.apiName}"</strong> y selecciónalo.</li>
+                  <li>Haz clic en el botón azul de <strong>HABILITAR</strong> (Enable).</li>
+                  <li><em>Nota: Si la cuenta de Google con la que inicias sesión aquí no es la propietaria del proyecto, asegúrate de invitarla como Editor/Propietario desde Firebase Console {'>'} Project Settings {'>'} Users and Permissions.</em></li>
+                </ol>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button 
+                  onClick={() => setGoogleApiError(null)}
+                  className={`font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl transition-all ${theme === 'dark' ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-800'}`}
+                >
+                  Cerrar
+                </button>
+                <a 
+                  href={`https://console.cloud.google.com/apis/library/${googleApiError.apiName === 'Gmail API' ? 'gmail.googleapis.com' : 'sheets.googleapis.com'}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5"
+                >
+                  Ir a la Consola <ExternalLink size={12} />
+                </a>
+              </div>
             </div>
           </div>
         </div>
