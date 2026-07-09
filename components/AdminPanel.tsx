@@ -236,6 +236,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   // Mejoras: Google OAuth & Gmail API states
   const [googleUser, setGoogleUser] = useState<any>(null);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [isSyncingSheets, setIsSyncingSheets] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailModal, setEmailModal] = useState<{
     isOpen: boolean;
@@ -512,6 +514,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const handleGoogleSignInForGmail = async () => {
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/gmail.send');
+    provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+    provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+    provider.addScope('https://www.googleapis.com/auth/userinfo.email');
     try {
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -538,6 +543,163 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       console.error("Error al cerrar sesión:", err);
     }
   };
+
+  const handleSyncGoogleSheets = async () => {
+    if (!googleToken) {
+      alert("Inicia sesión con Google primero.");
+      return;
+    }
+    setIsSyncingSheets(true);
+    setSyncMessage('Iniciando sincronización...');
+    try {
+      const spreadsheetIdMatch = config.googleSheetUrl ? config.googleSheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) : null;
+      let spreadsheetId = spreadsheetIdMatch ? spreadsheetIdMatch[1] : null;
+
+      if (!spreadsheetId) {
+        setSyncMessage('Creando nueva hoja de cálculo...');
+        const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${googleToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            properties: {
+              title: 'Copa Navarra 2026 - Registro de Personal y Fichajes'
+            }
+          })
+         });
+         if (!createRes.ok) {
+           throw new Error('Error al crear la hoja de cálculo');
+         }
+         const createData = await createRes.json();
+         spreadsheetId = createData.spreadsheetId;
+         const spreadsheetUrl = createData.spreadsheetUrl;
+         
+         const newConfig = { ...config, googleSheetUrl: spreadsheetUrl };
+         await StorageService.saveConfig(newConfig);
+         setConfig(newConfig);
+       }
+
+       setSyncMessage('Creando pestañas (Personal, Obras, Fichajes)...');
+       try {
+         await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+           method: 'POST',
+           headers: {
+             'Authorization': `Bearer ${googleToken}`,
+             'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({
+             requests: [
+               { addSheet: { properties: { title: 'Personal' } } },
+               { addSheet: { properties: { title: 'Obras' } } },
+               { addSheet: { properties: { title: 'Fichajes' } } }
+             ]
+           })
+         });
+       } catch (e) {
+         // Las pestañas probablemente ya existen
+       }
+
+       const writeSheetData = async (sheetName: string, headers: string[], rows: any[][]) => {
+         // 1. Limpiar la hoja
+         await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}:clear`, {
+           method: 'POST',
+           headers: {
+             'Authorization': `Bearer ${googleToken}`
+           }
+         });
+
+         // 2. Escribir nuevos valores
+         const values = [headers, ...rows];
+         const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName + '!A1')}?valueInputOption=USER_ENTERED`, {
+           method: 'PUT',
+           headers: {
+             'Authorization': `Bearer ${googleToken}`,
+             'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({ values })
+         });
+         if (!response.ok) {
+           throw new Error(`Error escribiendo en la pestaña ${sheetName}`);
+         }
+       };
+
+       // Sincronizar Personal
+       setSyncMessage('Actualizando pestaña Personal...');
+       const personalHeaders = ['ID', 'Nombre', 'DNI/NIE', 'Teléfono', 'Email', 'Rol', 'Estado'];
+       const personalRows = workers.map(w => [w.id, w.name, w.dni, w.phone, w.email || '', w.role, w.active ? 'ACTIVO' : 'INACTIVO']);
+       await writeSheetData('Personal', personalHeaders, personalRows);
+
+       // Sincronizar Obras
+       setSyncMessage('Actualizando pestaña Obras...');
+       const obrasHeaders = ['ID', 'Nombre de Obra', 'Dirección', 'Estado', 'Latitud', 'Longitud'];
+       const obrasRows = sites.map(s => [s.id, s.name, s.address, s.active ? 'ACTIVO' : 'INACTIVO', s.lat || '', s.lng || '']);
+       await writeSheetData('Obras', obrasHeaders, obrasRows);
+
+       // Sincronizar Fichajes
+       setSyncMessage('Actualizando pestaña Fichajes...');
+       const fichajesHeaders = ['ID', 'Fecha', 'Hora', 'Operario', 'Obra', 'Tipo de Fichaje', 'Notas', 'Latitud', 'Longitud'];
+       const fichajesRows = logs.map(l => [l.id, l.dateStr, l.timeStr, l.workerName, l.siteName, l.type === 'in' ? 'ENTRADA' : 'SALIDA', l.notes || '', l.location?.latitude || '', l.location?.longitude || '']);
+       await writeSheetData('Fichajes', fichajesHeaders, fichajesRows);
+
+       setSyncMessage('¡Sincronizado con éxito!');
+       setTimeout(() => setSyncMessage(''), 4000);
+     } catch (err: any) {
+       console.error("Error al sincronizar con Google Sheets:", err);
+       alert("Error al sincronizar con Google Sheets: " + (err.message || err));
+       setSyncMessage('Fallo en la sincronización');
+     } finally {
+       setIsSyncingSheets(false);
+     }
+   };
+
+   const handleSendTestGmail = async () => {
+     if (!googleToken || !googleUser) {
+       alert("Inicia sesión con Google primero.");
+       return;
+     }
+     try {
+       const to = googleUser.email;
+       const subject = "🧪 Copa Navarra 2026 - Prueba de Integración de Gmail";
+       const body = `Hola ${googleUser.displayName},\n\nEste es un correo de prueba automático de la integración de Gmail de la aplicación "Copa Navarra - Torneo de Invierno 2026".\n\nTu cuenta se ha vinculado correctamente y tienes todos los permisos necesarios para enviar las nóminas oficiales de los operarios y sus certificados.\n\n¡Un saludo!`;
+
+       const nl = "\n";
+       const parts = [
+         `To: ${to}`,
+         `Subject: =?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+         "Content-Type: text/plain; charset=utf-8",
+         "MIME-Version: 1.0",
+         "",
+         body
+       ];
+       const emailContent = parts.join(nl);
+       const rawBase64 = btoa(unescape(encodeURIComponent(emailContent)))
+         .replace(/\+/g, '-')
+         .replace(/\//g, '_')
+         .replace(/=+$/, '');
+
+       const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+         method: 'POST',
+         headers: {
+           'Authorization': `Bearer ${googleToken}`,
+           'Content-Type': 'application/json',
+         },
+         body: JSON.stringify({ raw: rawBase64 })
+       });
+
+       if (response.ok) {
+         alert(`📧 ¡Éxito! Correo de prueba enviado correctamente a ${to}`);
+       } else {
+         const errData = await response.json();
+         console.error("Error Gmail API:", errData);
+         alert("Error al enviar correo vía Gmail: " + JSON.stringify(errData));
+       }
+     } catch (err: any) {
+       console.error("Error al enviar correo de prueba:", err);
+       alert("Error al enviar correo de prueba: " + err.message);
+     }
+   };
 
   const handleSendEmailWithCerts = async () => {
     const { worker, selectedCertIds, to, subject, body } = emailModal;
@@ -1067,10 +1229,146 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   }, [isSuperAdmin]);
 
   const renderDashboard = () => (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 animate-fadeIn">
-      <div className="bg-[var(--panel-bg)] p-6 rounded-[2rem] border border-[var(--panel-border)] shadow-xl"><Users className="text-blue-500 mb-2" size={32} /><h4 className="text-2xl font-black text-[var(--text-main)]">{workers.length}</h4><p className="text-[10px] text-[var(--text-muted)] font-bold uppercase">Personal</p></div>
-      <div className="bg-[var(--panel-bg)] p-6 rounded-[2rem] border border-[var(--panel-border)] shadow-xl"><MapPin className="text-emerald-500 mb-2" size={32} /><h4 className="text-2xl font-black text-[var(--text-main)]">{sites.length}</h4><p className="text-[10px] text-[var(--text-muted)] font-bold uppercase">Obras</p></div>
-      <div className="col-span-2 md:col-span-1 bg-[var(--panel-bg)] p-6 rounded-[2rem] border border-[var(--panel-border)] shadow-xl"><Zap className="text-amber-500 mb-2" size={32} /><h4 className="text-2xl font-black text-[var(--text-main)]">{logs.filter(l => l.dateStr === new Date().toLocaleDateString('es-ES')).length}</h4><p className="text-[10px] text-[var(--text-muted)] font-bold uppercase">Fichajes Hoy</p></div>
+    <div className="space-y-6 animate-fadeIn pb-32">
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="bg-[var(--panel-bg)] p-6 rounded-[2rem] border border-[var(--panel-border)] shadow-xl">
+          <Users className="text-blue-500 mb-2" size={32} />
+          <h4 className="text-2xl font-black text-[var(--text-main)]">{workers.length}</h4>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase">Personal</p>
+        </div>
+        <div className="bg-[var(--panel-bg)] p-6 rounded-[2rem] border border-[var(--panel-border)] shadow-xl">
+          <MapPin className="text-emerald-500 mb-2" size={32} />
+          <h4 className="text-2xl font-black text-[var(--text-main)]">{sites.length}</h4>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase">Obras</p>
+        </div>
+        <div className="col-span-2 md:col-span-1 bg-[var(--panel-bg)] p-6 rounded-[2rem] border border-[var(--panel-border)] shadow-xl">
+          <Zap className="text-amber-500 mb-2" size={32} />
+          <h4 className="text-2xl font-black text-[var(--text-main)]">{logs.filter(l => l.dateStr === new Date().toLocaleDateString('es-ES')).length}</h4>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase">Fichajes Hoy</p>
+        </div>
+      </div>
+
+      {/* Google Account Linking / Workspace Card */}
+      <div className="bg-[var(--panel-bg)] p-8 rounded-[2rem] border border-[var(--panel-border)] shadow-xl relative overflow-hidden">
+        {/* Decorative background glow */}
+        <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-[#CCFF00]/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -left-16 -top-16 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-1 rounded-full text-[8px] font-black tracking-wider uppercase font-sans border ${theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/20 text-[#CCFF00]' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                Google Workspace
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+            </div>
+            <h3 className="text-xl font-black text-[var(--text-main)] tracking-wider uppercase font-sans flex items-center gap-2" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+              <Shield className={theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} size={20} /> VINCULACIÓN DE CUENTA DE GOOGLE
+            </h3>
+            <p className="text-[11px] text-[var(--text-muted)] font-medium leading-relaxed font-sans">
+              Vincula tu cuenta de Google para exportar y sincronizar automáticamente toda la base de datos de operarios, fichajes y obras en tiempo real a Google Sheets, además de habilitar el envío oficial de nóminas y certificados vía Gmail.
+            </p>
+          </div>
+
+          <div className="shrink-0">
+            {googleUser ? (
+              <div className={`flex items-center gap-3 p-3 rounded-2xl border ${theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-white border-zinc-200 shadow-sm'}`}>
+                {googleUser.photoURL ? (
+                  <img src={googleUser.photoURL} alt={googleUser.displayName} className={`w-9 h-9 rounded-xl border ${theme === 'dark' ? 'border-[#CCFF00]/20' : 'border-zinc-200'}`} referrerPolicy="no-referrer" />
+                ) : (
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black border ${theme === 'dark' ? 'bg-blue-500/10 text-[#CCFF00] border-[#CCFF00]/10' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                    {googleUser.displayName?.charAt(0) || 'G'}
+                  </div>
+                )}
+                <div>
+                  <h4 className="text-xs font-black text-[var(--text-main)] leading-tight">{googleUser.displayName}</h4>
+                  <p className="text-[9px] text-[var(--text-muted)] font-medium font-mono">{googleUser.email}</p>
+                </div>
+                <button onClick={handleGoogleSignOut} className={`ml-2 p-2 text-[10px] font-black tracking-widest uppercase font-sans rounded-xl transition-all ${theme === 'dark' ? 'text-rose-500 hover:text-rose-400 hover:bg-rose-500/10' : 'text-rose-600 hover:text-rose-700 hover:bg-rose-50'}`}>
+                  Salir
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleGoogleSignInForGmail}
+                className={`w-full md:w-auto font-black py-3.5 px-6 rounded-xl uppercase text-[10px] tracking-wider transition-all duration-300 shadow-lg active:scale-95 flex items-center justify-center gap-2.5 font-sans border ${theme === 'dark' ? 'bg-transparent border-[#CCFF00]/50 hover:bg-[#CCFF00] hover:text-black text-[#CCFF00]' : 'bg-[#CCFF00] border-[#b8e600] text-black hover:bg-[#b8e600]'}`}
+              >
+                <KeyRound size={14} /> VINCULAR CUENTA GOOGLE
+              </button>
+            )}
+          </div>
+        </div>
+
+        {googleUser && (
+          <div className="mt-8 pt-6 border-t border-[var(--panel-border)] grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+            {/* Sheets Sync Box */}
+            <div className={`p-5 rounded-2xl border space-y-4 ${theme === 'dark' ? 'bg-zinc-950/40 border-zinc-800/60' : 'bg-white border-zinc-200/80 shadow-sm'}`}>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2">
+                  <FileText className={theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} size={16} /> Sincronización Google Sheets
+                </h4>
+                {config.googleSheetUrl ? (
+                  <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-lg uppercase">
+                    Vinculada
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-zinc-800 text-zinc-500 text-[8px] font-black rounded-lg uppercase">
+                    Sin Vincular
+                  </span>
+                )}
+              </div>
+
+              {config.googleSheetUrl && (
+                <div className="space-y-1.5">
+                  <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Enlace de la Hoja:</p>
+                  <a href={config.googleSheetUrl} target="_blank" rel="noopener noreferrer" className={`text-[10px] hover:underline flex items-center gap-1 font-mono truncate max-w-full ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                    {config.googleSheetUrl} <ExternalLink size={10} className="shrink-0" />
+                  </a>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <button
+                  disabled={isSyncingSheets}
+                  onClick={handleSyncGoogleSheets}
+                  className="flex-1 bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black text-[10px] font-black tracking-widest py-3 px-4 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-[#CCFF00]/5"
+                >
+                  <RefreshCw size={12} className={isSyncingSheets ? 'animate-spin' : ''} />
+                  {isSyncingSheets ? 'SINCRONIZANDO...' : config.googleSheetUrl ? 'SINCRONIZAR DATOS' : 'CREAR HOJA EN DRIVE'}
+                </button>
+              </div>
+
+              {syncMessage && (
+                <p className={`text-[9px] font-black uppercase tracking-widest py-2 px-3 rounded-lg text-center animate-fadeIn animate-pulse ${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/20' : 'text-emerald-800 bg-emerald-50 border border-emerald-100'}`}>
+                  {syncMessage}
+                </p>
+              )}
+            </div>
+
+            {/* Gmail Verification Box */}
+            <div className={`p-5 rounded-2xl border space-y-4 flex flex-col justify-between ${theme === 'dark' ? 'bg-zinc-950/40 border-zinc-800/60' : 'bg-white border-zinc-200/80 shadow-sm'}`}>
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2">
+                  <Mail className={theme === 'dark' ? 'text-blue-400' : 'text-blue-600'} size={16} /> Estado del Servicio Gmail
+                </h4>
+                <p className="text-[10px] text-[var(--text-muted)] leading-relaxed font-sans">
+                  La integración de Gmail te permite enviar notificaciones oficiales, nóminas mensuales firmadas digitalmente y certificados técnicos del personal directamente desde tu correo corporativo o personal.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={handleSendTestGmail}
+                  className={`w-full text-[10px] font-black tracking-widest py-3 px-4 rounded-xl uppercase transition-all border flex items-center justify-center gap-2 ${theme === 'dark' ? 'bg-zinc-900 hover:bg-zinc-800 text-white border-zinc-800' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-300'}`}
+                >
+                  <Send size={12} /> ENVIAR CORREO DE PRUEBA
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 
