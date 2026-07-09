@@ -1401,15 +1401,32 @@ export const App: React.FC = () => {
     // Filter active workers except me
     const otherWorkers = workers.filter(w => w.id !== selectedWorker.id && w.active);
 
-    // Filter messages for current active partner
+    // Filter messages for current active partner and sort chronologically
     const activeMessages = chats.filter(c => 
       (c.senderId === selectedWorker.id && c.receiverId === activeChatPartnerId) ||
       (c.senderId === activeChatPartnerId && c.receiverId === selectedWorker.id)
-    );
+    ).sort((a, b) => a.timestamp - b.timestamp);
 
     const partnerUnreadCount = (partnerId: string) => {
       return chats.filter(c => c.senderId === partnerId && c.receiverId === selectedWorker.id && !c.read).length;
     };
+
+    const getMostRecentMessageTimestamp = (partnerId: string) => {
+      const msgs = chats.filter(c => 
+        (c.senderId === selectedWorker.id && c.receiverId === partnerId) ||
+        (c.senderId === partnerId && c.receiverId === selectedWorker.id)
+      );
+      if (msgs.length === 0) return 0;
+      return Math.max(...msgs.map(m => m.timestamp));
+    };
+
+    const sortedOtherWorkers = [...otherWorkers].sort((a, b) => {
+      return getMostRecentMessageTimestamp(b.id) - getMostRecentMessageTimestamp(a.id);
+    });
+
+    const lastBossMsg = chats
+      .filter(c => (c.senderId === 'ADMIN' && c.receiverId === selectedWorker.id) || (c.senderId === selectedWorker.id && c.receiverId === 'ADMIN'))
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
 
     return (
       <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4 text-[var(--text-main)]">
@@ -1448,18 +1465,21 @@ export const App: React.FC = () => {
                   : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-white font-black shadow-md border border-yellow-400/20">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-white font-black shadow-md border border-yellow-400/20 shrink-0">
                   👑
                 </div>
-                <div>
+                <div className="overflow-hidden">
                   <h4 className="text-xs font-black uppercase tracking-wide">EL JEFE</h4>
                   <p className="text-[9px] text-[var(--text-muted)] font-medium">Administrador Principal</p>
+                  {lastBossMsg && (
+                    <p className="text-[9px] text-slate-400 truncate mt-0.5 max-w-[140px]">{lastBossMsg.text}</p>
+                  )}
                 </div>
               </div>
               
               {partnerUnreadCount('ADMIN') > 0 && (
-                <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)]">
+                <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2">
                   {partnerUnreadCount('ADMIN')}
                 </span>
               )}
@@ -1467,13 +1487,16 @@ export const App: React.FC = () => {
 
             {/* Other Workers list */}
             <div className="space-y-2 mt-1">
-              <span className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase block mb-1">Compañeros ({otherWorkers.length})</span>
-              {otherWorkers.length === 0 ? (
+              <span className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase block mb-1">Compañeros ({sortedOtherWorkers.length})</span>
+              {sortedOtherWorkers.length === 0 ? (
                 <p className="text-[10px] text-[var(--text-muted)] italic text-center py-4">No hay otros operarios disponibles.</p>
               ) : (
-                otherWorkers.map(w => {
+                sortedOtherWorkers.map(w => {
                   const isSelected = activeChatPartnerId === w.id;
                   const unread = partnerUnreadCount(w.id);
+                  const lastMsg = chats
+                    .filter(c => (c.senderId === w.id && c.receiverId === selectedWorker.id) || (c.senderId === selectedWorker.id && c.receiverId === w.id))
+                    .sort((a, b) => b.timestamp - a.timestamp)[0];
                   return (
                     <button 
                       key={w.id}
@@ -1484,22 +1507,25 @@ export const App: React.FC = () => {
                           : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 overflow-hidden">
                         {w.photoUrl ? (
-                          <img src={w.photoUrl} alt={w.name} className="w-10 h-10 rounded-full object-cover border border-white/10" />
+                          <img src={w.photoUrl} alt={w.name} className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0" />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-black text-xs text-slate-300 uppercase">
+                          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-black text-xs text-slate-300 uppercase shrink-0">
                             {w.name.charAt(0)}
                           </div>
                         )}
-                        <div>
+                        <div className="overflow-hidden">
                           <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] truncate max-w-[140px]">{w.name}</h4>
                           <p className="text-[9px] text-[var(--text-muted)] font-medium">{w.role || 'Operario'}</p>
+                          {lastMsg && (
+                            <p className="text-[9px] text-slate-400 truncate mt-0.5 max-w-[140px]">{lastMsg.text}</p>
+                          )}
                         </div>
                       </div>
 
                       {unread > 0 && (
-                        <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)]">
+                        <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2">
                           {unread}
                         </span>
                       )}

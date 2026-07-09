@@ -2558,15 +2558,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   };
 
   const renderChat = () => {
-    // Filter out messages with the selected worker
+    // Filter out messages with the selected worker and sort chronologically
     const activeMessages = chats.filter(c => 
       (c.senderId === 'ADMIN' && c.receiverId === activeWorkerChatId) ||
       (c.senderId === activeWorkerChatId && c.receiverId === 'ADMIN')
-    );
+    ).sort((a, b) => a.timestamp - b.timestamp);
 
     const partnerUnreadCount = (workerId: string) => {
       return chats.filter(c => c.senderId === workerId && c.receiverId === 'ADMIN' && !c.read).length;
     };
+
+    const getMostRecentMessageTimestamp = (workerId: string) => {
+      const msgs = chats.filter(c => 
+        (c.senderId === workerId && c.receiverId === 'ADMIN') ||
+        (c.senderId === 'ADMIN' && c.receiverId === workerId)
+      );
+      if (msgs.length === 0) return 0;
+      return Math.max(...msgs.map(m => m.timestamp));
+    };
+
+    const sortedWorkers = [...workers].sort((a, b) => {
+      return getMostRecentMessageTimestamp(b.id) - getMostRecentMessageTimestamp(a.id);
+    });
 
     return (
       <div className="flex flex-col md:h-[calc(100vh-10rem)] animate-fadeIn text-[var(--text-main)] pb-24 md:pb-0">
@@ -2582,13 +2595,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           <div className={`md:col-span-4 bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-[2rem] p-4 flex flex-col gap-3 md:h-full overflow-y-auto custom-scrollbar shadow-[var(--panel-shadow)] ${
             activeWorkerChatId ? 'hidden md:flex' : 'flex'
           }`}>
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--panel-border)] pb-2">Operarios</h3>
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--panel-border)] pb-2">Operarios</h3>
             
             <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar">
-              {workers.length === 0 ? (
+              {sortedWorkers.length === 0 ? (
                 <p className="text-xs text-[var(--text-muted)] italic text-center py-8">No hay operarios registrados.</p>
               ) : (
-                workers.map(w => {
+                sortedWorkers.map(w => {
                   const isSelected = activeWorkerChatId === w.id;
                   const unread = partnerUnreadCount(w.id);
                   const lastMsg = chats
