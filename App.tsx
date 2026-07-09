@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   User, MapPin, CheckCircle, 
-  LogOut, Coffee, ArrowRight, ShieldAlert, Lock, Fingerprint, Delete, UserPlus, Save, ChevronLeft, Calendar, History, Clock, Smartphone, X, Mic, MicOff, FileText, Cloud, ExternalLink, Briefcase, Phone, KeyRound, BellRing, Search, Download, CalendarDays, Zap, Wrench, Package, Info, Plus, Trash2, Timer, Filter, ChevronDown, Shield, AlertTriangle, AlertCircle, Image as ImageIcon, Upload, ClipboardList, Sun, Moon
+  LogOut, Coffee, ArrowRight, ShieldAlert, Lock, Fingerprint, Delete, UserPlus, Save, ChevronLeft, Calendar, History, Clock, Smartphone, X, Mic, MicOff, FileText, Cloud, ExternalLink, Briefcase, Phone, KeyRound, BellRing, Search, Download, CalendarDays, Zap, Wrench, Package, Info, Plus, Trash2, Timer, Filter, ChevronDown, Shield, AlertTriangle, AlertCircle, Image as ImageIcon, Upload, ClipboardList, Sun, Moon, Eye, MessageSquare, Send
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { StorageService, ELECTRICAL_TOOLS_LIST, ELECTRICAL_BRANDS_LIST, compressImage } from './services/storageService';
 import { LocationService } from './services/locationService';
 import { TelegramService } from './services/telegramService';
-import { Worker, Site, WorkLog, LogType, GeoLocationData, WorkMode, AdminUser, ToolRecord, AppConfig, WeeklyReport, Payslip } from './types';
+import { Worker, Site, WorkLog, LogType, GeoLocationData, WorkMode, AdminUser, ToolRecord, AppConfig, WeeklyReport, Payslip, ChatMessage } from './types';
 import { AdminPanel } from './components/AdminPanel';
 import { InstallTutorial } from './components/InstallTutorial';
 import { ConfirmationModal } from './components/ConfirmationModal';
@@ -22,6 +22,8 @@ enum Step {
   WORKER_REPORTS = 18,
   WORKER_PAYSLIPS = 19,
   WORKER_PROFILE = 20,
+  WORKER_SETTINGS = 21,
+  WORKER_CHAT = 22,
   SELECT_SITE = 2,
   SELECT_ACTION = 3,
   REPORT_EXIT = 4, 
@@ -152,6 +154,7 @@ export const App: React.FC = () => {
   // Worker Profile States and Refs
   const workerPhotoInputRef = useRef<HTMLInputElement>(null);
   const certFileInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const [certNameInput, setCertNameInput] = useState('');
   
   const [exitReportText, setExitReportText] = useState('');
@@ -171,9 +174,17 @@ export const App: React.FC = () => {
   const [myReports, setMyReports] = useState<WeeklyReport[]>([]);
   const [myPayslips, setMyPayslips] = useState<Payslip[]>([]);
   const [reportPhoto, setReportPhoto] = useState<string | null>(null);
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
   const [reportComments, setReportComments] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
   const [selectedPayslipMonth, setSelectedPayslipMonth] = useState(new Date().toISOString().substring(0, 7));
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+
+  // Chat states
+  const [chats, setChats] = useState<ChatMessage[]>([]);
+  const [activeChatPartnerId, setActiveChatPartnerId] = useState<string | null>(null);
+  const [chatMessageInput, setChatMessageInput] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => setIsAppLoading(false), 2000);
@@ -187,6 +198,7 @@ export const App: React.FC = () => {
     setAdmins(StorageService.getAdmins());
     setAllTools(StorageService.getTools());
     setAppConfig(StorageService.getConfig());
+    setChats(StorageService.getChats());
 
     // Check for existing session
     const savedWorkerId = localStorage.getItem('carmagne_session_worker_id');
@@ -214,9 +226,10 @@ export const App: React.FC = () => {
     const unsubConfig = StorageService.subscribeToConfig(setAppConfig);
     const unsubReports = StorageService.subscribeToReports(setMyReports);
     const unsubPayslips = StorageService.subscribeToPayslips(setMyPayslips);
+    const unsubChats = StorageService.subscribeToChats(setChats);
     return () => {
       clearTimeout(timer); clearInterval(interval);
-      unsubWorkers(); unsubSites(); unsubLogs(); unsubAdmins(); unsubTools(); unsubConfig(); unsubReports(); unsubPayslips();
+      unsubWorkers(); unsubSites(); unsubLogs(); unsubAdmins(); unsubTools(); unsubConfig(); unsubReports(); unsubPayslips(); unsubChats();
     };
   }, []);
 
@@ -230,6 +243,11 @@ export const App: React.FC = () => {
     }
     return base;
   }, [allTools, selectedWorker, toolSearch]);
+
+  const unreadChatsCount = useMemo(() => {
+    if (!selectedWorker) return 0;
+    return chats.filter(c => c.receiverId === selectedWorker.id && !c.read).length;
+  }, [chats, selectedWorker]);
 
   const filteredHistory = useMemo(() => {
     if (!selectedWorker) return [];
@@ -569,10 +587,25 @@ export const App: React.FC = () => {
               <div className="text-fuchsia-500 bg-fuchsia-500/10 p-3 rounded-2xl border border-fuchsia-500/10"><FileText size={24} /></div>
               <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Nóminas</span>
             </button>
-            {/* Navigation: Profile (Spans full width) */}
-            <button onClick={() => setCurrentStep(Step.WORKER_PROFILE)} className="col-span-2 bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex items-center justify-center gap-3 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
-              <div className="text-blue-500 bg-blue-500/10 p-2.5 rounded-xl border border-blue-500/10"><User size={20} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Ver Mi Perfil & Certificados</span>
+            {/* Navigation: Profile */}
+            <button onClick={() => setCurrentStep(Step.WORKER_PROFILE)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
+              <div className="text-blue-500 bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10"><User size={24} /></div>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mi Perfil</span>
+            </button>
+            {/* Navigation: Settings */}
+            <button onClick={() => setCurrentStep(Step.WORKER_SETTINGS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-purple-500/30 transition-all duration-300">
+              <div className="text-purple-500 bg-purple-500/10 p-3 rounded-2xl border border-purple-500/10"><BellRing size={24} /></div>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Ajustes</span>
+            </button>
+            {/* Navigation: Chat / Mensajes */}
+            <button onClick={() => setCurrentStep(Step.WORKER_CHAT)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-[#CCFF00]/30 transition-all duration-300 relative">
+              {unreadChatsCount > 0 && (
+                <div className="absolute top-2 right-2 bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(204,255,0,0.4)]">
+                  {unreadChatsCount}
+                </div>
+              )}
+              <div className="text-[#CCFF00] bg-[#CCFF00]/10 p-3 rounded-2xl border border-[#CCFF00]/10"><MessageSquare size={24} /></div>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mensajes</span>
             </button>
           </div>
         </div>
@@ -712,6 +745,10 @@ export const App: React.FC = () => {
       alert("Por favor toma o sube una foto de tu parte semanal.");
       return;
     }
+    if (!reportStartDate || !reportEndDate) {
+      alert("Por favor selecciona las fechas de inicio y fin del período que cubre el parte.");
+      return;
+    }
     setSubmittingReport(true);
     try {
       const response = await fetch('/api/gemini/analyze-sheet', {
@@ -722,6 +759,11 @@ export const App: React.FC = () => {
       const data = await response.json();
       const parsedData = data.result || {};
       
+      // Formato legible para el rango de fechas seleccionado
+      const startFormatted = new Date(reportStartDate).toLocaleDateString('es-ES');
+      const endFormatted = new Date(reportEndDate).toLocaleDateString('es-ES');
+      const selectedRange = `${startFormatted} al ${endFormatted}`;
+
       const newReport: WeeklyReport = {
         id: `REP-${Date.now()}`,
         workerId: selectedWorker!.id,
@@ -729,22 +771,27 @@ export const App: React.FC = () => {
         dateStr: new Date().toLocaleDateString('es-ES'),
         timestamp: Date.now(),
         photoUrl: reportPhoto,
+        startDate: reportStartDate,
+        endDate: reportEndDate,
         comments: reportComments,
         status: 'PENDING',
         isAiParsed: true,
-        extractedDates: parsedData.dates,
+        extractedDates: parsedData.dates || selectedRange,
         extractedTasks: parsedData.tasks,
         extractedHours: Number(parsedData.hours) || 0,
-        extractedTotal: parsedData.total
+        extractedTotal: parsedData.total,
+        dailyHours: parsedData.dailyHours || []
       };
 
       await StorageService.addReport(newReport);
 
-      const msg = `👷‍♂️ <b>Nuevo Parte Semanal Subido (IA)</b>\n👤 Operario: <b>${selectedWorker!.name}</b>\n📅 Envío: ${newReport.dateStr}\n\n🤖 <i>Gemini ha extraído del documento:</i>\n📅 Fechas: ${parsedData.dates || '-'}\n📊 Horas totales: ${parsedData.hours || 0}h\n💰 Total: ${parsedData.total || '-'}`;
+      const msg = `👷‍♂️ <b>Nuevo Parte Semanal Subido (IA)</b>\n👤 Operario: <b>${selectedWorker!.name}</b>\n📅 Período: ${selectedRange}\n📅 Envío: ${newReport.dateStr}\n\n🤖 <i>Gemini ha extraído del documento:</i>\n📅 Fechas: ${parsedData.dates || '-'}\n📊 Horas totales: ${parsedData.hours || 0}h\n💰 Total: ${parsedData.total || '-'}`;
       TelegramService.enviarNotificacionTelegram(msg);
 
       alert("Parte semanal enviado correctamente para revisión.");
       setReportPhoto(null);
+      setReportStartDate('');
+      setReportEndDate('');
       setReportComments('');
       setCurrentStep(Step.WORKER_DASHBOARD);
     } catch (err) {
@@ -753,6 +800,54 @@ export const App: React.FC = () => {
       setSubmittingReport(false);
     }
   };
+
+  const handleDeleteReport = async (reportId: string) => {
+    if (confirm("¿Estás seguro de que deseas eliminar este parte de trabajo?")) {
+      try {
+        await StorageService.deleteReport(reportId);
+      } catch (err) {
+        alert("Error al eliminar el parte.");
+      }
+    }
+  };
+
+  const handleSendWorkerMessage = async () => {
+    if (!chatMessageInput.trim() || !selectedWorker || !activeChatPartnerId) return;
+
+    const partnerName = activeChatPartnerId === 'ADMIN' ? 'El Jefe' : (workers.find(w => w.id === activeChatPartnerId)?.name || 'Compañero');
+
+    const msg: ChatMessage = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      senderId: selectedWorker.id,
+      senderName: selectedWorker.name,
+      receiverId: activeChatPartnerId,
+      receiverName: partnerName,
+      text: chatMessageInput.trim(),
+      timestamp: Date.now(),
+      dateStr: new Date().toLocaleDateString('es-ES'),
+      timeStr: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      read: false
+    };
+
+    try {
+      await StorageService.sendMessage(msg);
+      setChatMessageInput('');
+    } catch (err) {
+      alert("Error al enviar el mensaje.");
+    }
+  };
+
+  useEffect(() => {
+    if (currentStep === Step.WORKER_CHAT && selectedWorker && activeChatPartnerId) {
+      StorageService.markMessagesAsRead(activeChatPartnerId, selectedWorker.id);
+    }
+  }, [currentStep, activeChatPartnerId, chats, selectedWorker]);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chats, activeChatPartnerId, currentStep]);
 
   const handleWorkerPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -937,7 +1032,7 @@ export const App: React.FC = () => {
 
           {/* Certificados / Documentos section */}
           <div className="space-y-4">
-            <div className="border-t border-[var(--panel-border)] pt-5">
+            <div className="border-t border-[var(--panel-border)] pt-5 text-center sm:text-left">
               <h4 className="text-sm font-black text-[var(--text-main)] uppercase tracking-widest">Mis Certificados y Documentos</h4>
               <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Sube y gestiona tus aptitudes médicas, prevención, etc.</p>
             </div>
@@ -1008,8 +1103,362 @@ export const App: React.FC = () => {
     );
   };
 
+  const renderWorkerSettings = () => {
+    if (!selectedWorker) return null;
+
+    // Default to true if not set
+    const notifyCheckIn = selectedWorker.notificationPreferences?.notifyCheckIn ?? true;
+    const notifyCertificates = selectedWorker.notificationPreferences?.notifyCertificates ?? true;
+
+    const handleToggleCheckIn = async () => {
+      const updatedPrefs = {
+        ...(selectedWorker.notificationPreferences || {}),
+        notifyCheckIn: !notifyCheckIn
+      };
+      const updatedWorker = {
+        ...selectedWorker,
+        notificationPreferences: updatedPrefs
+      };
+      const updatedList = workers.map(w => w.id === selectedWorker.id ? updatedWorker : w);
+      try {
+        await StorageService.saveWorkers(updatedList);
+        setWorkers(updatedList);
+        setSelectedWorker(updatedWorker);
+      } catch (err) {
+        console.error("Error updating settings:", err);
+        alert("Error al guardar la configuración en Firebase.");
+      }
+    };
+
+    const handleToggleCertificates = async () => {
+      const updatedPrefs = {
+        ...(selectedWorker.notificationPreferences || {}),
+        notifyCertificates: !notifyCertificates
+      };
+      const updatedWorker = {
+        ...selectedWorker,
+        notificationPreferences: updatedPrefs
+      };
+      const updatedList = workers.map(w => w.id === selectedWorker.id ? updatedWorker : w);
+      try {
+        await StorageService.saveWorkers(updatedList);
+        setWorkers(updatedList);
+        setSelectedWorker(updatedWorker);
+      } catch (err) {
+        console.error("Error updating settings:", err);
+        alert("Error al guardar la configuración en Firebase.");
+      }
+    };
+
+    return (
+      <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4 text-[var(--text-main)]">
+        <div className="flex items-center gap-4 mb-6 shrink-0">
+          <button 
+            onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} 
+            className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10 active:scale-95 transition-all"
+          >
+            <ChevronLeft size={20}/>
+          </button>
+          <div>
+            <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Ajustes del Sistema</h2>
+            <p className="text-[10px] text-purple-500 font-bold uppercase tracking-widest">Gestión de notificaciones y avisos</p>
+          </div>
+        </div>
+
+        <div className="md:flex-1 md:overflow-y-auto space-y-6 pb-6 custom-scrollbar pr-1">
+          {/* Settings Section Card */}
+          <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] p-6 rounded-[2rem] shadow-[var(--panel-shadow)] space-y-6">
+            <div className="flex items-center gap-3 border-b border-[var(--panel-border)] pb-4">
+              <div className="p-2 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/10">
+                <BellRing size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)]">Preferencias de Alertas</h3>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-tight">Activa o desactiva las notificaciones automáticas</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Option 1: Fichajes */}
+              <div className="flex items-center justify-between p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl">
+                <div className="space-y-0.5 flex-1 pr-4">
+                  <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] flex items-center gap-1.5">
+                    <Zap size={14} className="text-[#CCFF00]" /> Notificación de Fichajes
+                  </h4>
+                  <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
+                    Avisos en tiempo real al registrar tu entrada, salida o periodos de descanso.
+                  </p>
+                </div>
+                <button 
+                  onClick={handleToggleCheckIn}
+                  className="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none select-none min-h-[44px] min-w-[56px] flex items-center p-1"
+                  style={{ backgroundColor: notifyCheckIn ? '#CCFF00' : '#27272a' }}
+                >
+                  <span 
+                    className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 absolute"
+                    style={{ 
+                      transform: notifyCheckIn ? 'translateX(26px)' : 'translateX(4px)',
+                      backgroundColor: notifyCheckIn ? '#050505' : '#ffffff'
+                    }}
+                  />
+                </button>
+              </div>
+
+              {/* Option 2: Certificados */}
+              <div className="flex items-center justify-between p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl">
+                <div className="space-y-0.5 flex-1 pr-4">
+                  <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] flex items-center gap-1.5">
+                    <FileText size={14} className="text-[#CCFF00]" /> Recordatorios de Certificados
+                  </h4>
+                  <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
+                    Avisos y alertas previas a la caducidad de certificados médicos o de prevención.
+                  </p>
+                </div>
+                <button 
+                  onClick={handleToggleCertificates}
+                  className="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none select-none min-h-[44px] min-w-[56px] flex items-center p-1"
+                  style={{ backgroundColor: notifyCertificates ? '#CCFF00' : '#27272a' }}
+                >
+                  <span 
+                    className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 absolute"
+                    style={{ 
+                      transform: notifyCertificates ? 'translateX(26px)' : 'translateX(4px)',
+                      backgroundColor: notifyCertificates ? '#050505' : '#ffffff'
+                    }}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Context Info Banner */}
+          <div className="bg-purple-500/5 border border-purple-500/10 p-5 rounded-3xl flex gap-3.5 items-start">
+            <Info size={18} className="text-purple-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-purple-400">Sincronización en la Nube</h4>
+              <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
+                Tus preferencias se guardan de forma segura en tu perfil de operario. La empresa respetará tu elección para el envío de alertas automatizadas.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderWorkerChat = () => {
+    if (!selectedWorker) return null;
+
+    // Filter active workers except me
+    const otherWorkers = workers.filter(w => w.id !== selectedWorker.id && w.active);
+
+    // Filter messages for current active partner
+    const activeMessages = chats.filter(c => 
+      (c.senderId === selectedWorker.id && c.receiverId === activeChatPartnerId) ||
+      (c.senderId === activeChatPartnerId && c.receiverId === selectedWorker.id)
+    );
+
+    const partnerUnreadCount = (partnerId: string) => {
+      return chats.filter(c => c.senderId === partnerId && c.receiverId === selectedWorker.id && !c.read).length;
+    };
+
+    return (
+      <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4 text-[var(--text-main)]">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-4 shrink-0">
+          <button 
+            onClick={() => {
+              setCurrentStep(Step.WORKER_DASHBOARD);
+              setActiveChatPartnerId(null);
+            }} 
+            className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10 active:scale-95 transition-all"
+          >
+            <ChevronLeft size={20}/>
+          </button>
+          <div>
+            <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight font-sans">Mensajería Interna</h2>
+            <p className="text-[10px] text-[#CCFF00] font-bold uppercase tracking-widest">Contacto directo entre compañeros y jefe</p>
+          </div>
+        </div>
+
+        {/* Two-Column Chat Area */}
+        <div className="flex flex-col md:grid md:grid-cols-12 gap-4 md:flex-1 md:overflow-hidden min-h-[480px]">
+          
+          {/* LEFT COLUMN: Contacts */}
+          <div className={`md:col-span-4 bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] rounded-[2rem] p-4 flex flex-col gap-3 md:h-full overflow-y-auto custom-scrollbar shadow-[var(--panel-shadow)] ${
+            activeChatPartnerId ? 'hidden md:flex' : 'flex'
+          }`}>
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--panel-border)] pb-2">Canales de Chat</h3>
+            
+            {/* El Jefe (Admin/Boss) option */}
+            <button 
+              onClick={() => setActiveChatPartnerId('ADMIN')}
+              className={`flex items-center justify-between p-3 rounded-2xl border transition-all text-left ${
+                activeChatPartnerId === 'ADMIN' 
+                  ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' 
+                  : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-white font-black shadow-md border border-yellow-400/20">
+                  👑
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wide">EL JEFE</h4>
+                  <p className="text-[9px] text-[var(--text-muted)] font-medium">Administrador Principal</p>
+                </div>
+              </div>
+              
+              {partnerUnreadCount('ADMIN') > 0 && (
+                <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)]">
+                  {partnerUnreadCount('ADMIN')}
+                </span>
+              )}
+            </button>
+
+            {/* Other Workers list */}
+            <div className="space-y-2 mt-1">
+              <span className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase block mb-1">Compañeros ({otherWorkers.length})</span>
+              {otherWorkers.length === 0 ? (
+                <p className="text-[10px] text-[var(--text-muted)] italic text-center py-4">No hay otros operarios disponibles.</p>
+              ) : (
+                otherWorkers.map(w => {
+                  const isSelected = activeChatPartnerId === w.id;
+                  const unread = partnerUnreadCount(w.id);
+                  return (
+                    <button 
+                      key={w.id}
+                      onClick={() => setActiveChatPartnerId(w.id)}
+                      className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all text-left ${
+                        isSelected 
+                          ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' 
+                          : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {w.photoUrl ? (
+                          <img src={w.photoUrl} alt={w.name} className="w-10 h-10 rounded-full object-cover border border-white/10" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-black text-xs text-slate-300 uppercase">
+                            {w.name.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] truncate max-w-[140px]">{w.name}</h4>
+                          <p className="text-[9px] text-[var(--text-muted)] font-medium">{w.role || 'Operario'}</p>
+                        </div>
+                      </div>
+
+                      {unread > 0 && (
+                        <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)]">
+                          {unread}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Active Chat Box */}
+          <div className={`md:col-span-8 bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] rounded-[2rem] p-4 flex flex-col md:h-full justify-between shadow-[var(--panel-shadow)] min-h-[400px] ${
+            activeChatPartnerId ? 'flex' : 'hidden md:flex'
+          }`}>
+            {activeChatPartnerId ? (
+              <>
+                {/* Active Partner Header */}
+                <div className="flex items-center justify-between border-b border-[var(--panel-border)] pb-3 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => setActiveChatPartnerId(null)} 
+                      className="md:hidden p-2 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-muted)] hover:text-white"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-2 font-sans">
+                        {activeChatPartnerId === 'ADMIN' ? '👑 EL JEFE' : workers.find(w => w.id === activeChatPartnerId)?.name}
+                      </h3>
+                      <p className="text-[9px] text-[#CCFF00] font-bold uppercase tracking-widest">Chat individual seguro</p>
+                    </div>
+                  </div>
+
+                  <span className="text-[9px] text-[var(--text-muted)] font-bold tracking-widest uppercase font-mono">Canal Directo</span>
+                </div>
+
+                {/* Messages Feed */}
+                <div className="flex-1 overflow-y-auto my-3 p-2 space-y-3 custom-scrollbar min-h-[250px] max-h-[350px] md:max-h-none">
+                  {activeMessages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-10 opacity-60">
+                      <MessageSquare size={32} className="text-[var(--text-muted)] mb-2" />
+                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">No hay mensajes anteriores</p>
+                      <p className="text-[9px] font-medium text-[var(--text-muted)] mt-1">Escribe un mensaje abajo para iniciar la conversación.</p>
+                    </div>
+                  ) : (
+                    activeMessages.map(m => {
+                      const isMe = m.senderId === selectedWorker.id;
+                      return (
+                        <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm text-xs ${
+                            isMe 
+                              ? 'bg-[#CCFF00] text-black font-medium rounded-tr-none' 
+                              : 'bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[var(--text-main)] rounded-tl-none'
+                          }`}>
+                            <p className="whitespace-pre-wrap leading-relaxed break-words">{m.text}</p>
+                            <div className="flex items-center justify-end gap-1 mt-1 opacity-60 text-[8px] font-mono">
+                              <span>{m.timeStr}</span>
+                              {isMe && (
+                                <span className={m.read ? 'text-blue-500 font-bold' : 'text-slate-400'}>
+                                  {m.read ? '✓✓' : '✓'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Message Input Bar */}
+                <div className="border-t border-[var(--panel-border)] pt-3 flex items-center gap-2 shrink-0">
+                  <input 
+                    type="text" 
+                    value={chatMessageInput}
+                    onChange={(e) => setChatMessageInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendWorkerMessage(); }}
+                    className="flex-1 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-xl px-4 py-3 text-xs outline-none focus:border-[#CCFF00]"
+                    placeholder="Escribe un mensaje..."
+                  />
+                  <button 
+                    onClick={handleSendWorkerMessage}
+                    className="p-3 bg-[#CCFF00] text-black rounded-xl hover:bg-[#e1ff33] active:scale-95 transition-all shadow-md shadow-[#CCFF00]/10 flex items-center justify-center"
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center py-20 opacity-60">
+                <div className="p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-[2rem] text-[var(--text-muted)] mb-4">
+                  <MessageSquare size={36} />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)]">Selecciona un Canal</h3>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1 max-w-[240px] mx-auto leading-relaxed">
+                  Elige a un compañero o al jefe en la lista de la izquierda para ver el historial y enviarle un mensaje directo.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderWorkerReports = () => {
-    const reportsForMe = myReports.filter(r => r.workerId === selectedWorker?.id);
+    const reportsForMe = myReports.filter(r => r.workerId === selectedWorker?.id && r.startDate && r.endDate);
     return (
       <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden">
         <div className="flex items-center gap-4 mb-4 shrink-0">
@@ -1023,6 +1472,33 @@ export const App: React.FC = () => {
           <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] space-y-4">
             <h3 className="text-sm font-black text-[var(--text-main)] uppercase tracking-wide">Subir Parte de Trabajo</h3>
             
+            {/* Período del Parte de Trabajo */}
+            <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-4 rounded-2xl">
+              <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest block ml-0.5">Período que cubre el parte *</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-[8px] font-black uppercase text-[var(--text-muted)] block mb-1 ml-0.5">Desde</span>
+                  <input 
+                    type="date" 
+                    value={reportStartDate} 
+                    onChange={(e) => setReportStartDate(e.target.value)} 
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3 text-xs text-[var(--input-text)] [color-scheme:dark] focus:border-blue-500 outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <span className="text-[8px] font-black uppercase text-[var(--text-muted)] block mb-1 ml-0.5">Hasta</span>
+                  <input 
+                    type="date" 
+                    value={reportEndDate} 
+                    onChange={(e) => setReportEndDate(e.target.value)} 
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3 text-xs text-[var(--input-text)] [color-scheme:dark] focus:border-blue-500 outline-none"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-3">
               <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1">Foto o Captura del Parte *</label>
               
@@ -1047,10 +1523,10 @@ export const App: React.FC = () => {
               <textarea value={reportComments} onChange={(e) => setReportComments(e.target.value)} placeholder="Ej: He trabajado horas extras el martes..." className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3 text-xs text-[var(--input-text)] h-20 resize-none focus:border-blue-500 outline-none" />
             </div>
 
-            <button disabled={submittingReport || !reportPhoto} onClick={handleSendWeeklyReport} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+            <button disabled={submittingReport || !reportPhoto || !reportStartDate || !reportEndDate} onClick={handleSendWeeklyReport} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black disabled:bg-slate-800 disabled:text-slate-500 py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300">
               {submittingReport ? (
                 <>
-                  <Clock className="animate-spin" size={16} /> Analizando con Gemini...
+                  <Clock className="animate-spin text-black" size={16} /> Analizando con Gemini...
                 </>
               ) : (
                 <>
@@ -1058,50 +1534,138 @@ export const App: React.FC = () => {
                 </>
               )}
             </button>
+            {(!reportStartDate || !reportEndDate || !reportPhoto) && (
+              <div className="text-center bg-rose-500/5 border border-rose-500/10 p-3 rounded-xl">
+                <p className="text-[8px] text-rose-500 font-bold uppercase tracking-wider">
+                  * CAMPOS OBLIGATORIOS: PERÍODO (DESDE/HASTA) Y FOTO DEL PARTE.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-sm font-black text-[var(--text-main)] uppercase tracking-wide">Mis Envíos Recientes</h3>
-            {reportsForMe.length > 0 ? (
-              reportsForMe.map(report => (
-                <div key={report.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-[var(--text-muted)] font-bold">{report.dateStr}</span>
-                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      report.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
-                      report.status === 'REJECTED' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
-                      'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                    }`}>
-                      {report.status === 'APPROVED' ? 'Aprobado' : report.status === 'REJECTED' ? 'Rechazado' : 'Pendiente'}
-                    </span>
-                  </div>
-
-                  {report.isAiParsed && (
-                    <div className="p-2 bg-[var(--btn-glass-bg)] rounded-lg border border-[var(--panel-border)] grid grid-cols-2 gap-2 text-[10px]">
-                      <div>
-                        <span className="text-[var(--text-muted)] block">Horas:</span>
-                        <span className="font-bold text-[var(--text-main)]">{report.extractedHours || 0}h</span>
+            {reportsForMe.length > 0 && (
+              <>
+                <h3 className="text-sm font-black text-[var(--text-main)] uppercase tracking-wide">Partes Enviados</h3>
+                {reportsForMe.map(report => {
+                  return (
+                    <div key={report.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] space-y-3 animate-fadeIn">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-black text-[var(--text-main)] tracking-tight block">
+                            Parte Semanal
+                          </span>
+                          <span className="text-[9px] text-[var(--text-muted)] font-medium block">
+                            Enviado el {report.dateStr}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[8px] font-black uppercase px-2.5 py-1 rounded-full shrink-0 ${
+                            report.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                            report.status === 'REJECTED' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
+                            'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                          }`}>
+                            {report.status === 'APPROVED' ? 'Aprobado' : report.status === 'REJECTED' ? 'Rechazado' : 'Pendiente'}
+                          </span>
+                          <button 
+                            onClick={() => handleDeleteReport(report.id)} 
+                            className="p-1.5 text-rose-500 hover:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl border border-rose-500/15 transition-all duration-200 active:scale-95"
+                            title="Eliminar Parte"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-[var(--text-muted)] block">Total:</span>
-                        <span className="font-bold text-emerald-500">{report.extractedTotal || '-'}</span>
-                      </div>
-                    </div>
-                  )}
 
-                  {report.rejectionReason && (
-                    <div className="p-2 bg-rose-500/5 rounded-lg border border-rose-500/10 text-rose-500 text-[10px]">
-                      <span className="font-bold block uppercase text-[8px]">Motivo de Rechazo:</span>
-                      {report.rejectionReason}
+                      {report.isAiParsed && (
+                        <div className="p-3 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--panel-border)] grid grid-cols-2 gap-2 text-[10px]">
+                          <div>
+                            <span className="text-[var(--text-muted)] block font-bold uppercase text-[8px]">Horas Extraídas:</span>
+                            <span className="font-black text-[var(--text-main)] text-xs">{report.extractedHours || 0}h</span>
+                          </div>
+                          <div>
+                            <span className="text-[var(--text-muted)] block font-bold uppercase text-[8px]">Total Reportado:</span>
+                            <span className="font-black text-[#CCFF00] text-xs">{report.extractedTotal || '-'}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {report.dailyHours && report.dailyHours.length > 0 && (
+                        <div className="border-t border-[var(--panel-border)] pt-2.5 space-y-1">
+                          <span className="text-[8px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Desglose diario (IA):</span>
+                          <div className="space-y-1 max-h-[100px] overflow-y-auto custom-scrollbar pr-1">
+                            {report.dailyHours.map((dh, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-[9px] bg-black/25 px-2 py-1 rounded-lg border border-[var(--panel-border)]">
+                                <span className="font-bold text-[var(--text-main)]">{dh.date}</span>
+                                <span className="font-black text-emerald-400 bg-emerald-500/10 px-1.5 rounded">{dh.hours}h</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {report.rejectionReason && (
+                        <div className="p-2.5 bg-rose-500/5 rounded-xl border border-rose-500/10 text-rose-500 text-[10px]">
+                          <span className="font-bold block uppercase text-[8px] tracking-wider mb-0.5">Motivo de Rechazo:</span>
+                          {report.rejectionReason}
+                        </div>
+                      )}
+
+                      {report.photoUrl && (
+                        <div className="flex gap-2 pt-2.5 border-t border-[var(--panel-border)]">
+                          <button
+                            onClick={() => setPreviewPhotoUrl(report.photoUrl)}
+                            className="flex-1 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[10px] text-[var(--text-main)] py-2 px-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:bg-slate-500/10"
+                          >
+                            <Eye size={12} className="text-[#CCFF00]" />
+                            Ver Parte
+                          </button>
+                          <a
+                            href={report.photoUrl}
+                            download={`parte-${report.id}.png`}
+                            className="flex-1 bg-[#CCFF00]/10 border border-[#CCFF00]/20 hover:border-[#CCFF00]/40 text-[10px] text-[#CCFF00] py-2 px-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center"
+                          >
+                            <Download size={12} />
+                            Descargar
+                          </a>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="text-center py-6 text-[var(--text-muted)] text-xs font-bold uppercase">No has enviado partes aún</p>
+                  );
+                })}
+              </>
             )}
           </div>
         </div>
+
+        {/* Modal Vista Previa de Imagen */}
+        {previewPhotoUrl && (
+          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fadeIn">
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+              <a
+                href={previewPhotoUrl}
+                download="parte-semanal.png"
+                className="p-3 bg-zinc-900 border border-zinc-800 text-[#CCFF00] rounded-full hover:bg-zinc-800 transition active:scale-95"
+                title="Descargar Foto"
+              >
+                <Download size={20} />
+              </a>
+              <button
+                onClick={() => setPreviewPhotoUrl(null)}
+                className="p-3 bg-zinc-900 border border-zinc-800 text-white rounded-full hover:bg-zinc-800 transition active:scale-95"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="max-w-4xl max-h-[80vh] w-full h-full flex items-center justify-center p-2">
+              <img
+                src={previewPhotoUrl}
+                alt="Vista previa del parte"
+                className="max-w-full max-h-full object-contain rounded-2xl border border-zinc-800 shadow-2xl"
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1226,6 +1790,8 @@ export const App: React.FC = () => {
       case Step.WORKER_REPORTS: return renderWorkerReports();
       case Step.WORKER_PAYSLIPS: return renderWorkerPayslips();
       case Step.WORKER_PROFILE: return renderWorkerProfile();
+      case Step.WORKER_SETTINGS: return renderWorkerSettings();
+      case Step.WORKER_CHAT: return renderWorkerChat();
       case Step.SELECT_SITE: return (
         <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden">
            <div className="flex items-center gap-4 mb-4 shrink-0">
@@ -1436,13 +2002,13 @@ case Step.WORKER_TOOLS: return (
   return (
     <div className="min-h-screen w-screen flex items-center justify-center p-0 md:p-6 relative md:overflow-hidden font-inter select-none text-[var(--text-main)]">
       {/* Background Liquid Glows */}
-      <div className="liquid-bg">
+      <div className="liquid-bg hidden md:block">
         <div className="liquid-glow-1"></div>
         <div className="liquid-glow-2"></div>
       </div>
 
       {/* Main 16:9 Aspect ratio container on desktop, full-screen on mobile */}
-      <div className="w-full min-h-screen md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--panel-bg)] backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
+      <div className="w-full min-h-screen md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
         <div className="flex-1 p-4 md:p-8 flex flex-col md:overflow-hidden relative z-10">
           {renderStep()}
         </div>

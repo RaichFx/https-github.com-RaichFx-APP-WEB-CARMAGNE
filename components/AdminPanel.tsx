@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StorageService, ELECTRICAL_TOOLS_LIST, ELECTRICAL_BRANDS_LIST, compressImage } from '../services/storageService';
 import { TelegramService } from '../services/telegramService';
-import { Worker, Site, WorkLog, AppConfig, WorkMode, LogType, AdminUser, ToolRecord, WeeklyReport, Payslip } from '../types';
+import { Worker, Site, WorkLog, AppConfig, WorkMode, LogType, AdminUser, ToolRecord, WeeklyReport, Payslip, ChatMessage } from '../types';
 import { 
   Users, MapPin, Download, Settings, FileText, 
-  Trash2, Plus, Save, Lock, Database, ClipboardList, Calendar, X, UserPlus, Phone, Filter, Search, Clock, Shield, Pencil, Eye, EyeOff, Zap, Wrench, ChevronDown, ArrowLeft, BarChart3, LogOut, CalendarDays, CheckCircle2, AlertCircle, AlertTriangle, Map as MapIcon, ExternalLink, Coffee, Package, KeyRound, ChevronRight, ListFilter, RotateCcw, Image as ImageIcon, Upload, Layout, Maximize2, Smartphone, Check, Timer, History, Sun, Moon
+  Trash2, Plus, Save, Lock, Database, ClipboardList, Calendar, X, UserPlus, Phone, Filter, Search, Clock, Shield, Pencil, Eye, EyeOff, Zap, Wrench, ChevronDown, ArrowLeft, BarChart3, LogOut, CalendarDays, CheckCircle2, AlertCircle, AlertTriangle, Map as MapIcon, ExternalLink, Coffee, Package, KeyRound, ChevronRight, ListFilter, RotateCcw, Image as ImageIcon, Upload, Layout, Maximize2, Smartphone, Check, Timer, History, Sun, Moon, MessageSquare, Send
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { jsPDF } from 'jspdf';
@@ -129,13 +129,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const payslipFileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'workers' | 'sites' | 'logs' | 'tools' | 'hours' | 'admins' | 'settings' | 'reports' | 'payslips'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'workers' | 'sites' | 'logs' | 'tools' | 'hours' | 'admins' | 'settings' | 'reports' | 'payslips' | 'chat'>('dashboard');
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [logs, setLogs] = useState<WorkLog[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [tools, setTools] = useState<ToolRecord[]>([]);
   const [config, setConfig] = useState<AppConfig>(StorageService.getConfig());
+
+  // Admin Chat Panel States
+  const [chats, setChats] = useState<ChatMessage[]>([]);
+  const [activeWorkerChatId, setActiveWorkerChatId] = useState<string | null>(null);
+  const [adminChatInput, setAdminChatInput] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
   
   // Weekly Reports & Payslips state
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
@@ -229,6 +235,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     setConfig(StorageService.getConfig());
     setWeeklyReports(StorageService.getReports());
     setPayslips(StorageService.getPayslips());
+    setChats(StorageService.getChats());
 
     const unsubWorkers = StorageService.subscribeToWorkers(setWorkers);
     const unsubSites = StorageService.subscribeToSites(setSites);
@@ -238,11 +245,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     const unsubConfig = StorageService.subscribeToConfig(setConfig);
     const unsubReports = StorageService.subscribeToReports(setWeeklyReports);
     const unsubPayslips = StorageService.subscribeToPayslips(setPayslips);
+    const unsubChats = StorageService.subscribeToChats(setChats);
 
     return () => {
-      unsubWorkers(); unsubSites(); unsubLogs(); unsubAdmins(); unsubTools(); unsubConfig(); unsubReports(); unsubPayslips();
+      unsubWorkers(); unsubSites(); unsubLogs(); unsubAdmins(); unsubTools(); unsubConfig(); unsubReports(); unsubPayslips(); unsubChats();
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'chat' && activeWorkerChatId) {
+      StorageService.markMessagesAsRead(activeWorkerChatId, 'ADMIN');
+    }
+  }, [activeTab, activeWorkerChatId, chats]);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chats, activeWorkerChatId, activeTab]);
+
+  const adminTotalUnreadCount = useMemo(() => {
+    return chats.filter(c => c.receiverId === 'ADMIN' && !c.read).length;
+  }, [chats]);
 
   const dailyHoursStats = useMemo(() => {
     const filterDateFormatted = hoursFilterDate ? new Date(hoursFilterDate).toLocaleDateString('es-ES') : null;
@@ -289,6 +313,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         setConfig(newConfig);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSendAdminMessage = async () => {
+    if (!adminChatInput.trim() || !activeWorkerChatId) return;
+
+    const targetWorkerName = workers.find(w => w.id === activeWorkerChatId)?.name || 'Operario';
+
+    const msg: ChatMessage = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      senderId: 'ADMIN',
+      senderName: 'EL JEFE',
+      receiverId: activeWorkerChatId,
+      receiverName: targetWorkerName,
+      text: adminChatInput.trim(),
+      timestamp: Date.now(),
+      dateStr: new Date().toLocaleDateString('es-ES'),
+      timeStr: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      read: false
+    };
+
+    try {
+      await StorageService.sendMessage(msg);
+      setAdminChatInput('');
+    } catch (err) {
+      alert("Error al enviar el mensaje.");
     }
   };
 
@@ -661,6 +711,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       { id: 'hours', icon: History, label: 'Horas' },
       { id: 'reports', icon: ClipboardList, label: 'Partes IA' },
       { id: 'payslips', icon: FileText, label: 'Nóminas' },
+      { id: 'chat', icon: MessageSquare, label: 'Chat' },
       { id: 'sites', icon: MapPin, label: 'Obras' },
       { id: 'logs', icon: ClipboardList, label: 'Registros' },
       { id: 'tools', icon: Wrench, label: 'Equipos' },
@@ -1229,6 +1280,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Total Calculado (IA)</span>
                   <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedTotal || '-'}</span>
                 </div>
+                
+                {/* Desglose de horas por día transcrito por la IA */}
+                {selectedReport.dailyHours && selectedReport.dailyHours.length > 0 && (
+                  <div className="col-span-2 border-t border-[var(--panel-border)] pt-3 mt-1">
+                    <span className="text-[9px] text-[#CCFF00] font-bold block uppercase tracking-wider mb-2">Desglose de Horas por Día (IA)</span>
+                    <div className="space-y-1.5 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
+                      {selectedReport.dailyHours.map((dh, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-[var(--panel-border)] text-xs">
+                          <span className="font-bold text-[var(--text-main)]">{dh.date}</span>
+                          <div className="flex items-center gap-3">
+                            {dh.tasks && <span className="text-[10px] text-[var(--text-muted)] italic max-w-[180px] truncate" title={dh.tasks}>{dh.tasks}</span>}
+                            <span className="font-black text-emerald-400 bg-emerald-500/10 px-2 rounded-lg border border-emerald-500/20">{dh.hours}h</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {selectedReport.comments && (
                   <div className="col-span-2 border-t border-[var(--panel-border)] pt-3 mt-1">
                     <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Comentarios del Operario</span>
@@ -1466,6 +1536,181 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     );
   };
 
+  const renderChat = () => {
+    // Filter out messages with the selected worker
+    const activeMessages = chats.filter(c => 
+      (c.senderId === 'ADMIN' && c.receiverId === activeWorkerChatId) ||
+      (c.senderId === activeWorkerChatId && c.receiverId === 'ADMIN')
+    );
+
+    const partnerUnreadCount = (workerId: string) => {
+      return chats.filter(c => c.senderId === workerId && c.receiverId === 'ADMIN' && !c.read).length;
+    };
+
+    return (
+      <div className="flex flex-col md:h-[calc(100vh-10rem)] animate-fadeIn text-[var(--text-main)] pb-24 md:pb-0">
+        <div>
+          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Bandeja de Mensajes</h2>
+          <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest mb-4">Comunícate individualmente con todo tu personal</p>
+        </div>
+
+        {/* Two-column layout */}
+        <div className="flex flex-col md:grid md:grid-cols-12 gap-6 flex-1 md:overflow-hidden min-h-[500px]">
+          
+          {/* CONTACTS LIST (Left Column) */}
+          <div className={`md:col-span-4 bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-[2rem] p-4 flex flex-col gap-3 md:h-full overflow-y-auto custom-scrollbar shadow-[var(--panel-shadow)] ${
+            activeWorkerChatId ? 'hidden md:flex' : 'flex'
+          }`}>
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--panel-border)] pb-2">Operarios</h3>
+            
+            <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar">
+              {workers.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)] italic text-center py-8">No hay operarios registrados.</p>
+              ) : (
+                workers.map(w => {
+                  const isSelected = activeWorkerChatId === w.id;
+                  const unread = partnerUnreadCount(w.id);
+                  const lastMsg = chats
+                    .filter(c => (c.senderId === w.id && c.receiverId === 'ADMIN') || (c.senderId === 'ADMIN' && c.receiverId === w.id))
+                    .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+                  return (
+                    <button 
+                      key={w.id}
+                      onClick={() => setActiveWorkerChatId(w.id)}
+                      className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all text-left ${
+                        isSelected 
+                          ? 'bg-blue-600/10 border-blue-500/40 text-blue-400' 
+                          : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        {w.photoUrl ? (
+                          <img src={w.photoUrl} alt={w.name} className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-black text-xs text-slate-300 uppercase shrink-0">
+                            {w.name.charAt(0)}
+                          </div>
+                        )}
+                        <div className="overflow-hidden">
+                          <h4 className="text-xs font-black uppercase tracking-wide truncate">{w.name}</h4>
+                          <p className="text-[9px] text-[var(--text-muted)] font-medium truncate">{w.role || 'Operario'}</p>
+                          {lastMsg && (
+                            <p className="text-[9px] text-slate-400 truncate mt-0.5 max-w-[160px]">{lastMsg.text}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {unread > 0 && (
+                        <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2">
+                          {unread}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* MESSAGES BOX (Right Column) */}
+          <div className={`md:col-span-8 bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-[2rem] p-4 flex flex-col md:h-full justify-between shadow-[var(--panel-shadow)] min-h-[400px] ${
+            activeWorkerChatId ? 'flex' : 'hidden md:flex'
+          }`}>
+            {activeWorkerChatId ? (
+              <>
+                {/* Header of Active Chat */}
+                <div className="flex items-center justify-between border-b border-[var(--panel-border)] pb-3 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => setActiveWorkerChatId(null)} 
+                      className="md:hidden p-2 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-muted)]"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-2">
+                        {workers.find(w => w.id === activeWorkerChatId)?.name}
+                      </h3>
+                      <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest">
+                        {workers.find(w => w.id === activeWorkerChatId)?.role || 'Operario'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-[9px] text-[var(--text-muted)] font-bold tracking-widest uppercase font-mono">Chat Administrador</span>
+                </div>
+
+                {/* Message stream */}
+                <div className="flex-1 overflow-y-auto my-3 p-2 space-y-3 custom-scrollbar min-h-[250px] max-h-[350px] md:max-h-none">
+                  {activeMessages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-10 opacity-60">
+                      <MessageSquare size={32} className="text-[var(--text-muted)] mb-2" />
+                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Canal Vacío</p>
+                      <p className="text-[9px] font-medium text-[var(--text-muted)] mt-1">Escribe tu primer mensaje a este operario para guiarle o resolver dudas.</p>
+                    </div>
+                  ) : (
+                    activeMessages.map(m => {
+                      const isMe = m.senderId === 'ADMIN';
+                      return (
+                        <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm text-xs ${
+                            isMe 
+                              ? 'bg-blue-600 text-white font-medium rounded-tr-none' 
+                              : 'bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[var(--text-main)] rounded-tl-none'
+                          }`}>
+                            <p className="whitespace-pre-wrap leading-relaxed break-words">{m.text}</p>
+                            <div className="flex items-center justify-end gap-1 mt-1 opacity-60 text-[8px] font-mono">
+                              <span>{m.timeStr}</span>
+                              {isMe && (
+                                <span className={m.read ? 'text-blue-300 font-bold' : 'text-slate-300'}>
+                                  {m.read ? '✓✓' : '✓'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Input Bar */}
+                <div className="border-t border-[var(--panel-border)] pt-3 flex items-center gap-2 shrink-0">
+                  <input 
+                    type="text" 
+                    value={adminChatInput}
+                    onChange={(e) => setAdminChatInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendAdminMessage(); }}
+                    className="flex-1 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-xl px-4 py-3 text-xs outline-none focus:border-blue-500"
+                    placeholder="Escribe un mensaje de respuesta..."
+                  />
+                  <button 
+                    onClick={handleSendAdminMessage}
+                    className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-500 active:scale-95 transition-all shadow-md flex items-center justify-center"
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center py-20 opacity-60">
+                <div className="p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-[2rem] text-[var(--text-muted)] mb-4">
+                  <MessageSquare size={36} />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)]">Conversaciones</h3>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1 max-w-[240px] mx-auto leading-relaxed">
+                  Elige a un operario en el menú izquierdo para ver su historial de mensajes y mandarle aclaraciones inmediatas.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSettings = () => (
     <div className="max-w-2xl space-y-6 animate-fadeIn pb-32">
       <div className="flex items-center justify-between mb-4">
@@ -1587,11 +1832,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           <h1 className="text-xs font-black tracking-tighter uppercase leading-tight">CARMAGNE<br/>INSTAL SL</h1>
         </div>
         <nav className="flex flex-col gap-2">
-          {sidebarItems.map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--panel-bg)]'}`}>
-              <item.icon size={20} />{item.label}
-            </button>
-          ))}
+          {sidebarItems.map(item => {
+            const isChatTab = item.id === 'chat';
+            const unreadCount = isChatTab ? adminTotalUnreadCount : 0;
+            return (
+              <button 
+                key={item.id} 
+                onClick={() => setActiveTab(item.id as any)} 
+                className={`flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold transition w-full ${
+                  activeTab === item.id 
+                    ? 'bg-blue-600 text-white shadow-lg' 
+                    : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--panel-bg)]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon size={20} />
+                  <span>{item.label}</span>
+                </div>
+                {unreadCount > 0 && (
+                  <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)]">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
         <button onClick={() => setIsLogoutConfirmOpen(true)} className="mt-auto flex items-center gap-3 px-4 py-3 text-rose-500 font-bold hover:bg-rose-500/10 rounded-2xl transition">
           <LogOut size={20} /> Salir
@@ -1763,19 +2028,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           {activeTab === 'tools' && renderTools()}
           {activeTab === 'reports' && renderReports()}
           {activeTab === 'payslips' && renderPayslips()}
+          {activeTab === 'chat' && renderChat()}
           {activeTab === 'admins' && isSuperAdmin && (
              <div className="space-y-6 animate-fadeIn pb-32"><div className="flex justify-between items-center"><h2 className="text-xl font-black text-[var(--text-main)] uppercase">Cuentas Admin</h2><button onClick={() => setIsAdminModalOpen(true)} className="bg-indigo-600 p-3 rounded-xl text-white"><UserPlus size={20} /></button></div><div className="grid gap-3">{admins.map(admin => (<div key={admin.id} className="bg-[var(--panel-bg)] p-4 rounded-3xl border border-[var(--panel-border)] flex justify-between items-center"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/20"><KeyRound size={20} /></div><div><h3 className="text-sm font-black text-[var(--text-main)]">{admin.username}</h3><p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Gestor</p></div></div><button onClick={() => StorageService.deleteAdmin(admin.id)} className="p-2 text-rose-500"><Trash2 size={20} /></button></div>))}</div></div>
           )}
           {activeTab === 'settings' && isSuperAdmin && renderSettings()}
         </div>
 
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--panel-bg)] backdrop-blur-2xl border-t border-[var(--panel-border)] flex items-center justify-around py-3 px-4 z-50 shadow-2xl">
-          {sidebarItems.map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === item.id ? 'text-blue-500' : 'text-[var(--text-muted)]'}`}>
-              <item.icon size={20} className={activeTab === item.id ? 'drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]' : ''} />
-              <span className="text-[7px] font-black uppercase tracking-tighter">{item.label}</span>
-            </button>
-          ))}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--panel-bg)] backdrop-blur-2xl border-t border-[var(--panel-border)] flex items-center justify-start gap-6 overflow-x-auto py-3 px-5 z-50 shadow-2xl scrollbar-none whitespace-nowrap">
+          {sidebarItems.map(item => {
+            const isChatTab = item.id === 'chat';
+            const unreadCount = isChatTab ? adminTotalUnreadCount : 0;
+            return (
+              <button 
+                key={item.id} 
+                onClick={() => setActiveTab(item.id as any)} 
+                className={`flex flex-col items-center gap-1 shrink-0 transition-all relative ${
+                  activeTab === item.id ? 'text-blue-500' : 'text-[var(--text-muted)]'
+                }`}
+              >
+                <div className="relative">
+                  <item.icon size={20} className={activeTab === item.id ? 'drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]' : ''} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-[#CCFF00] text-black text-[8px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-black shadow-[0_0_5px_rgba(204,255,0,0.5)]">
+                      {unreadCount}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[7px] font-black uppercase tracking-tighter">{item.label}</span>
+              </button>
+            );
+          })}
         </nav>
       </main>
 

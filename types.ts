@@ -21,6 +21,10 @@ export interface Worker {
   defaultMode?: WorkMode;
   photoUrl?: string;
   certificates?: { id: string; name: string; fileBase64: string; uploadDate: string; size?: string }[];
+  notificationPreferences?: {
+    notifyCheckIn?: boolean;
+    notifyCertificates?: boolean;
+  };
 }
 
 export interface Site {
@@ -100,10 +104,13 @@ export interface WeeklyReport {
   timestamp: number;
   dateStr: string;
   photoUrl: string; // Base64 o URL
+  startDate?: string; // Fecha de inicio seleccionada por el operario
+  endDate?: string; // Fecha de fin seleccionada por el operario
   extractedDates?: string;
   extractedTasks?: string;
   extractedHours?: number;
   extractedTotal?: string;
+  dailyHours?: { date: string; hours: number; tasks?: string }[]; // Desglose diario de horas extraído por la IA
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason?: string;
   isAiParsed: boolean;
@@ -124,5 +131,18 @@ export interface Payslip {
   sentTimestamp: number;
   status: 'SENT' | 'RECEIVED' | 'SIGNED';
   pdfBase64?: string; // Opcional, para almacenar el PDF autogenerado o subido
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  receiverId: string;
+  receiverName: string;
+  text: string;
+  timestamp: number;
+  dateStr: string;
+  timeStr: string;
+  read: boolean;
 }
 

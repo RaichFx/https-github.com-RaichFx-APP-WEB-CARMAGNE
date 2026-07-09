@@ -1,5 +1,5 @@
 
-import { Worker, Site, WorkLog, AppConfig, LogType, AdminUser, ToolRecord, WeeklyReport, Payslip } from '../types';
+import { Worker, Site, WorkLog, AppConfig, LogType, AdminUser, ToolRecord, WeeklyReport, Payslip, ChatMessage } from '../types';
 import { db } from './firebase';
 import { collection, doc, setDoc, updateDoc, onSnapshot, deleteDoc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 
@@ -12,6 +12,7 @@ const KEYS = {
   TOOLS: 'carmagne_tools',
   REPORTS: 'carmagne_reports',
   PAYSLIPS: 'carmagne_payslips',
+  CHATS: 'carmagne_chats',
 };
 
 export const ELECTRICAL_TOOLS_LIST = [
@@ -487,5 +488,47 @@ export const StorageService = {
     }, (err) => {
       console.error("onSnapshot error in subscribeToPayslips:", err);
     });
+  },
+
+  getChats: (): ChatMessage[] => loadLocal(KEYS.CHATS, []),
+  sendMessage: async (msg: ChatMessage) => {
+    const chats = loadLocal<ChatMessage[]>(KEYS.CHATS, []);
+    saveLocal(KEYS.CHATS, [...chats, msg]);
+    try {
+      await setDoc(doc(db, "chats", msg.id), safeClone(msg));
+    } catch (e) {
+      console.error("Firestore error in sendMessage:", e);
+      throw e;
+    }
+  },
+  subscribeToChats: (callback: (messages: ChatMessage[]) => void) => {
+    callback(loadLocal(KEYS.CHATS, []));
+    return onSnapshot(collection(db, "chats"), (snapshot) => {
+      const msgs = snapshot.docs.map(doc => doc.data() as ChatMessage);
+      const sorted = [...msgs].sort((a, b) => a.timestamp - b.timestamp);
+      saveLocal(KEYS.CHATS, sorted);
+      callback(sorted);
+    }, (err) => {
+      console.error("onSnapshot error in subscribeToChats:", err);
+    });
+  },
+  markMessagesAsRead: async (senderId: string, receiverId: string) => {
+    try {
+      const snapshot = await getDocs(collection(db, "chats"));
+      const batch = writeBatch(db);
+      let updated = false;
+      snapshot.docs.forEach(d => {
+        const data = d.data() as ChatMessage;
+        if (data.senderId === senderId && data.receiverId === receiverId && !data.read) {
+          batch.update(d.ref, { read: true });
+          updated = true;
+        }
+      });
+      if (updated) {
+        await batch.commit();
+      }
+    } catch (e) {
+      console.error("Error marking messages as read:", e);
+    }
   }
 };

@@ -54,6 +54,7 @@ async function startServer() {
 2. Un resumen breve y profesional de lo que se ha trabajado (tareas, obras o conceptos).
 3. El número total de horas trabajadas expresado como un número (si es posible, si no, pon el valor estimado).
 4. El total o resumen de horas totales y cualquier otra indicación de total en el parte.
+5. Un desglose de horas trabajadas por cada día individual que aparezca en el documento (ej: Lunes, Martes... o fechas como 22/06). Debe incluir para cada día: el nombre del día o la fecha, la cantidad de horas trabajadas en ese día, y opcionalmente un resumen de tareas si las hubiera.
 
 Por favor, sé muy preciso y lee cuidadosamente los textos manuscritos o impresos.`;
 
@@ -88,9 +89,22 @@ Por favor, sé muy preciso y lee cuidadosamente los textos manuscritos o impreso
               total: { 
                 type: Type.STRING, 
                 description: 'Total acumulado escrito en el parte con su unidad, ej: "40 Horas" o "42.5 horas totales"' 
+              },
+              dailyHours: {
+                type: Type.ARRAY,
+                description: 'Desglose diario de horas y tareas, por ejemplo por días de la semana o fechas encontradas en el parte',
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    date: { type: Type.STRING, description: 'Día o fecha, ej: "Lunes 22" o "Martes 23"' },
+                    hours: { type: Type.NUMBER, description: 'Horas trabajadas este día, ej: 8.5' },
+                    tasks: { type: Type.STRING, description: 'Breve tarea o concepto para este día (opcional), ej: "Fijación canaletas"' }
+                  },
+                  required: ['date', 'hours']
+                }
               }
             },
-            required: ['dates', 'tasks', 'hours', 'total']
+            required: ['dates', 'tasks', 'hours', 'total', 'dailyHours']
           }
         }
       });
