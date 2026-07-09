@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   User, MapPin, CheckCircle, 
-  LogOut, Coffee, ArrowRight, ShieldAlert, Lock, Fingerprint, Delete, UserPlus, Save, ChevronLeft, Calendar, History, Clock, Smartphone, X, Mic, MicOff, FileText, Cloud, ExternalLink, Briefcase, Phone, KeyRound, BellRing, Search, Download, CalendarDays, Zap, Wrench, Package, Info, Plus, Trash2, Timer, Filter, ChevronDown, Shield, AlertTriangle, AlertCircle, Image as ImageIcon, Upload, ClipboardList, Sun, Moon, Eye, MessageSquare, Send
+  LogOut, Coffee, ArrowRight, ShieldAlert, Lock, Fingerprint, Delete, UserPlus, Save, ChevronLeft, Calendar, History, Clock, Smartphone, X, Mic, MicOff, FileText, Cloud, ExternalLink, Briefcase, Phone, KeyRound, BellRing, Search, Download, CalendarDays, Zap, Wrench, Package, Info, Plus, Trash2, Timer, Filter, ChevronDown, Shield, AlertTriangle, AlertCircle, Image as ImageIcon, Upload, ClipboardList, Sun, Moon, Eye, MessageSquare, Send, Mail
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -163,6 +163,9 @@ export const App: React.FC = () => {
   const [regName, setRegName] = useState('');
   const [regDni, setRegDni] = useState('');
   const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [forceEmailInput, setForceEmailInput] = useState('');
+  const [forceEmailError, setForceEmailError] = useState('');
   const [regPin, setRegPin] = useState('');
   const [regPinConfirm, setRegPinConfirm] = useState('');
   const [workerLogs, setWorkerLogs] = useState<WorkLog[]>([]);
@@ -385,21 +388,59 @@ export const App: React.FC = () => {
 
   const handleRegistration = async () => {
     const fPhone = processSpanishPhone(regPhone);
-    if (!regName || !regDni || !fPhone) { setError('Campos obligatorios.'); return; }
+    if (!regName || !regDni || !fPhone || !regEmail) { setError('Todos los campos son obligatorios, incluyendo el Correo Electrónico.'); return; }
     if (!isPhoneValidSpain(fPhone)) { setError('Solo números de España (+34)'); return; }
+    if (!/\S+@\S+\.\S+/.test(regEmail)) { setError('El formato del correo electrónico no es válido.'); return; }
     setLoading(true);
-    const newWorker: Worker = { id: `W${Date.now()}`, name: regName, dni: regDni, phone: fPhone, pin: '0000', qrCode: `QR_${Date.now()}`, active: true, defaultMode: 'HORAS' };
+    const newWorker: Worker = { 
+      id: `W${Date.now()}`, 
+      name: regName, 
+      dni: regDni, 
+      phone: fPhone, 
+      email: regEmail,
+      pin: '0000', 
+      qrCode: `QR_${Date.now()}`, 
+      active: true, 
+      defaultMode: 'HORAS' 
+    };
     try { 
       await StorageService.registerNewWorker(newWorker); 
       setSelectedWorker(newWorker); 
       localStorage.setItem('carmagne_session_worker_id', newWorker.id);
 
       // Notificación Telegram: Nuevo Operario
-      const telegramMessage = `🆕 <b>Nuevo Operario Registrado</b>\n👷‍♂️ Nombre: <b>${newWorker.name}</b>\n🆔 DNI: ${newWorker.dni}\n📱 Teléfono: ${newWorker.phone}`;
+      const telegramMessage = `🆕 <b>Nuevo Operario Registrado</b>\n👷‍♂️ Nombre: <b>${newWorker.name}</b>\n🆔 DNI: ${newWorker.dni}\n📱 Teléfono: ${newWorker.phone}\n📧 Email: ${newWorker.email}`;
       TelegramService.enviarNotificacionTelegram(telegramMessage);
 
       setCurrentStep(Step.WORKER_DASHBOARD); 
     } catch (err) { setError('Error al registrar.'); } finally { setLoading(false); }
+  };
+
+  const handleSaveForceEmail = async () => {
+    if (!forceEmailInput.trim()) {
+      setForceEmailError('Por favor, introduce tu correo electrónico.');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(forceEmailInput)) {
+      setForceEmailError('El formato del correo electrónico no es válido.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const updatedWorker = { ...selectedWorker!, email: forceEmailInput.trim() };
+      const updatedWorkers = workers.map(w => w.id === selectedWorker!.id ? updatedWorker : w);
+      await StorageService.saveWorkers(updatedWorkers);
+      setSelectedWorker(updatedWorker);
+      setForceEmailInput('');
+      setForceEmailError('');
+
+      const telegramMessage = `📧 <b>Correo Electrónico Registrado</b>\n👷‍♂️ Operario: <b>${updatedWorker.name}</b>\n📧 Email: ${updatedWorker.email}`;
+      TelegramService.enviarNotificacionTelegram(telegramMessage);
+    } catch (err) {
+      setForceEmailError('Error al guardar el correo electrónico.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePinInput = (digit: string) => {
@@ -518,11 +559,11 @@ export const App: React.FC = () => {
   };
 
   const renderWorkerDashboard = () => {
-    // Get the last 4 logs of the worker to display in the borderless history widget
-    const recentLogs = workerLogs
+    // Get the 4 most recent logs of the worker sorted by timestamp descending
+    const recentLogs = [...workerLogs]
       .filter(l => l.workerId === selectedWorker?.id)
-      .slice(-4)
-      .reverse();
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 4);
 
     return (
       <div className="flex flex-col md:grid md:grid-cols-12 gap-5 md:h-full animate-fadeIn md:overflow-hidden text-[var(--text-main)]">
@@ -1002,8 +1043,13 @@ export const App: React.FC = () => {
                   {selectedWorker.role || 'Electricista'}
                 </span>
                 {selectedWorker.phone && (
-                  <span className="text-[9px] font-black tracking-wider uppercase px-2.5 py-1 rounded-lg bg-zinc-800 text-[var(--text-muted)] flex items-center gap-1">
+                  <span className="text-[9px] font-black tracking-wider uppercase px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1">
                     <Phone size={10} /> {selectedWorker.phone}
+                  </span>
+                )}
+                {selectedWorker.email && (
+                  <span className="text-[9px] font-black tracking-wider px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1">
+                    <Mail size={10} /> {selectedWorker.email}
                   </span>
                 )}
               </div>
@@ -1015,6 +1061,10 @@ export const App: React.FC = () => {
             <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
               <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">DNI / NIE / Pasaporte</p>
               <p className="text-sm font-black text-[var(--text-main)] uppercase mt-1">{selectedWorker.dni || 'S/DNI'}</p>
+            </div>
+            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Correo Electrónico</p>
+              <p className="text-sm font-black text-[var(--text-main)] mt-1 break-all">{selectedWorker.email || 'No registrado'}</p>
             </div>
             <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
               <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código PIN de Acceso</p>
@@ -1986,6 +2036,7 @@ case Step.WORKER_TOOLS: return (
              <input type="text" placeholder="Nombre completo" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)] focus:border-blue-500 outline-none" value={regName} onChange={(e)=>setRegName(e.target.value)}/>
              <input type="text" placeholder="DNI / NIE" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)] focus:border-blue-500 outline-none" value={regDni} onChange={(e)=>setRegDni(e.target.value)}/>
              <input type="tel" placeholder="Teléfono" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)] font-bold" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)}/>
+             <input type="email" placeholder="Correo electrónico" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)]" value={regEmail} onChange={(e)=>setRegEmail(e.target.value)}/>
              <button onClick={handleRegistration} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shrink-0">Registrarme</button>
            </div>
         </div>
@@ -2034,6 +2085,73 @@ case Step.WORKER_TOOLS: return (
         onConfirm={() => executeLogSubmission(confirmState.action!, exitReportText, exitWorkMode)} 
         onCancel={() => setConfirmState({ isOpen: false, action: null })} 
       />
+      {selectedWorker && !selectedWorker.email && (
+        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6 animate-fadeIn select-none">
+          <div className="bg-[#0c0c0e] w-full max-w-md rounded-[2.5rem] border border-zinc-800 p-8 shadow-2xl relative overflow-hidden text-center">
+            {/* Decorative neon gradient subtle glows */}
+            <div className="absolute -top-12 -left-12 w-40 h-40 bg-[#CCFF00]/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-[#CCFF00]/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="relative z-10 flex flex-col items-center font-inter">
+              <div className="p-4 bg-[#CCFF00]/10 rounded-full text-[#CCFF00] mb-5 border border-[#CCFF00]/20 shadow-[0_0_15px_rgba(204,255,0,0.1)]">
+                <Mail size={32} />
+              </div>
+
+              <h2 className="text-2xl font-black text-white tracking-tighter uppercase font-bebas mb-2">
+                REGISTRO DE CORREO OBLIGATORIO
+              </h2>
+              
+              <p className="text-zinc-400 text-xs font-medium mb-6 leading-relaxed max-w-xs mx-auto font-sans">
+                Hola <span className="text-[#CCFF00] font-black">{selectedWorker.name}</span>. Para garantizar la entrega de nóminas y partes oficiales, es obligatorio registrar tu correo electrónico.
+              </p>
+
+              <div className="w-full space-y-4">
+                <div className="text-left">
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block ml-1 mb-1.5 font-sans">
+                    Dirección de Correo *
+                  </label>
+                  <input 
+                    type="email" 
+                    placeholder="ejemplo@carmagne.com" 
+                    className="w-full bg-zinc-900/80 border border-zinc-800 text-white rounded-xl p-4 text-sm outline-none focus:border-[#CCFF00] transition-colors font-semibold font-sans" 
+                    value={forceEmailInput} 
+                    onChange={(e) => {
+                      setForceEmailInput(e.target.value);
+                      if (forceEmailError) setForceEmailError('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveForceEmail();
+                    }}
+                  />
+                </div>
+
+                {forceEmailError && (
+                  <p className="text-rose-500 text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 border border-rose-500/20 py-2.5 px-4 rounded-lg font-sans">
+                    {forceEmailError}
+                  </p>
+                )}
+
+                <button 
+                  onClick={handleSaveForceEmail} 
+                  disabled={loading}
+                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] disabled:opacity-50 text-black font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all duration-300 active:scale-95 shadow-lg shadow-[#CCFF00]/10 font-sans"
+                >
+                  {loading ? 'Guardando...' : 'GUARDAR Y CONTINUAR'}
+                </button>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={resetApp} 
+                    className="text-zinc-500 hover:text-zinc-300 text-[10px] font-bold uppercase tracking-widest transition-colors font-sans"
+                  >
+                    Cerrar Sesión / Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

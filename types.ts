@@ -18,6 +18,7 @@ export interface Worker {
   dni?: string;
   role?: string;
   phone?: string;
+  email?: string;
   defaultMode?: WorkMode;
   photoUrl?: string;
   certificates?: { id: string; name: string; fileBase64: string; uploadDate: string; size?: string }[];
