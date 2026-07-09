@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Setup Java
@@ -101,22 +101,19 @@ jobs:
             density="${item%%:*}"
             size="${item##*:}"
             logo_size=$(( size * 72 / 100 ))
-            convert -size "${size}x${size}" xc:"#050505" \
-              ( "$LOGO_FILE" -resize "${logo_size}x${logo_size}" ) \
-              -gravity center -composite \
-              "android/app/src/main/res/mipmap-${density}/ic_launcher.png"
-            cp "android/app/src/main/res/mipmap-${density}/ic_launcher.png" \
-              "android/app/src/main/res/mipmap-${density}/ic_launcher_round.png"
+            resized="/tmp/icon-${density}.png"
+            convert "$LOGO_FILE" -resize "${logo_size}x${logo_size}" "$resized"
+            convert -size "${size}x${size}" xc:"#050505" "$resized" -gravity center -composite "android/app/src/main/res/mipmap-${density}/ic_launcher.png"
+            cp "android/app/src/main/res/mipmap-${density}/ic_launcher.png" "android/app/src/main/res/mipmap-${density}/ic_launcher_round.png"
           done
 
           for item in mdpi:108 hdpi:162 xhdpi:216 xxhdpi:324 xxxhdpi:432; do
             density="${item%%:*}"
             size="${item##*:}"
             logo_size=$(( size * 54 / 100 ))
-            convert -size "${size}x${size}" xc:none \
-              ( "$LOGO_FILE" -resize "${logo_size}x${logo_size}" ) \
-              -gravity center -composite \
-              "android/app/src/main/res/mipmap-${density}/ic_launcher_foreground.png"
+            resized="/tmp/icon-foreground-${density}.png"
+            convert "$LOGO_FILE" -resize "${logo_size}x${logo_size}" "$resized"
+            convert -size "${size}x${size}" xc:none "$resized" -gravity center -composite "android/app/src/main/res/mipmap-${density}/ic_launcher_foreground.png"
           done
 
       - name: Sync Android project
