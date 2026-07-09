@@ -96,11 +96,104 @@ const calculateTotalsFromLogs = (logs: WorkLog[]) => {
 const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0 }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number }) => {
   const baseSize = size === "sm" ? 28 : size === "md" ? 64 : size === "lg" ? 140 : 64;
   const iconSize = baseSize * scale;
-  const logoSrc = logoUrl || "/logo.png";
+  
+  if (!logoUrl || logoUrl === "/logo.png" || logoUrl === "logo.png") {
+    return (
+      <div 
+        className={`relative flex items-center justify-center ${className}`} 
+        style={{ width: iconSize, height: iconSize }}
+      >
+        <svg
+          viewBox="0 0 100 100"
+          className="w-full h-full drop-shadow-[0_0_15px_rgba(204,255,0,0.45)] select-none"
+        >
+          <defs>
+            {/* Glow Filter */}
+            <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            
+            {/* Energy Core Gradient */}
+            <radialGradient id="energy-core" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FFF" />
+              <stop offset="35%" stopColor="#CCFF00" />
+              <stop offset="70%" stopColor="#7acc00" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#050505" stopOpacity="0" />
+            </radialGradient>
+            
+            {/* Metallic C Gradient */}
+            <linearGradient id="metallic-c" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#CCFF00" />
+              <stop offset="50%" stopColor="#e6ff66" />
+              <stop offset="100%" stopColor="#8cb300" />
+            </linearGradient>
+          </defs>
+
+          {/* Squircle outer base */}
+          <rect
+            x="3"
+            y="3"
+            width="94"
+            height="94"
+            rx="24"
+            fill="#050505"
+            stroke="#CCFF00"
+            strokeWidth="1.5"
+            strokeOpacity="0.3"
+          />
+
+          {/* Glowing central energy sphere */}
+          <circle
+            cx="50%"
+            cy="50%"
+            r="28"
+            fill="url(#energy-core)"
+            className="animate-pulse"
+            style={{ animationDuration: '3s' }}
+          />
+
+          {/* Stylized Geometric C */}
+          <path
+            d="M 68,32 
+               C 60,20 40,20 32,32 
+               C 22,42 22,58 32,68 
+               C 40,80 60,80 68,68 
+               L 58,58 
+               C 54,64 46,64 42,58 
+               C 38,54 38,46 42,42 
+               C 46,36 54,36 58,42 
+               Z"
+            fill="url(#metallic-c)"
+            filter="url(#neon-glow)"
+          />
+
+          {/* High tech nucleus dot */}
+          <circle
+            cx="50"
+            cy="50"
+            r="6"
+            fill="#CCFF00"
+            filter="url(#neon-glow)"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="2"
+            fill="#FFFFFF"
+          />
+        </svg>
+      </div>
+    );
+  }
+
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
       <img 
-        src={logoSrc} 
+        src={logoUrl} 
         alt="Company Logo" 
         style={{ width: iconSize, height: iconSize }} 
         className="object-contain rounded-2xl logo-glow"

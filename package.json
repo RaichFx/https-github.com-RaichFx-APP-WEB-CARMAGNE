@@ -13,7 +13,6 @@
     "@google/genai": "^2.10.0",
     "express": "^5.2.1",
     "firebase": "^12.7.0",
-    "jimp": "^1.6.1",
     "jspdf": "2.5.1",
     "jspdf-autotable": "3.8.2",
     "lucide-react": "^0.555.0",
