@@ -96,104 +96,11 @@ const calculateTotalsFromLogs = (logs: WorkLog[]) => {
 const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0 }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number }) => {
   const baseSize = size === "sm" ? 28 : size === "md" ? 64 : size === "lg" ? 140 : 64;
   const iconSize = baseSize * scale;
-  
-  if (!logoUrl || logoUrl === "/logo.png" || logoUrl === "logo.png") {
-    return (
-      <div 
-        className={`relative flex items-center justify-center ${className}`} 
-        style={{ width: iconSize, height: iconSize }}
-      >
-        <svg
-          viewBox="0 0 100 100"
-          className="w-full h-full drop-shadow-[0_0_15px_rgba(204,255,0,0.45)] select-none"
-        >
-          <defs>
-            {/* Glow Filter */}
-            <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3.5" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            
-            {/* Energy Core Gradient */}
-            <radialGradient id="energy-core" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#FFF" />
-              <stop offset="35%" stopColor="#CCFF00" />
-              <stop offset="70%" stopColor="#7acc00" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#050505" stopOpacity="0" />
-            </radialGradient>
-            
-            {/* Metallic C Gradient */}
-            <linearGradient id="metallic-c" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#CCFF00" />
-              <stop offset="50%" stopColor="#e6ff66" />
-              <stop offset="100%" stopColor="#8cb300" />
-            </linearGradient>
-          </defs>
-
-          {/* Squircle outer base */}
-          <rect
-            x="3"
-            y="3"
-            width="94"
-            height="94"
-            rx="24"
-            fill="#050505"
-            stroke="#CCFF00"
-            strokeWidth="1.5"
-            strokeOpacity="0.3"
-          />
-
-          {/* Glowing central energy sphere */}
-          <circle
-            cx="50%"
-            cy="50%"
-            r="28"
-            fill="url(#energy-core)"
-            className="animate-pulse"
-            style={{ animationDuration: '3s' }}
-          />
-
-          {/* Stylized Geometric C */}
-          <path
-            d="M 68,32 
-               C 60,20 40,20 32,32 
-               C 22,42 22,58 32,68 
-               C 40,80 60,80 68,68 
-               L 58,58 
-               C 54,64 46,64 42,58 
-               C 38,54 38,46 42,42 
-               C 46,36 54,36 58,42 
-               Z"
-            fill="url(#metallic-c)"
-            filter="url(#neon-glow)"
-          />
-
-          {/* High tech nucleus dot */}
-          <circle
-            cx="50"
-            cy="50"
-            r="6"
-            fill="#CCFF00"
-            filter="url(#neon-glow)"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r="2"
-            fill="#FFFFFF"
-          />
-        </svg>
-      </div>
-    );
-  }
-
+  const logoSrc = logoUrl || "/logo.png";
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
       <img 
-        src={logoUrl} 
+        src={logoSrc} 
         alt="Company Logo" 
         style={{ width: iconSize, height: iconSize }} 
         className="object-contain rounded-2xl logo-glow"
@@ -252,6 +159,12 @@ export const App: React.FC = () => {
   const [exitReportText, setExitReportText] = useState('');
   const [exitWorkMode, setExitWorkMode] = useState<WorkMode>('HORAS');
   const [pinInput, setPinInput] = useState('');
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [matchedWorker, setMatchedWorker] = useState<Worker | null>(null);
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegPin, setShowRegPin] = useState(false);
+  const [showRegPinConfirm, setShowRegPinConfirm] = useState(false);
   const [regName, setRegName] = useState('');
   const [regDni, setRegDni] = useState('');
   const [regPhone, setRegPhone] = useState('');
@@ -546,10 +459,27 @@ export const App: React.FC = () => {
     const worker = workers.find(w => w.phone && processSpanishPhone(w.phone) === formattedPhone);
     if (worker) {
       if (!worker.active) { setError("Cuenta desactivada."); return; }
-      setSelectedWorker(worker); 
-      localStorage.setItem('carmagne_session_worker_id', worker.id);
-      setError(''); 
-      setCurrentStep(Step.WORKER_DASHBOARD);
+      
+      if (!isPhoneVerified) {
+        setMatchedWorker(worker);
+        setIsPhoneVerified(true);
+        setError('');
+        setLoginPassword('');
+        return;
+      }
+
+      const expectedPassword = worker.pin || '0000';
+      if (loginPassword === expectedPassword) {
+        setSelectedWorker(worker); 
+        localStorage.setItem('carmagne_session_worker_id', worker.id);
+        setError(''); 
+        setIsPhoneVerified(false);
+        setMatchedWorker(null);
+        setLoginPassword('');
+        setCurrentStep(Step.WORKER_DASHBOARD);
+      } else {
+        setError('Contraseña incorrecta');
+      }
     } else if(confirm("Este número no está registrado. ¿Quieres crear una cuenta nueva?")) {
       setRegPhone(formattedPhone); setError(''); setCurrentStep(Step.REGISTER);
     }
@@ -583,6 +513,8 @@ export const App: React.FC = () => {
     if (!regName || !regDni || !fPhone || !regEmail) { setError('Todos los campos son obligatorios, incluyendo el Correo Electrónico.'); return; }
     if (!isPhoneValidSpain(fPhone)) { setError('Solo números de España (+34)'); return; }
     if (!/\S+@\S+\.\S+/.test(regEmail)) { setError('El formato del correo electrónico no es válido.'); return; }
+    if (!regPin.trim()) { setError('La contraseña es obligatoria.'); return; }
+    if (regPin !== regPinConfirm) { setError('Las contraseñas no coinciden.'); return; }
     setLoading(true);
     const newWorker: Worker = { 
       id: `W${Date.now()}`, 
@@ -590,7 +522,7 @@ export const App: React.FC = () => {
       dni: regDni, 
       phone: fPhone, 
       email: regEmail,
-      pin: '0000', 
+      pin: regPin.trim(), 
       qrCode: `QR_${Date.now()}`, 
       active: true, 
       defaultMode: 'HORAS' 
@@ -2033,10 +1965,71 @@ export const App: React.FC = () => {
           </div>
           
           <div className="bg-[var(--panel-bg)] backdrop-blur-2xl p-6 rounded-[2.5rem] border border-[var(--panel-border)] w-full mt-6 shadow-[var(--panel-shadow)]">
-            <input type="tel" value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-xl font-black focus:border-[#CCFF00] outline-none text-center tracking-widest" placeholder="600000000"/>
-            <button onClick={handlePhoneLogin} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#CCFF00]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all">
-              Entrar <ArrowRight size={14} />
-            </button>
+            {!isPhoneVerified ? (
+              <>
+                <p className="text-xs text-[var(--text-muted)] font-bold text-center mb-4 uppercase tracking-widest">Introduce tu número de teléfono</p>
+                <input 
+                  type="tel" 
+                  value={loginPhone} 
+                  onChange={(e) => setLoginPhone(e.target.value)} 
+                  onKeyDown={(e) => { if (e.key === 'Enter') handlePhoneLogin(); }}
+                  className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-xl font-black focus:border-[#CCFF00] outline-none text-center tracking-widest" 
+                  placeholder="600000000"
+                />
+                <button 
+                  onClick={handlePhoneLogin} 
+                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#CCFF00]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
+                >
+                  Continuar <ArrowRight size={14} />
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-center mb-4">
+                  <span className="text-[10px] text-[#CCFF00] font-black uppercase tracking-[0.2em] bg-[#CCFF00]/10 px-3 py-1 rounded-full border border-[#CCFF00]/20">Operario Detectado</span>
+                  <p className="text-lg font-black text-[var(--text-main)] uppercase tracking-tight mt-2">{matchedWorker?.name}</p>
+                  <p className="text-xs text-[var(--text-muted)] font-medium mt-0.5">{matchedWorker?.phone}</p>
+                </div>
+                
+                <div className="relative">
+                  <input 
+                    type={showLoginPassword ? "text" : "password"} 
+                    value={loginPassword} 
+                    onChange={(e) => setLoginPassword(e.target.value)} 
+                    onKeyDown={(e) => { if (e.key === 'Enter') handlePhoneLogin(); }}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 pr-12 text-center text-xl font-black focus:border-[#CCFF00] outline-none tracking-widest" 
+                    placeholder="Contraseña"
+                    autoFocus
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                  >
+                    <Eye size={20} className={showLoginPassword ? "text-[#CCFF00]" : ""} />
+                  </button>
+                </div>
+
+                <button 
+                  onClick={handlePhoneLogin} 
+                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#CCFF00]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
+                >
+                  Entrar <ArrowRight size={14} />
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setIsPhoneVerified(false);
+                    setMatchedWorker(null);
+                    setLoginPassword('');
+                    setError('');
+                  }} 
+                  className="w-full text-[var(--text-muted)] hover:text-rose-400 font-bold text-[10px] uppercase tracking-wider mt-4 text-center block transition-all"
+                >
+                  Atrás / Cambiar de número
+                </button>
+              </>
+            )}
           </div>
           
           <div className="flex items-center justify-center gap-4 mt-6">
@@ -2265,14 +2258,62 @@ case Step.WORKER_TOOLS: return (
         </div>
       );
       case Step.REGISTER: return (
-        <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4">
-           <h2 className="text-2xl font-black text-[var(--text-main)] mb-4 shrink-0 tracking-tighter uppercase">Crear Cuenta</h2>
+        <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4 max-w-md mx-auto w-full">
+           <div className="flex items-center gap-4 mb-4 shrink-0">
+             <button onClick={() => setCurrentStep(Step.LOGIN_PHONE)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10">
+               <ChevronLeft size={20}/>
+             </button>
+             <h2 className="text-2xl font-black text-[var(--text-main)] tracking-tighter uppercase">Crear Cuenta</h2>
+           </div>
+           
            <div className="bg-[var(--panel-bg)] p-5 rounded-[2.5rem] border border-[var(--panel-border)] space-y-3 shadow-xl md:overflow-y-auto custom-scrollbar md:flex-1">
-             <input type="text" placeholder="Nombre completo" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)] focus:border-blue-500 outline-none" value={regName} onChange={(e)=>setRegName(e.target.value)}/>
-             <input type="text" placeholder="DNI / NIE" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)] focus:border-blue-500 outline-none" value={regDni} onChange={(e)=>setRegDni(e.target.value)}/>
-             <input type="tel" placeholder="Teléfono" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)] font-bold" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)}/>
-             <input type="email" placeholder="Correo electrónico" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)]" value={regEmail} onChange={(e)=>setRegEmail(e.target.value)}/>
-             <button onClick={handleRegistration} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shrink-0">Registrarme</button>
+             <div className="space-y-1">
+               <label className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase ml-1">Datos Personales</label>
+               <input type="text" placeholder="Nombre completo" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" value={regName} onChange={(e)=>setRegName(e.target.value)}/>
+               <input type="text" placeholder="DNI / NIE" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" value={regDni} onChange={(e)=>setRegDni(e.target.value)}/>
+               <input type="tel" placeholder="Teléfono" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] font-bold opacity-80" value={regPhone} readOnly />
+               <input type="email" placeholder="Correo electrónico" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" value={regEmail} onChange={(e)=>setRegEmail(e.target.value)}/>
+             </div>
+
+             <div className="space-y-2 pt-2 border-t border-[var(--panel-border)]">
+               <label className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase ml-1">Seguridad (Contraseña de Acceso)</label>
+               
+               <div className="relative">
+                 <input 
+                   type={showRegPin ? "text" : "password"} 
+                   placeholder="Elige contraseña" 
+                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" 
+                   value={regPin} 
+                   onChange={(e)=>setRegPin(e.target.value)}
+                 />
+                 <button 
+                   type="button"
+                   onClick={() => setShowRegPin(!showRegPin)}
+                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                 >
+                   <Eye size={18} className={showRegPin ? "text-[#CCFF00]" : ""} />
+                 </button>
+               </div>
+
+               <div className="relative">
+                 <input 
+                   type={showRegPinConfirm ? "text" : "password"} 
+                   placeholder="Confirma tu contraseña" 
+                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" 
+                   value={regPinConfirm} 
+                   onChange={(e)=>setRegPinConfirm(e.target.value)}
+                 />
+                 <button 
+                   type="button"
+                   onClick={() => setShowRegPinConfirm(!showRegPinConfirm)}
+                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                 >
+                   <Eye size={18} className={showRegPinConfirm ? "text-[#CCFF00]" : ""} />
+                 </button>
+               </div>
+             </div>
+
+             <button onClick={handleRegistration} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shadow-[#CCFF00]/10 shrink-0">Registrarme</button>
            </div>
         </div>
       );
