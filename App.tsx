@@ -96,16 +96,15 @@ const calculateTotalsFromLogs = (logs: WorkLog[]) => {
 const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0 }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number }) => {
   const baseSize = size === "sm" ? 28 : size === "md" ? 64 : size === "lg" ? 140 : 64;
   const iconSize = baseSize * scale;
-  if (logoUrl) {
-    return (
-      <div className={`relative flex items-center justify-center ${className}`}>
-        <img src={logoUrl} alt="Company Logo" style={{ width: iconSize, height: iconSize }} className="object-contain rounded-2xl drop-shadow-[0_0_15px_rgba(59,130,246,0.4)]"/>
-      </div>
-    );
-  }
+  const logoSrc = logoUrl || "/logo.png";
   return (
-    <div className={`relative flex items-center justify-center ${className} text-blue-500`}>
-      <Zap size={iconSize} className="drop-shadow-[0_0_20px_rgba(59,130,246,0.6)] fill-blue-500/20" strokeWidth={2.5}/>
+    <div className={`relative flex items-center justify-center ${className}`}>
+      <img 
+        src={logoSrc} 
+        alt="Company Logo" 
+        style={{ width: iconSize, height: iconSize }} 
+        className="object-contain rounded-2xl logo-glow"
+      />
     </div>
   );
 };
@@ -189,6 +188,67 @@ export const App: React.FC = () => {
   const [activeChatPartnerId, setActiveChatPartnerId] = useState<string | null>(null);
   const [chatMessageInput, setChatMessageInput] = useState('');
 
+  // iOS 26 Push Notifications state
+  const [pushNotifications, setPushNotifications] = useState<any[]>([]);
+  
+  const selectedWorkerRef = useRef<Worker | null>(null);
+  const isAdminRef = useRef<boolean>(false);
+  const mountTimeRef = useRef<number>(Date.now());
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    selectedWorkerRef.current = selectedWorker;
+  }, [selectedWorker]);
+
+  useEffect(() => {
+    isAdminRef.current = isAdmin;
+  }, [isAdmin]);
+
+  const triggerPushNotification = (title: string, body: string, type: 'chat' | 'log' | 'system', senderId?: string, icon?: string) => {
+    const id = Math.random().toString(36).substring(2, 11);
+    const newNotif = {
+      id,
+      title,
+      body,
+      type,
+      senderId,
+      icon,
+      timestamp: Date.now()
+    };
+    setPushNotifications(prev => [newNotif, ...prev].slice(0, 4));
+    setTimeout(() => {
+      setPushNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+
+    // Subtle premium web audio haptic beep/ding
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime); 
+      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.12); 
+      gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.25);
+    } catch (e) {
+      // Audio context may be blocked by browser autoplay rules
+    }
+  };
+
+  const handleNotificationClick = (notif: any) => {
+    if (notif.type === 'chat' && notif.senderId) {
+      setActiveChatPartnerId(notif.senderId);
+      setCurrentStep(Step.WORKER_CHAT);
+      // Clean selected notification
+      setPushNotifications(prev => prev.filter(n => n.id !== notif.id));
+    }
+  };
+
+
   useEffect(() => {
     const timer = setTimeout(() => setIsAppLoading(false), 2000);
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -223,13 +283,52 @@ export const App: React.FC = () => {
       }
     });
     const unsubSites = StorageService.subscribeToSites(setSites);
-    const unsubLogs = StorageService.subscribeToLogs(setWorkerLogs);
+    const unsubLogs = StorageService.subscribeToLogs((newLogs) => {
+      setWorkerLogs(newLogs);
+      newLogs.forEach(log => {
+        if (log.timestamp > mountTimeRef.current && !notifiedIdsRef.current.has(log.id)) {
+          notifiedIdsRef.current.add(log.id);
+          const isFromMe = selectedWorkerRef.current && log.workerId === selectedWorkerRef.current.id;
+          if (!isFromMe) {
+            const actionEmoji = log.type === LogType.ENTRADA ? '🚀' : log.type === LogType.SALIDA ? '🚪' : '⏱️';
+            const cleanType = log.type.replace('_', ' ');
+            triggerPushNotification(
+              `${actionEmoji} ${log.workerName}`,
+              `${cleanType} en ${log.siteName}`,
+              'log',
+              undefined,
+              actionEmoji
+            );
+          }
+        }
+      });
+    });
     const unsubAdmins = StorageService.subscribeToAdmins(setAdmins);
     const unsubTools = StorageService.subscribeToTools(setAllTools);
     const unsubConfig = StorageService.subscribeToConfig(setAppConfig);
     const unsubReports = StorageService.subscribeToReports(setMyReports);
     const unsubPayslips = StorageService.subscribeToPayslips(setMyPayslips);
-    const unsubChats = StorageService.subscribeToChats(setChats);
+    const unsubChats = StorageService.subscribeToChats((newChats) => {
+      setChats(newChats);
+      newChats.forEach(msg => {
+        if (msg.timestamp > mountTimeRef.current && !notifiedIdsRef.current.has(msg.id)) {
+          notifiedIdsRef.current.add(msg.id);
+          const activeWorker = selectedWorkerRef.current;
+          const isAdminView = isAdminRef.current;
+          const isForMe = (activeWorker && msg.receiverId === activeWorker.id) || (isAdminView && msg.receiverId === 'ADMIN');
+          const isFromMe = (activeWorker && msg.senderId === activeWorker.id) || (isAdminView && msg.senderId === 'ADMIN');
+          if (isForMe && !isFromMe) {
+            triggerPushNotification(
+              msg.senderName === 'El Jefe' ? '👑 EL JEFE' : `💬 ${msg.senderName}`,
+              msg.text,
+              'chat',
+              msg.senderId,
+              msg.senderId === 'ADMIN' ? '👑' : '💬'
+            );
+          }
+        }
+      });
+    });
     return () => {
       clearTimeout(timer); clearInterval(interval);
       unsubWorkers(); unsubSites(); unsubLogs(); unsubAdmins(); unsubTools(); unsubConfig(); unsubReports(); unsubPayslips(); unsubChats();
@@ -2023,10 +2122,27 @@ case Step.WORKER_TOOLS: return (
         </div>
       );
       case Step.SUCCESS: return (
-        <div className="flex flex-col items-center justify-center h-full gap-6 animate-fadeIn text-center">
-           <div className="w-24 h-24 bg-emerald-600 rounded-[2rem] flex items-center justify-center shadow-2xl animate-bounce"><CheckCircle size={48} className="text-white" /></div>
-           <div><h2 className="text-3xl font-black text-[var(--text-main)] uppercase tracking-tighter">¡Operación con Éxito!</h2><p className="text-[var(--text-muted)] text-sm mt-2 font-medium">Tu fichaje ha sido registrado en el sistema.</p></div>
-           <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="bg-[var(--btn-glass-bg)] text-[var(--text-main)] px-8 py-4 rounded-2xl font-black border border-[var(--btn-glass-border)] uppercase tracking-widest text-xs shadow-lg active:scale-95 hover:bg-slate-500/10">Regresar al Panel</button>
+        <div className="flex flex-col items-center justify-center py-10 md:py-20 min-h-[60vh] flex-1 gap-6 animate-fadeIn text-center w-full max-w-md mx-auto">
+           <div 
+             style={{ width: '96px', height: '96px', minWidth: '96px', minHeight: '96px' }}
+             className="w-24 h-24 shrink-0 flex-shrink-0 mx-auto self-center bg-emerald-600 rounded-[2rem] flex items-center justify-center shadow-2xl animate-bounce"
+           >
+             <CheckCircle size={44} className="text-white shrink-0" />
+           </div>
+           <div className="px-4">
+             <h2 className="text-2xl md:text-3xl font-black text-[var(--text-main)] uppercase tracking-tighter leading-tight">
+               ¡Operación con Éxito!
+             </h2>
+             <p className="text-[var(--text-muted)] text-xs md:text-sm mt-2 font-medium">
+               Tu fichaje ha sido registrado en el sistema.
+             </p>
+           </div>
+           <button 
+             onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} 
+             className="bg-[var(--btn-glass-bg)] text-[var(--text-main)] px-8 py-4 rounded-2xl font-black border border-[var(--btn-glass-border)] uppercase tracking-widest text-xs shadow-lg active:scale-95 hover:bg-slate-500/10 transition mt-2"
+           >
+             Regresar al Panel
+           </button>
         </div>
       );
       case Step.REGISTER: return (
@@ -2152,6 +2268,44 @@ case Step.WORKER_TOOLS: return (
           </div>
         </div>
       )}
+
+      {/* iOS 26 Styled Push Notifications Container */}
+      <div className="fixed top-4 left-0 right-0 z-[99999] flex flex-col items-center gap-2 pointer-events-none px-4">
+        {pushNotifications.map(notif => (
+          <div 
+            key={notif.id}
+            onClick={() => handleNotificationClick(notif)}
+            className="pointer-events-auto w-full max-w-sm bg-[#050505]/90 backdrop-blur-xl border border-[#CCFF00]/30 text-white rounded-[2rem] p-4 flex gap-3 shadow-[0_10px_30px_rgba(204,255,0,0.15)] cursor-pointer hover:scale-[1.02] transition-all duration-300 transform animate-slideDown relative overflow-hidden"
+          >
+             {/* Dynamic neon top bar */}
+             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#CCFF00] to-transparent opacity-80" />
+             
+             {/* Left Icon/Initial */}
+             <div className="w-10 h-10 min-w-[40px] rounded-2xl bg-zinc-950 border border-zinc-900 flex items-center justify-center text-lg shadow-inner">
+               {notif.icon || (notif.type === 'chat' ? '💬' : '📋')}
+             </div>
+             
+             {/* Body */}
+             <div className="flex-1 min-w-0">
+               <div className="flex justify-between items-center">
+                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
+                   {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
+                 </span>
+                 <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>
+               </div>
+               <h4 className="text-xs font-black text-white uppercase tracking-tighter mt-0.5 truncate font-sans">
+                 {notif.title}
+               </h4>
+               <p className="text-[10px] text-zinc-300 font-medium truncate mt-0.5 leading-snug font-sans">
+                 {notif.body}
+               </p>
+             </div>
+             
+             {/* Subtle iOS indicator line */}
+             <div className="absolute bottom-1 w-12 h-[3px] left-1/2 transform -translate-x-1/2 bg-zinc-800 rounded-full" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

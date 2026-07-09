@@ -44,7 +44,7 @@ const INITIAL_CONFIG: AppConfig = {
   adminPhone: '34631400010', 
   googleSheetUrl: '', 
   adminPassword: 'admin', 
-  logoUrl: '', 
+  logoUrl: '/logo.png', 
   logoScaleLogin: 1.0,
   logoScaleDashboard: 1.0
 };

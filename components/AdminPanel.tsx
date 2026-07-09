@@ -144,6 +144,57 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const [activeWorkerChatId, setActiveWorkerChatId] = useState<string | null>(null);
   const [adminChatInput, setAdminChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // iOS 26 Push Notifications state
+  const [pushNotifications, setPushNotifications] = useState<any[]>([]);
+  
+  const mountTimeRef = useRef<number>(Date.now());
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
+
+  const triggerPushNotification = (title: string, body: string, type: 'chat' | 'log' | 'system', senderId?: string, icon?: string) => {
+    const id = Math.random().toString(36).substring(2, 11);
+    const newNotif = {
+      id,
+      title,
+      body,
+      type,
+      senderId,
+      icon,
+      timestamp: Date.now()
+    };
+    setPushNotifications(prev => [newNotif, ...prev].slice(0, 4));
+    setTimeout(() => {
+      setPushNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+
+    // Subtle premium web audio haptic beep/ding
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime); 
+      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.12); 
+      gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.25);
+    } catch (e) {
+      // Audio context may be blocked by browser autoplay rules
+    }
+  };
+
+  const handleNotificationClick = (notif: any) => {
+    if (notif.type === 'chat' && notif.senderId) {
+      setActiveWorkerChatId(notif.senderId);
+      setActiveTab('chat');
+      // Clean selected notification
+      setPushNotifications(prev => prev.filter(n => n.id !== notif.id));
+    }
+  };
+
   
   // Weekly Reports & Payslips state
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
@@ -283,13 +334,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
     const unsubWorkers = StorageService.subscribeToWorkers(setWorkers);
     const unsubSites = StorageService.subscribeToSites(setSites);
-    const unsubLogs = StorageService.subscribeToLogs(setLogs);
+    const unsubLogs = StorageService.subscribeToLogs((newLogs) => {
+      setLogs(newLogs);
+      newLogs.forEach(log => {
+        if (log.timestamp > mountTimeRef.current && !notifiedIdsRef.current.has(log.id)) {
+          notifiedIdsRef.current.add(log.id);
+          const actionEmoji = log.type === 'ENTRADA' ? '🚀' : log.type === 'SALIDA' ? '🚪' : '⏱️';
+          const cleanType = log.type.replace('_', ' ');
+          triggerPushNotification(
+            `${actionEmoji} ${log.workerName}`,
+            `${cleanType} en ${log.siteName}`,
+            'log',
+            undefined,
+            actionEmoji
+          );
+        }
+      });
+    });
     const unsubAdmins = StorageService.subscribeToAdmins(setAdmins);
     const unsubTools = StorageService.subscribeToTools(setTools);
     const unsubConfig = StorageService.subscribeToConfig(setConfig);
     const unsubReports = StorageService.subscribeToReports(setWeeklyReports);
     const unsubPayslips = StorageService.subscribeToPayslips(setPayslips);
-    const unsubChats = StorageService.subscribeToChats(setChats);
+    const unsubChats = StorageService.subscribeToChats((newChats) => {
+      setChats(newChats);
+      newChats.forEach(msg => {
+        if (msg.timestamp > mountTimeRef.current && !notifiedIdsRef.current.has(msg.id)) {
+          notifiedIdsRef.current.add(msg.id);
+          const isForMe = msg.receiverId === 'ADMIN';
+          const isFromMe = msg.senderId === 'ADMIN';
+          if (isForMe && !isFromMe) {
+            triggerPushNotification(
+              `💬 ${msg.senderName}`,
+              msg.text,
+              'chat',
+              msg.senderId,
+              '💬'
+            );
+          }
+        }
+      });
+    });
 
     return () => {
       unsubWorkers(); unsubSites(); unsubLogs(); unsubAdmins(); unsubTools(); unsubConfig(); unsubReports(); unsubPayslips(); unsubChats();
@@ -660,7 +745,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
        setTimeout(() => setSyncMessage(''), 4000);
      } catch (err: any) {
        console.error("Error al sincronizar con Google Sheets:", err);
-       alert("Error al sincronizar con Google Sheets: " + (err.message || err));
+       const errMsg = err.message || JSON.stringify(err);
+       if (errMsg.includes("sheets.googleapis.com") || errMsg.includes("has not been used in project") || errMsg.includes("disabled")) {
+         setGoogleApiError({
+           apiName: "Google Sheets API",
+           message: errMsg,
+           code: 403
+         });
+       } else {
+         alert("Error al sincronizar con Google Sheets: " + errMsg);
+       }
        setSyncMessage('Fallo en la sincronización');
      } finally {
        setIsSyncingSheets(false);
@@ -705,7 +799,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
          alert(`📧 ¡Éxito! Correo de prueba enviado correctamente a ${to}`);
        } else {
          const errData = await response.json();
-         console.error("Error Gmail API:", errData);
+         console.error("Error Gmail API: " + JSON.stringify(errData));
                    setGoogleApiError({ apiName: "Gmail API", message: errData.error?.message || JSON.stringify(errData), code: errData.error?.code || response.status });
        }
      } catch (err: any) {
@@ -748,7 +842,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           setEmailModal(prev => ({ ...prev, isOpen: false, selectedCertIds: [] }));
         } else {
           const errData = await response.json();
-          console.error("Gmail Send Error:", errData);
+          console.error("Gmail Send Error: " + JSON.stringify(errData));
                     setGoogleApiError({ apiName: "Gmail API", message: errData.error?.message || JSON.stringify(errData), code: errData.error?.code || response.status });
           throw new Error(errData.error?.message || "Error al enviar correo con Gmail API");
         }
@@ -3815,65 +3909,122 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         </div>
       )}
 
-      {googleApiError && (
-        <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
-          <div className={`w-full max-w-lg rounded-[2.5rem] border p-8 shadow-2xl relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-zinc-200'}`}>
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <span className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full text-[8px] font-black tracking-wider uppercase font-sans">
-                  Google Cloud API Alert
-                </span>
-                <h3 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter mt-2 font-sans" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                  Habilitar {googleApiError.apiName}
-                </h3>
-              </div>
-              <button onClick={() => setGoogleApiError(null)} className="text-zinc-500 hover:text-[var(--text-main)] p-2">
-                <X size={20} />
-              </button>
-            </div>
+      {googleApiError && (() => {
+        const getDirectEnableUrl = () => {
+          if (!googleApiError || !googleApiError.message) return null;
+          const match = googleApiError.message.match(/(https?:\/\/[^\s"]+)/);
+          if (match) {
+            return match[1].replace(/[).,"]+$/, "");
+          }
+          return null;
+        };
+        const directUrl = getDirectEnableUrl();
 
-            <div className="space-y-4 text-xs font-sans text-[var(--text-muted)]">
-              <p className="leading-relaxed">
-                Para que la integración con <strong>{googleApiError.apiName}</strong> funcione, debes habilitar este servicio de Google en el panel de desarrolladores de tu proyecto Google Cloud (asociado a tu Firebase).
-              </p>
-
-              <div className={`p-4 rounded-xl border space-y-1 ${theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-rose-50 border-rose-100'}`}>
-                <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Detalle del Error:</p>
-                <p className="font-mono text-[10px] text-[var(--text-main)] break-all leading-relaxed">{googleApiError.message}</p>
-                {googleApiError.code && <p className="text-[9px] text-zinc-500">Código de estado HTTP: {googleApiError.code}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-black text-[var(--text-main)] uppercase text-[10px] tracking-wider">Pasos para habilitarlo:</h4>
-                <ol className="list-decimal pl-4 space-y-2.5 leading-relaxed">
-                  <li>Inicia sesión con tu cuenta de administrador de Google en <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Google Cloud Console <ExternalLink size={10} /></a>.</li>
-                  <li>Selecciona tu proyecto <strong>CARMAGNE INSTAL 2024</strong> en la barra superior.</li>
-                  <li>En el buscador superior, escribe <strong>"{googleApiError.apiName}"</strong> y selecciónalo.</li>
-                  <li>Haz clic en el botón azul de <strong>HABILITAR</strong> (Enable).</li>
-                  <li><em>Nota: Si la cuenta de Google con la que inicias sesión aquí no es la propietaria del proyecto, asegúrate de invitarla como Editor/Propietario desde Firebase Console {'>'} Project Settings {'>'} Users and Permissions.</em></li>
-                </ol>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button 
-                  onClick={() => setGoogleApiError(null)}
-                  className={`font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl transition-all ${theme === 'dark' ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-800'}`}
-                >
-                  Cerrar
+        return (
+          <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
+            <div className={`w-full max-w-lg rounded-[2.5rem] border p-8 shadow-2xl relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-zinc-200'}`}>
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <span className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full text-[8px] font-black tracking-wider uppercase font-sans">
+                    Google Cloud API Alert
+                  </span>
+                  <h3 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter mt-2 font-sans" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                    Habilitar {googleApiError.apiName}
+                  </h3>
+                </div>
+                <button onClick={() => setGoogleApiError(null)} className="text-zinc-500 hover:text-[var(--text-main)] p-2">
+                  <X size={20} />
                 </button>
-                <a 
-                  href={`https://console.cloud.google.com/apis/library/${googleApiError.apiName === 'Gmail API' ? 'gmail.googleapis.com' : 'sheets.googleapis.com'}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5"
-                >
-                  Ir a la Consola <ExternalLink size={12} />
-                </a>
+              </div>
+
+              <div className="space-y-4 text-xs font-sans text-[var(--text-muted)]">
+                <p className="leading-relaxed">
+                  Para que la integración con <strong>{googleApiError.apiName}</strong> funcione, debes habilitar este servicio de Google en el panel de desarrolladores de tu proyecto Google Cloud (asociado a tu Firebase).
+                </p>
+
+                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-3 rounded-xl flex items-start gap-2">
+                  <span className="text-base">⏳</span>
+                  <p className="leading-normal">
+                    <strong>Nota sobre propagación:</strong> Si acabas de habilitar la API hace unos instantes, Google puede tardar **de 3 a 5 minutos** en propagar el cambio en sus servidores globales. Por favor, espera un momento y vuelve a intentarlo.
+                  </p>
+                </div>
+
+                <div className={`p-4 rounded-xl border space-y-1 ${theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-rose-50 border-rose-100'}`}>
+                  <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Detalle del Error:</p>
+                  <p className="font-mono text-[10px] text-[var(--text-main)] break-all leading-relaxed">{googleApiError.message}</p>
+                  {googleApiError.code && <p className="text-[9px] text-zinc-500">Código de estado HTTP: {googleApiError.code}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-black text-[var(--text-main)] uppercase text-[10px] tracking-wider">Pasos para habilitarlo:</h4>
+                  <ol className="list-decimal pl-4 space-y-2.5 leading-relaxed">
+                    <li>Inicia sesión con tu cuenta de administrador de Google en <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Google Cloud Console <ExternalLink size={10} /></a>.</li>
+                    <li>Selecciona tu proyecto <strong>CARMAGNE INSTAL 2024</strong> en la barra superior.</li>
+                    <li>En el buscador superior, escribe <strong>"{googleApiError.apiName}"</strong> y selecciónalo.</li>
+                    <li>Haz clic en el botón azul de <strong>HABILITAR</strong> (Enable).</li>
+                    <li><em>Nota: Si la cuenta de Google con la que inicias sesión aquí no es la propietaria del proyecto, asegúrate de invitarla como Editor/Propietario desde Firebase Console {'>'} Project Settings {'>'} Users and Permissions.</em></li>
+                  </ol>
+                </div>
+
+                <div className="pt-4 flex justify-end gap-3">
+                  <button 
+                    onClick={() => setGoogleApiError(null)}
+                    className={`font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl transition-all ${theme === 'dark' ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-800'}`}
+                  >
+                    Cerrar
+                  </button>
+                  <a 
+                    href={directUrl || `https://console.cloud.google.com/apis/library/${googleApiError.apiName === 'Gmail API' ? 'gmail.googleapis.com' : 'sheets.googleapis.com'}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5 text-center justify-center"
+                  >
+                    {directUrl ? "Habilitar API Directamente" : "Ir a la Consola"} <ExternalLink size={12} />
+                  </a>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* iOS 26 Styled Push Notifications Container for Admin */}
+      <div className="fixed top-4 left-0 right-0 z-[99999] flex flex-col items-center gap-2 pointer-events-none px-4">
+        {pushNotifications.map(notif => (
+          <div 
+            key={notif.id}
+            onClick={() => handleNotificationClick(notif)}
+            className="pointer-events-auto w-full max-w-sm bg-[#050505]/90 backdrop-blur-xl border border-[#CCFF00]/30 text-white rounded-[2rem] p-4 flex gap-3 shadow-[0_10px_30px_rgba(204,255,0,0.15)] cursor-pointer hover:scale-[1.02] transition-all duration-300 transform animate-slideDown relative overflow-hidden"
+          >
+             {/* Dynamic neon top bar */}
+             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#CCFF00] to-transparent opacity-80" />
+             
+             {/* Left Icon/Initial */}
+             <div className="w-10 h-10 min-w-[40px] rounded-2xl bg-zinc-950 border border-zinc-900 flex items-center justify-center text-lg shadow-inner">
+               {notif.icon || (notif.type === 'chat' ? '💬' : '📋')}
+             </div>
+             
+             {/* Body */}
+             <div className="flex-1 min-w-0">
+               <div className="flex justify-between items-center">
+                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
+                   {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
+                 </span>
+                 <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>
+               </div>
+               <h4 className="text-xs font-black text-white uppercase tracking-tighter mt-0.5 truncate font-sans">
+                 {notif.title}
+               </h4>
+               <p className="text-[10px] text-zinc-300 font-medium truncate mt-0.5 leading-snug font-sans">
+                 {notif.body}
+               </p>
+             </div>
+             
+             {/* Subtle iOS indicator line */}
+             <div className="absolute bottom-1 w-12 h-[3px] left-1/2 transform -translate-x-1/2 bg-zinc-800 rounded-full" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
