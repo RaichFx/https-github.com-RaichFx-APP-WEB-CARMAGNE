@@ -6,10 +6,16 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:web": "vite build",
     "start": "node dist/server.cjs",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "android:add": "cap add android",
+    "android:sync": "cap sync android",
+    "android:apk": "npm run build:web && cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
     "@google/genai": "^2.10.0",
     "express": "^5.2.1",
     "firebase": "^12.7.0",
@@ -21,6 +27,7 @@
     "recharts": "^3.5.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
