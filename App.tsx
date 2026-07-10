@@ -2435,34 +2435,42 @@ case Step.WORKER_TOOLS: return (
           <div 
             key={notif.id}
             onClick={() => handleNotificationClick(notif)}
-            className="pointer-events-auto w-full max-w-sm bg-[#050505]/90 backdrop-blur-xl border border-[#CCFF00]/30 text-white rounded-[2rem] p-4 flex gap-3 shadow-[0_10px_30px_rgba(204,255,0,0.15)] cursor-pointer hover:scale-[1.02] transition-all duration-300 transform animate-slideDown relative overflow-hidden"
+            className={`pointer-events-auto w-full max-w-sm backdrop-blur-xl rounded-[2rem] p-4 flex gap-3 cursor-pointer hover:scale-[1.02] transition-all duration-300 transform animate-slideDown relative overflow-hidden border ${
+              theme === 'light'
+                ? 'bg-white/95 border-slate-200 text-slate-950 shadow-[0_14px_34px_rgba(15,23,42,0.12)]'
+                : 'bg-[#050505]/90 border-[#CCFF00]/30 text-white shadow-[0_10px_30px_rgba(204,255,0,0.15)]'
+            }`}
           >
-             {/* Dynamic neon top bar */}
-             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#CCFF00] to-transparent opacity-80" />
+             {/* Dynamic top bar */}
+             <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent to-transparent ${theme === 'light' ? 'via-slate-300 opacity-90' : 'via-[#CCFF00] opacity-80'}`} />
              
              {/* Left Icon/Initial */}
-             <div className="w-10 h-10 min-w-[40px] rounded-2xl bg-zinc-950 border border-zinc-900 flex items-center justify-center text-lg shadow-inner">
+             <div className={`w-10 h-10 min-w-[40px] rounded-2xl flex items-center justify-center text-lg shadow-inner border ${
+               theme === 'light'
+                 ? 'bg-slate-100 border-slate-200'
+                 : 'bg-zinc-950 border-zinc-900'
+             }`}>
                {notif.icon || (notif.type === 'chat' ? '💬' : '📋')}
              </div>
              
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
+                 <span className={`text-[9px] font-black uppercase tracking-wider font-sans ${theme === 'light' ? 'text-lime-600' : 'text-[#CCFF00]'}`}>
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
-                 <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>
+                 <span className={`text-[9px] font-mono ${theme === 'light' ? 'text-slate-400' : 'text-zinc-500'}`}>Ahora</span>
                </div>
-               <h4 className="text-xs font-black text-white uppercase tracking-tighter mt-0.5 truncate font-sans">
+               <h4 className={`text-xs font-black uppercase tracking-tighter mt-0.5 truncate font-sans ${theme === 'light' ? 'text-slate-950' : 'text-white'}`}>
                  {notif.title}
                </h4>
-               <p className="text-[10px] text-zinc-300 font-medium truncate mt-0.5 leading-snug font-sans">
+               <p className={`text-[10px] font-medium truncate mt-0.5 leading-snug font-sans ${theme === 'light' ? 'text-slate-600' : 'text-zinc-300'}`}>
                  {notif.body}
                </p>
              </div>
              
              {/* Subtle iOS indicator line */}
-             <div className="absolute bottom-1 w-12 h-[3px] left-1/2 transform -translate-x-1/2 bg-zinc-800 rounded-full" />
+             <div className={`absolute bottom-1 w-12 h-[3px] left-1/2 transform -translate-x-1/2 rounded-full ${theme === 'light' ? 'bg-slate-200' : 'bg-zinc-800'}`} />
           </div>
         ))}
       </div>
