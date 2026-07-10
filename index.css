@@ -264,3 +264,14 @@ button {
   animation: iosSlideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+
+
+/* Prevent iOS Safari from zooming the whole app when focusing form fields. */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
+  }
+}
