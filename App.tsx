@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   User, MapPin, CheckCircle, 
-  LogOut, Coffee, ArrowRight, ShieldAlert, Lock, Fingerprint, Delete, UserPlus, Save, ChevronLeft, Calendar, History, Clock, Smartphone, X, Mic, MicOff, FileText, Cloud, ExternalLink, Briefcase, Phone, KeyRound, BellRing, Search, Download, CalendarDays, Zap, Wrench, Package, Info, Plus, Trash2, Timer, Filter, ChevronDown, Shield, AlertTriangle, AlertCircle, Image as ImageIcon, Upload, ClipboardList, Sun, Moon, Eye, MessageSquare, Send, Mail
+  LogOut, Coffee, ArrowRight, ShieldAlert, Lock, Fingerprint, Delete, UserPlus, Save, ChevronLeft, Calendar, History, Clock, Smartphone, X, Mic, MicOff, FileText, Cloud, ExternalLink, Briefcase, Phone, KeyRound, BellRing, Search, Download, CalendarDays, Zap, Wrench, Package, Info, Plus, Trash2, Timer, Filter, ChevronDown, Shield, AlertTriangle, AlertCircle, Image as ImageIcon, Upload, ClipboardList, Sun, Moon, Eye, MessageSquare, Send, Mail, Edit3
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -155,6 +155,10 @@ export const App: React.FC = () => {
   const certFileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [certNameInput, setCertNameInput] = useState('');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editDni, setEditDni] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   
   const [exitReportText, setExitReportText] = useState('');
   const [exitWorkMode, setExitWorkMode] = useState<WorkMode>('HORAS');
@@ -341,6 +345,20 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Dynamic favicon update
+  useEffect(() => {
+    if (appConfig?.faviconUrl) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        link.type = 'image/png';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = appConfig.faviconUrl;
+    }
+  }, [appConfig?.faviconUrl]);
+
   // Worker tools filtered list
   const workerTools = useMemo(() => {
     if (!selectedWorker) return [];
@@ -482,6 +500,66 @@ export const App: React.FC = () => {
       }
     } else if(confirm("Este número no está registrado. ¿Quieres crear una cuenta nueva?")) {
       setRegPhone(formattedPhone); setError(''); setCurrentStep(Step.REGISTER);
+    }
+  };
+
+  const startEditingProfile = () => {
+    if (selectedWorker) {
+      setEditDni(selectedWorker.dni || '');
+      setEditEmail(selectedWorker.email || '');
+      setEditPhone(selectedWorker.phone || '');
+      setIsEditingProfile(true);
+      setError('');
+    }
+  };
+
+  const cancelEditingProfile = () => {
+    setIsEditingProfile(false);
+    setError('');
+  };
+
+  const handleSaveProfile = async () => {
+    if (!selectedWorker) return;
+    const fPhone = processSpanishPhone(editPhone);
+    if (!editDni.trim() || !fPhone || !editEmail.trim()) {
+      setError('Todos los campos son obligatorios.');
+      return;
+    }
+    if (!isPhoneValidSpain(fPhone)) {
+      setError('Solo números de España (+34)');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(editEmail)) {
+      setError('El formato del correo electrónico no es válido.');
+      return;
+    }
+
+    const duplicate = workers.find(w => w.id !== selectedWorker.id && w.phone && processSpanishPhone(w.phone) === fPhone);
+    if (duplicate) {
+      setError('Este número de teléfono ya está registrado por otro empleado.');
+      return;
+    }
+
+    const updatedWorker = {
+      ...selectedWorker,
+      dni: editDni.trim(),
+      phone: fPhone,
+      email: editEmail.trim(),
+    };
+
+    const updatedList = workers.map(w => w.id === selectedWorker.id ? updatedWorker : w);
+    setLoading(true);
+    try {
+      await StorageService.saveWorkers(updatedList);
+      setWorkers(updatedList);
+      setSelectedWorker(updatedWorker);
+      setIsEditingProfile(false);
+      setError('');
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError("Error al guardar el perfil.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1113,7 +1191,10 @@ export const App: React.FC = () => {
         <div className="flex items-center justify-between gap-4 mb-6 shrink-0">
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} 
+              onClick={() => {
+                setIsEditingProfile(false);
+                setCurrentStep(Step.WORKER_DASHBOARD);
+              }} 
               className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10"
             >
               <ChevronLeft size={20}/>
@@ -1123,6 +1204,29 @@ export const App: React.FC = () => {
               <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Visualiza y gestiona tus datos</p>
             </div>
           </div>
+
+          <button
+            onClick={() => {
+              if (isEditingProfile) {
+                cancelEditingProfile();
+              } else {
+                startEditingProfile();
+              }
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 border transition-all active:scale-95 ${
+              isEditingProfile 
+                ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20' 
+                : 'bg-[#CCFF00]/10 text-[#CCFF00] border-[#CCFF00]/20 hover:bg-[#CCFF00]/20'
+            }`}
+          >
+            {isEditingProfile ? (
+              <>Cancelar</>
+            ) : (
+              <>
+                <Edit3 size={14} /> Editar Datos
+              </>
+            )}
+          </button>
         </div>
 
         <div className="md:flex-1 md:overflow-y-auto space-y-6 pb-6 custom-scrollbar pr-1">
@@ -1181,28 +1285,80 @@ export const App: React.FC = () => {
           </div>
 
           {/* Ficha técnica del operario */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
-              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">DNI / NIE / Pasaporte</p>
-              <p className="text-sm font-black text-[var(--text-main)] uppercase mt-1">{selectedWorker.dni || 'S/DNI'}</p>
+          {isEditingProfile ? (
+            <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[#CCFF00]/20 p-6 rounded-[2rem] shadow-[var(--panel-shadow)] space-y-4">
+              <div className="border-b border-[var(--panel-border)] pb-3">
+                <span className="text-[9px] font-black uppercase tracking-widest text-[#CCFF00] bg-[#CCFF00]/10 px-2.5 py-1 rounded-md border border-[#CCFF00]/20">Modo de Edición</span>
+                <p className="text-xs text-[var(--text-muted)] font-medium mt-2">Modifica tus datos de contacto y acceso. El número de teléfono modificado será tu nuevo identificador para iniciar sesión.</p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] ml-1">DNI / NIE / Pasaporte</label>
+                  <input 
+                    type="text" 
+                    value={editDni} 
+                    onChange={(e) => setEditDni(e.target.value)} 
+                    placeholder="DNI / NIE"
+                    className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] focus:outline-none focus:border-[#CCFF00] mt-1"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] ml-1">Correo Electrónico</label>
+                  <input 
+                    type="email" 
+                    value={editEmail} 
+                    onChange={(e) => setEditEmail(e.target.value)} 
+                    placeholder="ejemplo@correo.com"
+                    className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] focus:outline-none focus:border-[#CCFF00] mt-1"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] ml-1">Número de Teléfono (Para entrar en la App)</label>
+                  <input 
+                    type="tel" 
+                    value={editPhone} 
+                    onChange={(e) => setEditPhone(e.target.value)} 
+                    placeholder="600000000"
+                    className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-black focus:outline-none focus:border-[#CCFF00] mt-1"
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={handleSaveProfile}
+                disabled={loading}
+                className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-[#CCFF00]/10 transition-all disabled:opacity-50"
+              >
+                <Save size={14} /> {loading ? "Guardando..." : "Guardar Perfil"}
+              </button>
             </div>
-            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
-              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Correo Electrónico</p>
-              <p className="text-sm font-black text-[var(--text-main)] mt-1 break-all">{selectedWorker.email || 'No registrado'}</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">DNI / NIE / Pasaporte</p>
+                <p className="text-sm font-black text-[var(--text-main)] uppercase mt-1">{selectedWorker.dni || 'S/DNI'}</p>
+              </div>
+              <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Correo Electrónico</p>
+                <p className="text-sm font-black text-[var(--text-main)] mt-1 break-all">{selectedWorker.email || 'No registrado'}</p>
+              </div>
+              <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código PIN de Acceso</p>
+                <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin || '0000'}</p>
+              </div>
+              <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código QR asignado</p>
+                <p className="text-sm font-mono font-black text-blue-400 mt-1 truncate">{selectedWorker.qrCode || 'S/QR'}</p>
+              </div>
+              <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Modo de trabajo habitual</p>
+                <p className="text-sm font-black text-[var(--text-main)] uppercase mt-1">{selectedWorker.defaultMode || 'HORAS'}</p>
+              </div>
             </div>
-            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
-              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código PIN de Acceso</p>
-              <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin || '0000'}</p>
-            </div>
-            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
-              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código QR asignado</p>
-              <p className="text-sm font-mono font-black text-blue-400 mt-1 truncate">{selectedWorker.qrCode || 'S/QR'}</p>
-            </div>
-            <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
-              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Modo de trabajo habitual</p>
-              <p className="text-sm font-black text-[var(--text-main)] uppercase mt-1">{selectedWorker.defaultMode || 'HORAS'}</p>
-            </div>
-          </div>
+          )}
 
           {/* Certificados / Documentos section */}
           <div className="space-y-4">
@@ -2435,42 +2591,34 @@ case Step.WORKER_TOOLS: return (
           <div 
             key={notif.id}
             onClick={() => handleNotificationClick(notif)}
-            className={`pointer-events-auto w-full max-w-sm backdrop-blur-xl rounded-[2rem] p-4 flex gap-3 cursor-pointer hover:scale-[1.02] transition-all duration-300 transform animate-slideDown relative overflow-hidden border ${
-              theme === 'light'
-                ? 'bg-white/95 border-slate-200 text-slate-950 shadow-[0_14px_34px_rgba(15,23,42,0.12)]'
-                : 'bg-[#050505]/90 border-[#CCFF00]/30 text-white shadow-[0_10px_30px_rgba(204,255,0,0.15)]'
-            }`}
+            className="pointer-events-auto w-full max-w-sm bg-[#050505]/90 backdrop-blur-xl border border-[#CCFF00]/30 text-white rounded-[2rem] p-4 flex gap-3 shadow-[0_10px_30px_rgba(204,255,0,0.15)] cursor-pointer hover:scale-[1.02] transition-all duration-300 transform animate-slideDown relative overflow-hidden"
           >
-             {/* Dynamic top bar */}
-             <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent to-transparent ${theme === 'light' ? 'via-slate-300 opacity-90' : 'via-[#CCFF00] opacity-80'}`} />
+             {/* Dynamic neon top bar */}
+             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#CCFF00] to-transparent opacity-80" />
              
              {/* Left Icon/Initial */}
-             <div className={`w-10 h-10 min-w-[40px] rounded-2xl flex items-center justify-center text-lg shadow-inner border ${
-               theme === 'light'
-                 ? 'bg-slate-100 border-slate-200'
-                 : 'bg-zinc-950 border-zinc-900'
-             }`}>
+             <div className="w-10 h-10 min-w-[40px] rounded-2xl bg-zinc-950 border border-zinc-900 flex items-center justify-center text-lg shadow-inner">
                {notif.icon || (notif.type === 'chat' ? '💬' : '📋')}
              </div>
              
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className={`text-[9px] font-black uppercase tracking-wider font-sans ${theme === 'light' ? 'text-lime-600' : 'text-[#CCFF00]'}`}>
+                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
-                 <span className={`text-[9px] font-mono ${theme === 'light' ? 'text-slate-400' : 'text-zinc-500'}`}>Ahora</span>
+                 <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>
                </div>
-               <h4 className={`text-xs font-black uppercase tracking-tighter mt-0.5 truncate font-sans ${theme === 'light' ? 'text-slate-950' : 'text-white'}`}>
+               <h4 className="text-xs font-black text-white uppercase tracking-tighter mt-0.5 truncate font-sans">
                  {notif.title}
                </h4>
-               <p className={`text-[10px] font-medium truncate mt-0.5 leading-snug font-sans ${theme === 'light' ? 'text-slate-600' : 'text-zinc-300'}`}>
+               <p className="text-[10px] text-zinc-300 font-medium truncate mt-0.5 leading-snug font-sans">
                  {notif.body}
                </p>
              </div>
              
              {/* Subtle iOS indicator line */}
-             <div className={`absolute bottom-1 w-12 h-[3px] left-1/2 transform -translate-x-1/2 rounded-full ${theme === 'light' ? 'bg-slate-200' : 'bg-zinc-800'}`} />
+             <div className="absolute bottom-1 w-12 h-[3px] left-1/2 transform -translate-x-1/2 bg-zinc-800 rounded-full" />
           </div>
         ))}
       </div>
