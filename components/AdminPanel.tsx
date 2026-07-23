@@ -1353,7 +1353,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       { id: 'dashboard', icon: BarChart3, label: 'Panel' },
       { id: 'workers', icon: Users, label: 'Personal' },
       { id: 'hours', icon: History, label: 'Horas' },
-      { id: 'reports', icon: ClipboardList, label: 'Partes IA' },
+      { id: 'reports', icon: ClipboardList, label: 'Partes' },
       { id: 'payslips', icon: FileText, label: 'Nóminas' },
       { id: 'chat', icon: MessageSquare, label: 'Chat' },
       { id: 'sites', icon: MapPin, label: 'Obras' },
@@ -2016,8 +2016,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       <div className="space-y-6 animate-fadeIn pb-32">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--panel-border)] pb-4">
           <div>
-            <h2 className="text-2xl font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Partes Semanales (IA Gemini)</h2>
-            <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Validación de partes leídos con Inteligencia Artificial</p>
+            <h2 className="text-2xl font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Partes Semanales</h2>
+            <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Revisión y gestión de partes de trabajo subidos por los operarios</p>
           </div>
           
           <div className="flex items-center gap-2">
@@ -2878,7 +2878,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   );
 
   return (
-    <div className="flex h-screen bg-[var(--bg-color)] text-[var(--text-main)] overflow-hidden">
+    <div className="flex h-[100dvh] bg-[var(--bg-color)] text-[var(--text-main)] overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
       {showSaveSuccess && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
           <div className="bg-emerald-600 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl border border-emerald-500/30">
@@ -3097,7 +3097,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           {activeTab === 'settings' && isSuperAdmin && renderSettings()}
         </div>
 
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--panel-bg)] backdrop-blur-2xl border-t border-[var(--panel-border)] flex items-center justify-start gap-6 overflow-x-auto py-3 px-5 z-50 shadow-2xl scrollbar-none whitespace-nowrap">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--panel-bg)] backdrop-blur-2xl border-t border-[var(--panel-border)] flex items-center justify-start gap-6 overflow-x-auto py-3 px-5 z-50 shadow-2xl scrollbar-none whitespace-nowrap pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
           {sidebarItems.map(item => {
             const isChatTab = item.id === 'chat';
             const unreadCount = isChatTab ? adminTotalUnreadCount : 0;
@@ -4044,7 +4044,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       })()}
 
       {/* iOS 26 Styled Push Notifications Container for Admin */}
-      <div className="fixed top-4 left-0 right-0 z-[99999] flex flex-col items-center gap-2 pointer-events-none px-4">
+      <div className="fixed top-4 left-0 right-0 z-[99999] flex flex-col items-center gap-2 pointer-events-none px-4 pt-[env(safe-area-inset-top,0px)]">
         {pushNotifications.map(notif => (
           <div 
             key={notif.id}

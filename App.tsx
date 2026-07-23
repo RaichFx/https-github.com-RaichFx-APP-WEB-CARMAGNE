@@ -811,7 +811,7 @@ export const App: React.FC = () => {
             {/* Navigation: Reports */}
             <button onClick={() => setCurrentStep(Step.WORKER_REPORTS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-cyan-500/30 transition-all duration-300">
               <div className="text-cyan-500 bg-cyan-500/10 p-3 rounded-2xl border border-cyan-500/10"><ClipboardList size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Partes IA</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Partes</span>
             </button>
             {/* Navigation: Payslips */}
             <button onClick={() => setCurrentStep(Step.WORKER_PAYSLIPS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-fuchsia-500/30 transition-all duration-300">
@@ -976,24 +976,17 @@ export const App: React.FC = () => {
       alert("Por favor toma o sube una foto de tu parte semanal.");
       return;
     }
-    if (!reportStartDate || !reportEndDate) {
-      alert("Por favor selecciona las fechas de inicio y fin del período que cubre el parte.");
-      return;
-    }
     setSubmittingReport(true);
     try {
-      const response = await fetch('/api/gemini/analyze-sheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: reportPhoto })
-      });
-      const data = await response.json();
-      const parsedData = data.result || {};
-      
-      // Formato legible para el rango de fechas seleccionado
-      const startFormatted = new Date(reportStartDate).toLocaleDateString('es-ES');
-      const endFormatted = new Date(reportEndDate).toLocaleDateString('es-ES');
-      const selectedRange = `${startFormatted} al ${endFormatted}`;
+      // Formato para el período si se han seleccionado fechas
+      let selectedRange = "Sin período especificado";
+      if (reportStartDate && reportEndDate) {
+        const startFormatted = new Date(reportStartDate).toLocaleDateString('es-ES');
+        const endFormatted = new Date(reportEndDate).toLocaleDateString('es-ES');
+        selectedRange = `${startFormatted} al ${endFormatted}`;
+      } else if (reportStartDate) {
+        selectedRange = `Desde ${new Date(reportStartDate).toLocaleDateString('es-ES')}`;
+      }
 
       const newReport: WeeklyReport = {
         id: `REP-${Date.now()}`,
@@ -1002,31 +995,34 @@ export const App: React.FC = () => {
         dateStr: new Date().toLocaleDateString('es-ES'),
         timestamp: Date.now(),
         photoUrl: reportPhoto,
-        startDate: reportStartDate,
-        endDate: reportEndDate,
-        comments: reportComments,
+        startDate: reportStartDate || '',
+        endDate: reportEndDate || '',
+        comments: reportComments || '',
         status: 'PENDING',
-        isAiParsed: true,
-        extractedDates: parsedData.dates || selectedRange,
-        extractedTasks: parsedData.tasks,
-        extractedHours: Number(parsedData.hours) || 0,
-        extractedTotal: parsedData.total,
-        dailyHours: parsedData.dailyHours || []
+        isAiParsed: false,
+        extractedDates: selectedRange,
+        extractedTasks: '',
+        extractedHours: 0,
+        extractedTotal: '',
+        dailyHours: []
       };
 
       await StorageService.addReport(newReport);
 
-      const msg = `👷‍♂️ <b>Nuevo Parte Semanal Subido (IA)</b>\n👤 Operario: <b>${selectedWorker!.name}</b>\n📅 Período: ${selectedRange}\n📅 Envío: ${newReport.dateStr}\n\n🤖 <i>Gemini ha extraído del documento:</i>\n📅 Fechas: ${parsedData.dates || '-'}\n📊 Horas totales: ${parsedData.hours || 0}h\n💰 Total: ${parsedData.total || '-'}`;
+      let msg = `👷‍♂️ <b>Nuevo Parte Semanal Subido</b>\n👤 Operario: <b>${selectedWorker!.name}</b>\n📅 Período: ${selectedRange}\n📅 Envío: ${newReport.dateStr}`;
+      if (reportComments.trim()) {
+        msg += `\n📝 Comentarios: ${reportComments.trim()}`;
+      }
       TelegramService.enviarNotificacionTelegram(msg);
 
-      alert("Parte semanal enviado correctamente para revisión.");
+      alert("Parte semanal subido correctamente para revisión.");
       setReportPhoto(null);
       setReportStartDate('');
       setReportEndDate('');
       setReportComments('');
       setCurrentStep(Step.WORKER_DASHBOARD);
     } catch (err) {
-      alert("Error al enviar o analizar el parte semanal. Inténtalo de nuevo.");
+      alert("Error al subir el parte semanal. Inténtalo de nuevo.");
     } finally {
       setSubmittingReport(false);
     }
@@ -1851,42 +1847,19 @@ export const App: React.FC = () => {
           <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10">
             <ChevronLeft size={20}/>
           </button>
-          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Partes Semanales (IA)</h2>
+          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Partes Semanales</h2>
         </div>
 
         <div className="md:flex-1 md:overflow-y-auto space-y-6 pb-6 custom-scrollbar pr-1">
-          <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] space-y-4">
+          <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] space-y-5">
             <h3 className="text-sm font-black text-[var(--text-main)] uppercase tracking-wide">Subir Parte de Trabajo</h3>
             
-            {/* Período del Parte de Trabajo */}
-            <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-3.5 sm:p-4 rounded-2xl overflow-hidden min-w-0 w-full">
-              <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest block ml-0.5">Período que cubre el parte *</label>
-              <div className="grid grid-cols-2 gap-2 min-w-0 w-full">
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <span className="text-[8px] font-black uppercase text-[var(--text-muted)] block mb-1 ml-0.5">Desde</span>
-                  <input 
-                    type="date" 
-                    value={reportStartDate} 
-                    onChange={(e) => setReportStartDate(e.target.value)} 
-                    className="w-full min-w-0 max-w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-2 py-2.5 text-xs text-[var(--input-text)] focus:border-blue-500 outline-none box-border"
-                    required
-                  />
-                </div>
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <span className="text-[8px] font-black uppercase text-[var(--text-muted)] block mb-1 ml-0.5">Hasta</span>
-                  <input 
-                    type="date" 
-                    value={reportEndDate} 
-                    onChange={(e) => setReportEndDate(e.target.value)} 
-                    className="w-full min-w-0 max-w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-2 py-2.5 text-xs text-[var(--input-text)] focus:border-blue-500 outline-none box-border"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
+            {/* Foto o Captura (OBLIGATORIO) */}
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1">Foto o Captura del Parte *</label>
+              <label className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-widest block ml-1 flex items-center justify-between">
+                <span>Foto o Captura del Parte</span>
+                <span className="text-rose-400 font-bold">* Obligatorio</span>
+              </label>
               
               {!reportPhoto ? (
                 <div className="border-2 border-dashed border-[var(--panel-border)] rounded-2xl p-6 flex flex-col items-center justify-center gap-2 bg-[var(--input-bg)] relative cursor-pointer hover:border-blue-500 transition">
@@ -1897,33 +1870,63 @@ export const App: React.FC = () => {
               ) : (
                 <div className="relative aspect-video rounded-2xl overflow-hidden bg-black">
                   <img src={reportPhoto} alt="Parte seleccionado" className="w-full h-full object-contain" />
-                  <button onClick={() => setReportPhoto(null)} className="absolute top-2 right-2 p-2 bg-black/80 text-white rounded-full">
+                  <button onClick={() => setReportPhoto(null)} className="absolute top-2 right-2 p-2 bg-black/80 text-white rounded-full hover:bg-rose-600 transition">
                     <X size={16} />
                   </button>
                 </div>
               )}
             </div>
 
+            {/* Período del Parte de Trabajo (OPCIONAL) */}
+            <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-4 rounded-2xl w-full">
+              <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-0.5">
+                Período que cubre el parte <span className="text-emerald-500 font-normal">(Opcional)</span>
+              </label>
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <div className="flex-1 w-full min-w-0">
+                  <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] block mb-1">Desde</span>
+                  <input 
+                    type="date" 
+                    value={reportStartDate} 
+                    onChange={(e) => setReportStartDate(e.target.value)} 
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
+                  />
+                </div>
+                <div className="flex-1 w-full min-w-0">
+                  <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] block mb-1">Hasta</span>
+                  <input 
+                    type="date" 
+                    value={reportEndDate} 
+                    onChange={(e) => setReportEndDate(e.target.value)} 
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Comentarios (OPCIONAL) */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1">Comentarios / Observaciones</label>
+              <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1">
+                Comentarios / Observaciones <span className="text-emerald-500 font-normal">(Opcional)</span>
+              </label>
               <textarea value={reportComments} onChange={(e) => setReportComments(e.target.value)} placeholder="Ej: He trabajado horas extras el martes..." className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3 text-xs text-[var(--input-text)] h-20 resize-none focus:border-blue-500 outline-none" />
             </div>
 
-            <button disabled={submittingReport || !reportPhoto || !reportStartDate || !reportEndDate} onClick={handleSendWeeklyReport} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black disabled:bg-slate-800 disabled:text-slate-500 py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300">
+            <button disabled={submittingReport || !reportPhoto} onClick={handleSendWeeklyReport} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black disabled:bg-slate-800 disabled:text-slate-500 py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300">
               {submittingReport ? (
                 <>
-                  <Clock className="animate-spin text-black" size={16} /> Analizando con Gemini...
+                  <Clock className="animate-spin text-black" size={16} /> Subiendo parte...
                 </>
               ) : (
                 <>
-                  <Upload size={16} /> Subir y Procesar Parte
+                  <Upload size={16} /> Subir Parte de Trabajo
                 </>
               )}
             </button>
-            {(!reportStartDate || !reportEndDate || !reportPhoto) && (
-              <div className="text-center bg-rose-500/5 border border-rose-500/10 p-3 rounded-xl">
-                <p className="text-[8px] text-rose-500 font-bold uppercase tracking-wider">
-                  * CAMPOS OBLIGATORIOS: PERÍODO (DESDE/HASTA) Y FOTO DEL PARTE.
+            {!reportPhoto && (
+              <div className="text-center bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-xl">
+                <p className="text-[9px] text-rose-500 font-bold uppercase tracking-wider">
+                  * Debes adjuntar la foto o captura del parte para poder enviarlo.
                 </p>
               </div>
             )}
@@ -2513,7 +2516,7 @@ case Step.WORKER_TOOLS: return (
 
   if (isAdmin) return <AdminPanel onBack={() => setIsAdmin(false)} currentUser={currentAdminUser} theme={theme} setTheme={setTheme} />;
   return (
-    <div className="min-h-screen w-screen flex items-center justify-center p-0 md:p-6 relative md:overflow-hidden font-inter select-none text-[var(--text-main)]">
+    <div className="min-h-[100dvh] w-full min-w-full flex items-center justify-center p-0 md:p-6 relative md:overflow-hidden font-inter select-none text-[var(--text-main)]">
       {/* Background Liquid Glows */}
       <div className="liquid-bg hidden md:block">
         <div className="liquid-glow-1"></div>
@@ -2521,8 +2524,8 @@ case Step.WORKER_TOOLS: return (
       </div>
 
       {/* Main 16:9 Aspect ratio container on desktop, full-screen on mobile */}
-      <div className="w-full min-h-screen md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
-        <div className="flex-1 p-4 md:p-8 flex flex-col md:overflow-hidden relative z-10">
+      <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
+        <div className="flex-1 px-4 py-4 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8 flex flex-col md:overflow-hidden relative z-10">
           {renderStep()}
         </div>
       </div>
@@ -2616,7 +2619,7 @@ case Step.WORKER_TOOLS: return (
       )}
 
       {/* iOS 26 Styled Push Notifications Container */}
-      <div className="fixed top-4 left-0 right-0 z-[99999] flex flex-col items-center gap-2 pointer-events-none px-4">
+      <div className="fixed top-4 left-0 right-0 z-[99999] flex flex-col items-center gap-2 pointer-events-none px-4 pt-[env(safe-area-inset-top,0px)]">
         {pushNotifications.map(notif => (
           <div 
             key={notif.id}
