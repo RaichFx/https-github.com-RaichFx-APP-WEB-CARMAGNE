@@ -1091,30 +1091,57 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const handleAddCertificate = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && selectedWorkerProfile) {
-      if (file.size > 900 * 1024) {
-        alert("El archivo supera el límite de tamaño permitido (900 KB). Por favor, sube un archivo más pequeño.");
+      const name = certNameInput.trim() || file.name.split('.')[0];
+      const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|heic)$/i.test(file.name);
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+
+      if (isPdf && file.size > 750 * 1024) {
+        alert(`El archivo PDF es demasiado grande (${(file.size / 1024).toFixed(0)} KB). El tamaño máximo para PDFs es de 750 KB para no superar el límite de almacenamiento de Firebase.\n\nSugerencia: Puedes hacer una foto o captura de pantalla al certificado y subir la imagen.`);
         if (certFileInputRef.current) certFileInputRef.current.value = '';
         return;
       }
-      const name = certNameInput.trim() || file.name.split('.')[0];
+
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
           let fileData = reader.result as string;
-          if (file.type.startsWith('image/')) {
-            fileData = await compressImage(fileData, 1000, 1000, 0.8);
+
+          if (isImage) {
+            fileData = await compressImage(fileData, 1200, 1200, 0.75);
           }
-          const newCert = {
-            id: `CERT-${Date.now()}`,
+
+          if (fileData.length > 1050000) {
+            alert("El archivo resultante supera el límite máximo permitido por documento. Por favor, selecciona un archivo más pequeño o una imagen comprimida.");
+            if (certFileInputRef.current) certFileInputRef.current.value = '';
+            return;
+          }
+
+          const certId = `CERT-${Date.now()}`;
+          const newCertDoc = {
+            id: certId,
+            workerId: selectedWorkerProfile.id,
             name: name,
             fileBase64: fileData,
             uploadDate: new Date().toLocaleDateString('es-ES'),
             size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
           };
+
+          // Save full document in 'certificates' collection
+          await StorageService.saveCertificateDoc(newCertDoc);
+
+          // Store metadata (and lightweight base64 if small) on worker document
+          const certForWorker = {
+            id: certId,
+            name: name,
+            fileBase64: fileData.length < 250000 ? fileData : '',
+            uploadDate: newCertDoc.uploadDate,
+            size: newCertDoc.size
+          };
+
           const currentCerts = selectedWorkerProfile.certificates || [];
           const updated = {
             ...selectedWorkerProfile,
-            certificates: [...currentCerts, newCert]
+            certificates: [...currentCerts, certForWorker]
           };
           
           const updatedList = workers.map(w => w.id === selectedWorkerProfile.id ? updated : w);
@@ -1123,9 +1150,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           setCertNameInput('');
           if (certFileInputRef.current) certFileInputRef.current.value = '';
           alert("Certificado subido con éxito.");
-        } catch (err) {
+        } catch (err: any) {
           console.error("Error upload cert", err);
-          alert("Error al subir el certificado a Firebase.");
+          alert(`Error al subir el certificado: ${err?.message || 'Fallo de almacenamiento en Firebase'}`);
         }
       };
       reader.readAsDataURL(file);
@@ -1141,6 +1168,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       };
       const updatedList = workers.map(w => w.id === selectedWorkerProfile.id ? updated : w);
       try {
+        await StorageService.deleteCertificateDoc(certId);
         await StorageService.saveWorkers(updatedList);
         setSelectedWorkerProfile(updated);
       } catch (err) {
@@ -2717,7 +2745,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     value={adminChatInput}
                     onChange={(e) => setAdminChatInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleSendAdminMessage(); }}
-                    className="flex-1 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-xl px-4 py-3 text-xs outline-none focus:border-blue-500"
+                    className="flex-1 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-xl px-4 py-3 text-base outline-none focus:border-blue-500"
                     placeholder="Escribe un mensaje de respuesta..."
                   />
                   <button 
@@ -3423,8 +3451,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                               </div>
                               <div className="flex gap-2 justify-end">
                                 <a 
-                                  href={cert.fileBase64} 
+                                  href={cert.fileBase64 || '#'} 
                                   download={cert.name}
+                                  onClick={async (e) => {
+                                    if (!cert.fileBase64 || cert.fileBase64.length < 50) {
+                                      e.preventDefault();
+                                      const base64 = await StorageService.getCertificateBase64(cert.id);
+                                      if (base64) {
+                                        const link = document.createElement('a');
+                                        link.href = base64;
+                                        link.download = cert.name;
+                                        link.click();
+                                      } else {
+                                        alert("No se pudo cargar el archivo del certificado desde Firebase.");
+                                      }
+                                    }
+                                  }}
                                   title="Descargar Certificado"
                                   className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white transition-all text-[9px] font-black uppercase flex items-center gap-1 px-3"
                                 >

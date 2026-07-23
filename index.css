@@ -177,12 +177,36 @@ body {
 }
 
 /* Base style modifiers */
+html, body {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
 input, select, textarea {
   background: var(--input-bg) !important;
   border: 1px solid var(--input-border) !important;
   color: var(--input-text) !important;
   border-radius: 12px !important;
   transition: all 0.2s ease;
+  font-size: 16px !important; /* Minimum 16px prevents iOS Safari auto-zoom on input focus */
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+/* Force 16px on iOS WebKit devices for inputs */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  select,
+  textarea,
+  input {
+    font-size: 16px !important;
+  }
+}
+
+input[type="date"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 input:focus, select:focus, textarea:focus {

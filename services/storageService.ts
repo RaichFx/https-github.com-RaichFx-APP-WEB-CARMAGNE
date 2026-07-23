@@ -530,5 +530,56 @@ export const StorageService = {
     } catch (e) {
       console.error("Error marking messages as read:", e);
     }
+  },
+
+  saveCertificateDoc: async (cert: { id: string; workerId: string; name: string; fileBase64: string; uploadDate: string; size?: string }) => {
+    try {
+      const cache = loadLocal<any[]>('carmagne_certs_cache', []);
+      const updated = [cert, ...cache.filter(c => c.id !== cert.id)];
+      localStorage.setItem('carmagne_certs_cache', JSON.stringify(updated.slice(0, 15)));
+    } catch (e) {
+      console.warn("Local storage cert cache error", e);
+    }
+
+    try {
+      await setDoc(doc(db, "certificates", cert.id), safeClone(cert));
+      console.log(`[Firebase Sync] Certificate ${cert.id} saved in certificates collection.`);
+    } catch (e) {
+      console.error("Firestore error in saveCertificateDoc:", e);
+      throw e;
+    }
+  },
+
+  getCertificateBase64: async (certId: string): Promise<string> => {
+    try {
+      const cache = loadLocal<any[]>('carmagne_certs_cache', []);
+      const match = cache.find(c => c.id === certId);
+      if (match && match.fileBase64 && match.fileBase64.length > 50) return match.fileBase64;
+    } catch (e) {}
+
+    try {
+      const docRef = doc(db, "certificates", certId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data && data.fileBase64) return data.fileBase64;
+      }
+    } catch (e) {
+      console.error("Error fetching certificate base64:", e);
+    }
+    return '';
+  },
+
+  deleteCertificateDoc: async (certId: string) => {
+    try {
+      const cache = loadLocal<any[]>('carmagne_certs_cache', []);
+      localStorage.setItem('carmagne_certs_cache', JSON.stringify(cache.filter(c => c.id !== certId)));
+    } catch (e) {}
+
+    try {
+      await deleteDoc(doc(db, "certificates", certId));
+    } catch (e) {
+      console.error("Error deleting certificate doc:", e);
+    }
   }
 };
