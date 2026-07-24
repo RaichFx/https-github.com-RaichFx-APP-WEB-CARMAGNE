@@ -2878,7 +2878,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   );
 
   return (
-    <div className="flex h-[100dvh] bg-[var(--bg-color)] text-[var(--text-main)] overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+    <div className="flex h-[100dvh] bg-[var(--bg-color)] text-[var(--text-main)] overflow-hidden">
       {showSaveSuccess && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
           <div className="bg-emerald-600 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl border border-emerald-500/30">

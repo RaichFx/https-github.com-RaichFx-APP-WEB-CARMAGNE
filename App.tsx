@@ -2525,7 +2525,7 @@ case Step.WORKER_TOOLS: return (
 
       {/* Main 16:9 Aspect ratio container on desktop, full-screen on mobile */}
       <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
-        <div className="flex-1 px-4 py-4 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8 flex flex-col md:overflow-hidden relative z-10">
+        <div className="flex-1 p-4 md:p-8 flex flex-col md:overflow-hidden relative z-10">
           {renderStep()}
         </div>
       </div>
