@@ -835,13 +835,13 @@ export const App: React.FC = () => {
               <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Ajustes</span>
             </button>
             {/* Navigation: Chat / Mensajes */}
-            <button onClick={() => setCurrentStep(Step.WORKER_CHAT)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-[#CCFF00]/30 transition-all duration-300 relative">
+            <button onClick={() => setCurrentStep(Step.WORKER_CHAT)} className={`bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] ${theme === 'dark' ? 'hover:border-[#CCFF00]/30' : 'hover:border-emerald-500/30'} transition-all duration-300 relative`}>
               {unreadChatsCount > 0 && (
-                <div className="absolute top-2 right-2 bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(204,255,0,0.4)]">
+                <div className={`absolute top-2 right-2 text-[9px] font-black px-2 py-0.5 rounded-full ${theme === 'dark' ? 'bg-[#CCFF00] text-black shadow-[0_0_10px_rgba(204,255,0,0.4)]' : 'bg-emerald-600 text-white shadow-md'}`}>
                   {unreadChatsCount}
                 </div>
               )}
-              <div className="text-[#CCFF00] bg-[#CCFF00]/10 p-3 rounded-2xl border border-[#CCFF00]/10"><MessageSquare size={24} /></div>
+              <div className={`${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border-[#CCFF00]/10' : 'text-emerald-600 bg-emerald-50 border-emerald-200'} p-3 rounded-2xl border`}><MessageSquare size={24} /></div>
               <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mensajes</span>
             </button>
           </div>
@@ -1234,7 +1234,9 @@ export const App: React.FC = () => {
             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 border transition-all active:scale-95 ${
               isEditingProfile 
                 ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20' 
-                : 'bg-[#CCFF00]/10 text-[#CCFF00] border-[#CCFF00]/20 hover:bg-[#CCFF00]/20'
+                : theme === 'dark'
+                  ? 'bg-[#CCFF00]/10 text-[#CCFF00] border-[#CCFF00]/20 hover:bg-[#CCFF00]/20'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
             }`}
           >
             {isEditingProfile ? (
@@ -1306,7 +1308,7 @@ export const App: React.FC = () => {
           {isEditingProfile ? (
             <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[#CCFF00]/20 p-6 rounded-[2rem] shadow-[var(--panel-shadow)] space-y-4">
               <div className="border-b border-[var(--panel-border)] pb-3">
-                <span className="text-[9px] font-black uppercase tracking-widest text-[#CCFF00] bg-[#CCFF00]/10 px-2.5 py-1 rounded-md border border-[#CCFF00]/20">Modo de Edición</span>
+                <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border-[#CCFF00]/20' : 'text-emerald-700 bg-emerald-50 border-emerald-300'}`}>Modo de Edición</span>
                 <p className="text-xs text-[var(--text-muted)] font-medium mt-2">Modifica tus datos de contacto y acceso. El número de teléfono modificado será tu nuevo identificador para iniciar sesión.</p>
               </div>
 
@@ -1340,7 +1342,7 @@ export const App: React.FC = () => {
                     value={editPhone} 
                     onChange={(e) => setEditPhone(e.target.value)} 
                     placeholder="600000000"
-                    className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-black focus:outline-none focus:border-[#CCFF00] mt-1"
+                    className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-black focus:outline-none mt-1 ${theme === 'dark' ? 'focus:border-[#CCFF00]' : 'focus:border-emerald-500'}`}
                   />
                 </div>
               </div>
@@ -1348,7 +1350,7 @@ export const App: React.FC = () => {
               <button 
                 onClick={handleSaveProfile}
                 disabled={loading}
-                className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-[#CCFF00]/10 transition-all disabled:opacity-50"
+                className={`w-full font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 flex items-center justify-center gap-2 active:scale-95 shadow-lg transition-all disabled:opacity-50 ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10'}`}
               >
                 <Save size={14} /> {loading ? "Guardando..." : "Guardar Perfil"}
               </button>
@@ -1886,7 +1888,7 @@ export const App: React.FC = () => {
             {/* Período del Parte de Trabajo (OPCIONAL) */}
             <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-4 rounded-2xl w-full max-w-full min-w-0 box-border overflow-hidden">
               <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-0.5">
-                Período que cubre el parte <span className="text-emerald-500 font-normal">(Opcional)</span>
+                Período que cubre el parte <span className={`${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} font-normal`}>(Opcional)</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-full min-w-0 box-border">
                 <div className="w-full max-w-full min-w-0 box-border">
@@ -1913,12 +1915,12 @@ export const App: React.FC = () => {
             {/* Comentarios (OPCIONAL) */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1">
-                Comentarios / Observaciones <span className="text-emerald-500 font-normal">(Opcional)</span>
+                Comentarios / Observaciones <span className={`${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} font-normal`}>(Opcional)</span>
               </label>
               <textarea value={reportComments} onChange={(e) => setReportComments(e.target.value)} placeholder="Ej: He trabajado horas extras el martes..." className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3 text-xs text-[var(--input-text)] h-20 resize-none focus:border-blue-500 outline-none" />
             </div>
 
-            <button disabled={submittingReport || !reportPhoto} onClick={handleSendWeeklyReport} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black disabled:bg-slate-800 disabled:text-slate-500 py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300">
+            <button disabled={submittingReport || !reportPhoto} onClick={handleSendWeeklyReport} className={`w-full py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black disabled:bg-slate-800 disabled:text-slate-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-slate-200 disabled:text-slate-400'}`}>
               {submittingReport ? (
                 <>
                   <Clock className="animate-spin text-black" size={16} /> Subiendo parte...
@@ -2173,12 +2175,12 @@ export const App: React.FC = () => {
                   value={loginPhone} 
                   onChange={(e) => setLoginPhone(e.target.value)} 
                   onKeyDown={(e) => { if (e.key === 'Enter') handlePhoneLogin(); }}
-                  className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-xl font-black focus:border-[#CCFF00] outline-none text-center tracking-widest" 
+                  className={`w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-xl font-black outline-none text-center tracking-widest ${theme === 'dark' ? 'focus:border-[#CCFF00]' : 'focus:border-emerald-500'}`} 
                   placeholder="600000000"
                 />
                 <button 
                   onClick={handlePhoneLogin} 
-                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#CCFF00]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
+                  className={`w-full font-black py-4 rounded-2xl shadow-lg mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'}`}
                 >
                   Continuar <ArrowRight size={14} />
                 </button>
@@ -2212,7 +2214,7 @@ export const App: React.FC = () => {
 
                 <button 
                   onClick={handlePhoneLogin} 
-                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#CCFF00]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
+                  className={`w-full font-black py-4 rounded-2xl shadow-lg mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'}`}
                 >
                   Entrar <ArrowRight size={14} />
                 </button>
@@ -2610,7 +2612,7 @@ case Step.WORKER_TOOLS: return (
                 <button 
                   onClick={handleSaveForceEmail} 
                   disabled={loading}
-                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] disabled:opacity-50 text-black font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all duration-300 active:scale-95 shadow-lg shadow-[#CCFF00]/10 font-sans"
+                  className={`w-full disabled:opacity-50 font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all duration-300 active:scale-95 shadow-lg font-sans ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'}`}
                 >
                   {loading ? 'Guardando...' : 'GUARDAR Y CONTINUAR'}
                 </button>
@@ -2648,7 +2650,7 @@ case Step.WORKER_TOOLS: return (
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-400'} font-black uppercase tracking-wider font-sans`}>
+                 <span className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-black uppercase tracking-wider font-sans`}>
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
                  <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>

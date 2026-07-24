@@ -1428,7 +1428,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             ) : (
               <button
                 onClick={handleGoogleSignInForGmail}
-                className={`w-full md:w-auto font-black py-3.5 px-6 rounded-xl uppercase text-[10px] tracking-wider transition-all duration-300 shadow-lg active:scale-95 flex items-center justify-center gap-2.5 font-sans border ${theme === 'dark' ? 'bg-transparent border-[#CCFF00]/50 hover:bg-[#CCFF00] hover:text-black text-[#CCFF00]' : 'bg-[#CCFF00] border-[#b8e600] text-black hover:bg-[#b8e600]'}`}
+                className={`w-full md:w-auto font-black py-3.5 px-6 rounded-xl uppercase text-[10px] tracking-wider transition-all duration-300 shadow-lg active:scale-95 flex items-center justify-center gap-2.5 font-sans border ${theme === 'dark' ? 'bg-transparent border-[#CCFF00]/50 hover:bg-[#CCFF00] hover:text-black text-[#CCFF00]' : 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-700'}`}
               >
                 <KeyRound size={14} /> VINCULAR CUENTA GOOGLE
               </button>
@@ -1468,7 +1468,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <button
                   disabled={isSyncingSheets}
                   onClick={handleSyncGoogleSheets}
-                  className="flex-1 bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black text-[10px] font-black tracking-widest py-3 px-4 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-[#CCFF00]/5"
+                  className={`flex-1 disabled:opacity-50 text-[10px] font-black tracking-widest py-3 px-4 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-lg ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black shadow-[#CCFF00]/5' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10'}`}
                 >
                   <RefreshCw size={12} className={isSyncingSheets ? 'animate-spin' : ''} />
                   {isSyncingSheets ? 'SINCRONIZANDO...' : config.googleSheetUrl ? 'SINCRONIZAR DATOS' : 'CREAR HOJA EN DRIVE'}
@@ -2275,7 +2275,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleDownloadSingleReportPDF(selectedReport)}
-                    className="w-full bg-[#CCFF00] hover:bg-yellow-400 text-black py-3 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-1.5 transition-all shadow-[0_0_15px_rgba(204,255,0,0.15)]"
+                    className={`w-full py-3 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-yellow-400 text-black shadow-[0_0_15px_rgba(204,255,0,0.15)]' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10'}`}
                   >
                     <FileText size={16} /> Descargar Ficha PDF Completa
                   </button>
@@ -3421,7 +3421,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                               subject: `Acreditaciones Laborales - ${selectedWorkerProfile.name} - CARMAGNE INSTAL SL`,
                               body: `Estimado Cliente,\n\nAdjunto le hacemos llegar las acreditaciones, certificados y documentación médica del operario ${selectedWorkerProfile.name} correspondientes a los requisitos de acceso solicitados.\n\nAtentamente,\nControl de Administración\nCARMAGNE INSTAL SL.`
                             })}
-                            className="bg-[#CCFF00] hover:bg-yellow-400 text-black font-black text-[9px] uppercase px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-[0_0_10px_rgba(204,255,0,0.2)] hover:shadow-[0_0_15px_rgba(204,255,0,0.4)] transition-all active:scale-95"
+                            className={`font-black text-[9px] uppercase px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all active:scale-95 ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-yellow-400 text-black shadow-[0_0_10px_rgba(204,255,0,0.2)]' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md'}`}
                           >
                             <Mail size={12} /> Enviar por Email (Gmail)
                           </button>
@@ -3803,7 +3803,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 ) : (
                   <button 
                     onClick={handleGoogleSignInForGmail}
-                    className="bg-[#CCFF00] text-black hover:bg-yellow-400 px-3.5 py-2 rounded-xl font-black text-[9px] uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(204,255,0,0.2)] hover:shadow-[0_0_15px_rgba(204,255,0,0.4)] transition-all"
+                    className={`px-3.5 py-2 rounded-xl font-black text-[9px] uppercase flex items-center gap-1.5 transition-all ${theme === 'dark' ? 'bg-[#CCFF00] text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(204,255,0,0.2)]' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md'}`}
                   >
                     <KeyRound size={12} /> Conectar Google
                   </button>
@@ -3891,7 +3891,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               <div className="pt-4 flex justify-end">
                 <button 
                   onClick={() => setUnauthorizedDomain(null)}
-                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
+                  className={`font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
                 >
                   Entendido
                 </button>
@@ -3940,7 +3940,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               <div className="pt-4 flex justify-end">
                 <button 
                   onClick={() => setOperationNotAllowed(false)}
-                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
+                  className={`font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
                 >
                   Entendido
                 </button>
@@ -4018,7 +4018,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     href={directUrl || `https://console.cloud.google.com/apis/library/${googleApiError.apiName === 'Gmail API' ? 'gmail.googleapis.com' : 'sheets.googleapis.com'}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5 text-center justify-center"
+                    className={`font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5 text-center justify-center ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
                   >
                     {directUrl ? "Habilitar API Directamente" : "Ir a la Consola"} <ExternalLink size={12} />
                   </a>
@@ -4048,7 +4048,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-400'} font-black uppercase tracking-wider font-sans`}>
+                 <span className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-black uppercase tracking-wider font-sans`}>
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
                  <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>
