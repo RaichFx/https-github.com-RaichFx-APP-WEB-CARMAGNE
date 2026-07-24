@@ -213,10 +213,28 @@ input, select, textarea {
   }
 }
 
-input[type="date"] {
+input[type="date"],
+input[type="month"],
+input[type="time"],
+input[type="datetime-local"] {
   min-width: 0 !important;
+  width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+  display: block;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.2em;
+  margin: 0;
+  padding: 0;
+  width: 100%;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -296,5 +314,18 @@ button {
 
 .animate-slideDown {
   animation: iosSlideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInKeyframe {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeInKeyframe 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 

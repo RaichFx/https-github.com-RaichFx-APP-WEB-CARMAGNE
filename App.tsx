@@ -1878,27 +1878,27 @@ export const App: React.FC = () => {
             </div>
 
             {/* Período del Parte de Trabajo (OPCIONAL) */}
-            <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-4 rounded-2xl w-full">
+            <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-4 rounded-2xl w-full max-w-full min-w-0 box-border overflow-hidden">
               <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-0.5">
                 Período que cubre el parte <span className="text-emerald-500 font-normal">(Opcional)</span>
               </label>
-              <div className="flex flex-col sm:flex-row gap-3 w-full">
-                <div className="flex-1 w-full min-w-0">
+              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-full min-w-0 box-border">
+                <div className="flex-1 w-full max-w-full min-w-0 box-border">
                   <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] block mb-1">Desde</span>
                   <input 
                     type="date" 
                     value={reportStartDate} 
                     onChange={(e) => setReportStartDate(e.target.value)} 
-                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
+                    className="w-full max-w-full min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
                   />
                 </div>
-                <div className="flex-1 w-full min-w-0">
+                <div className="flex-1 w-full max-w-full min-w-0 box-border">
                   <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] block mb-1">Hasta</span>
                   <input 
                     type="date" 
                     value={reportEndDate} 
                     onChange={(e) => setReportEndDate(e.target.value)} 
-                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
+                    className="w-full max-w-full min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
                   />
                 </div>
               </div>
@@ -2072,29 +2072,34 @@ export const App: React.FC = () => {
     };
 
     return (
-      <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden">
-        <div className="flex items-center gap-4 mb-4 shrink-0">
-          <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10">
+      <div className="flex flex-col w-full max-w-full min-w-0 md:h-full animate-fadeIn md:overflow-hidden">
+        <div className="flex items-center gap-4 mb-4 shrink-0 w-full max-w-full min-w-0">
+          <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10 active:scale-95 transition-all">
             <ChevronLeft size={20}/>
           </button>
-          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Mis Nóminas</h2>
+          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter truncate">Mis Nóminas</h2>
         </div>
 
-        <div className="mb-4 shrink-0">
+        <div className="mb-4 shrink-0 w-full max-w-full min-w-0">
           <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1 mb-1">Filtrar por Mes</label>
-          <input type="month" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none [color-scheme:dark]" value={selectedPayslipMonth} onChange={(e) => setSelectedPayslipMonth(e.target.value)} />
+          <input 
+            type="month" 
+            className="w-full min-w-0 max-w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none block box-border [color-scheme:dark]" 
+            value={selectedPayslipMonth} 
+            onChange={(e) => setSelectedPayslipMonth(e.target.value)} 
+          />
         </div>
 
-        <div className="md:flex-1 md:overflow-y-auto space-y-4 pb-4 custom-scrollbar pr-1">
+        <div className="md:flex-1 md:overflow-y-auto space-y-4 pb-4 custom-scrollbar w-full max-w-full min-w-0">
           {filteredPayslips.length > 0 ? (
             filteredPayslips.map(ps => (
-              <div key={ps.id} className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-black text-[var(--text-main)] text-sm uppercase">{ps.title}</h4>
+              <div key={ps.id} className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] space-y-4 w-full max-w-full min-w-0 box-border">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-black text-[var(--text-main)] text-sm uppercase truncate">{ps.title}</h4>
                     <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase mt-0.5">{ps.monthStr}</p>
                   </div>
-                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${
                     ps.status === 'SIGNED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
                   }`}>
                     {ps.status === 'SIGNED' ? 'Firmado' : 'Enviado'}
@@ -2118,13 +2123,13 @@ export const App: React.FC = () => {
 
                 <div className="flex gap-2">
                   {ps.pdfBase64 && (
-                    <a href={ps.pdfBase64} download={`Nomina_${selectedWorker?.name.replace(/\s+/g, '_')}_${ps.monthStr}.pdf`} className="flex-1 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] py-3 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1 text-[var(--text-main)]">
+                    <a href={ps.pdfBase64} download={`Nomina_${selectedWorker?.name.replace(/\s+/g, '_')}_${ps.monthStr}.pdf`} className="flex-1 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] py-3 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1 text-[var(--text-main)] active:scale-95 transition-all text-center">
                       <Download size={14} /> Descargar PDF
                     </a>
                   )}
 
                   {ps.status !== 'SIGNED' && (
-                    <button onClick={() => handleSignPayslip(ps)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-500/10">
+                    <button onClick={() => handleSignPayslip(ps)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-500/10 active:scale-95 transition-all">
                       ✍️ Firmar Nómina
                     </button>
                   )}
@@ -2132,7 +2137,7 @@ export const App: React.FC = () => {
               </div>
             ))
           ) : (
-            <div className="text-center py-12 bg-[var(--panel-bg)]/40 rounded-3xl border border-dashed border-[var(--panel-border)]">
+            <div className="text-center py-12 px-4 bg-[var(--panel-bg)]/40 rounded-3xl border border-dashed border-[var(--panel-border)] w-full max-w-full min-w-0 box-border">
               <p className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-widest">No hay nóminas para este mes</p>
             </div>
           )}
@@ -2516,7 +2521,7 @@ case Step.WORKER_TOOLS: return (
 
   if (isAdmin) return <AdminPanel onBack={() => setIsAdmin(false)} currentUser={currentAdminUser} theme={theme} setTheme={setTheme} />;
   return (
-    <div className="min-h-[100dvh] w-full min-w-full flex items-center justify-center p-0 md:p-6 relative md:overflow-hidden font-inter select-none text-[var(--text-main)]">
+    <div className="min-h-[100dvh] w-full max-w-full min-w-0 overflow-x-hidden flex items-center justify-center p-0 md:p-6 relative md:overflow-hidden font-inter select-none text-[var(--text-main)]">
       {/* Background Liquid Glows */}
       <div className="liquid-bg hidden md:block">
         <div className="liquid-glow-1"></div>
@@ -2524,8 +2529,8 @@ case Step.WORKER_TOOLS: return (
       </div>
 
       {/* Main 16:9 Aspect ratio container on desktop, full-screen on mobile */}
-      <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
-        <div className="flex-1 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:p-8 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] md:pt-8 flex flex-col md:overflow-hidden relative z-10">
+      <div className="w-full max-w-full min-w-0 min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative overflow-x-hidden box-border">
+        <div className="flex-1 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:p-8 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] md:pt-8 flex flex-col md:overflow-hidden relative z-10 w-full max-w-full min-w-0 box-border">
           {renderStep()}
         </div>
       </div>
