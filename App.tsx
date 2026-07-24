@@ -2030,7 +2030,7 @@ export const App: React.FC = () => {
         {/* Modal Vista Previa de Imagen */}
         {previewPhotoUrl && (
           <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fadeIn">
-            <div className="absolute top-4 right-4 flex items-center gap-2">
+            <div className="absolute top-[calc(1rem+env(safe-area-inset-top,0px))] right-4 flex items-center gap-2">
               <a
                 href={previewPhotoUrl}
                 download="parte-semanal.png"
@@ -2525,7 +2525,7 @@ case Step.WORKER_TOOLS: return (
 
       {/* Main 16:9 Aspect ratio container on desktop, full-screen on mobile */}
       <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
-        <div className="flex-1 p-4 md:p-8 flex flex-col md:overflow-hidden relative z-10">
+        <div className="flex-1 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:p-8 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] md:pt-8 flex flex-col md:overflow-hidden relative z-10">
           {renderStep()}
         </div>
       </div>

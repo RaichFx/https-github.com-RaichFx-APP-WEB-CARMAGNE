@@ -2880,7 +2880,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   return (
     <div className="flex h-[100dvh] bg-[var(--bg-color)] text-[var(--text-main)] overflow-hidden">
       {showSaveSuccess && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
+        <div className="fixed top-[calc(1.5rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
           <div className="bg-emerald-600 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl border border-emerald-500/30">
             <Check size={18} strokeWidth={3} />
             <span className="text-xs font-black uppercase tracking-widest">Configuración Guardada</span>
@@ -2926,7 +2926,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-14 border-b border-[var(--panel-border)] flex items-center justify-between px-6 bg-[var(--panel-bg)] backdrop-blur-md shrink-0">
+        <header className="min-h-[3.5rem] pt-[env(safe-area-inset-top,0px)] md:pt-0 border-b border-[var(--panel-border)] flex items-center justify-between px-6 bg-[var(--panel-bg)] backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsLogoutConfirmOpen(true)} className="md:hidden p-2 bg-[var(--panel-bg)] rounded-xl text-[var(--text-muted)]"><ArrowLeft size={18}/></button>
             <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-widest leading-none">{activeTab}</span>
