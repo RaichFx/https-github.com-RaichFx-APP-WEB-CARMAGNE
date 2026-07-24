@@ -86,7 +86,7 @@ const calculateTotalsFromLogs = (logs: WorkLog[]) => {
 const LogIcon = ({ type, size = 18 }: { type: LogType, size?: number }) => {
   switch (type) {
     case LogType.ENTRADA:
-      return <Zap size={size} className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />;
+      return <Zap size={size} className="text-emerald-600 dark:text-emerald-400 dark:drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />;
     case LogType.SALIDA:
       return <LogOut size={size} className="text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.5)]" />;
     case LogType.INICIO_DESCANSO:
@@ -1445,7 +1445,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <FileText className={theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} size={16} /> Sincronización Google Sheets
                 </h4>
                 {config.googleSheetUrl ? (
-                  <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-lg uppercase">
+                  <span className={`px-2 py-0.5 border text-[8px] font-black rounded-lg uppercase ${theme === 'dark' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
                     Vinculada
                   </span>
                 ) : (
@@ -1520,7 +1520,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={14} />
             <input type="text" placeholder="Buscar operario..." className="bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-xl py-2.5 pl-9 pr-4 text-xs text-[var(--text-main)] outline-none w-full sm:w-48" value={hoursSearchQuery} onChange={(e) => setHoursSearchQuery(e.target.value)} />
           </div>
-          <input type="date" className="bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-xl py-2.5 px-3 text-xs text-[var(--text-main)] [color-scheme:dark]" value={hoursFilterDate} onChange={(e) => setHoursFilterDate(e.target.value)} />
+          <input type="date" className={`bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-xl py-2.5 px-3 text-xs text-[var(--text-main)] ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`} value={hoursFilterDate} onChange={(e) => setHoursFilterDate(e.target.value)} />
         </div>
       </div>
 
@@ -1614,7 +1614,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           </div>
           <div className="space-y-1.5">
             <label className="text-[8px] font-black text-[var(--text-muted)] uppercase ml-1">Fecha</label>
-            <input type="date" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark] outline-none" value={logFilterDate} onChange={(e) => setLogFilterDate(e.target.value)} />
+            <input type="date" className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] outline-none ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`} value={logFilterDate} onChange={(e) => setLogFilterDate(e.target.value)} />
           </div>
         </div>
       )}
@@ -2025,7 +2025,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               onClick={() => setShowReportFilters(!showReportFilters)}
               className={`p-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold uppercase transition-all ${
                 showReportFilters 
-                  ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400' 
+                  ? (theme === 'dark' ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-300 text-emerald-700') 
                   : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] text-[var(--text-muted)]'
               }`}
             >
@@ -2078,7 +2078,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 type="date" 
                 value={reportFilterStartDate}
                 onChange={(e) => setReportFilterStartDate(e.target.value)}
-                className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark] outline-none"
+                className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] outline-none ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}
               />
             </div>
 
@@ -2088,7 +2088,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 type="date" 
                 value={reportFilterEndDate}
                 onChange={(e) => setReportFilterEndDate(e.target.value)}
-                className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark] outline-none"
+                className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] outline-none ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}
               />
             </div>
 
@@ -2136,27 +2136,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     </div>
                   </div>
 
-                  {report.isAiParsed && (
-                    <div className="space-y-2 p-3 bg-[var(--island-bg)] rounded-xl border border-[var(--panel-border)]">
-                      <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Lectura de IA (Gemini):</p>
-                      <div className="grid grid-cols-2 gap-2 text-[10px]">
-                        <div>
-                          <span className="text-[var(--text-muted)] block uppercase">Fechas:</span>
-                          <span className="font-bold text-[var(--text-main)]">{report.extractedDates || '-'}</span>
-                        </div>
-                        <div>
-                          <span className="text-[var(--text-muted)] block uppercase">Horas:</span>
-                          <span className="font-bold text-[var(--text-main)]">{report.extractedHours || 0}h</span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-[var(--text-muted)] block uppercase">Tareas:</span>
-                          <span className="font-bold text-[var(--text-main)] truncate block">{report.extractedTasks || '-'}</span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-[var(--text-muted)] block uppercase">Total Calculado:</span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{report.extractedTotal || '-'}</span>
-                        </div>
-                      </div>
+                  {report.extractedDates && report.extractedDates !== 'Sin período especificado' && (
+                    <div className="space-y-1 p-3 bg-[var(--island-bg)] rounded-xl border border-[var(--panel-border)] text-[10px]">
+                      <span className="text-[var(--text-muted)] block uppercase font-bold text-[8px]">Período Registrado:</span>
+                      <span className="font-bold text-[var(--text-main)] block">{report.extractedDates}</span>
                     </div>
                   )}
                   
@@ -2242,7 +2225,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     >
                       <ZoomOut size={14} />
                     </button>
-                    <span className="font-mono text-[#CCFF00] font-black min-w-[42px] text-center">{Math.round(zoomLevel * 100)}%</span>
+                    <span className={`font-mono ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-black min-w-[42px] text-center`}>{Math.round(zoomLevel * 100)}%</span>
                     <button 
                       onClick={() => setZoomLevel(prev => Math.min(4, prev + 0.5))}
                       disabled={zoomLevel >= 4}
@@ -2310,36 +2293,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 </div>
                 {selectedReport.extractedDates && (
                   <div className="col-span-2">
-                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Fechas de Trabajo (IA)</span>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Período del Parte</span>
                     <span className="text-sm font-bold text-[var(--text-main)]">{selectedReport.extractedDates}</span>
                   </div>
                 )}
                 {selectedReport.extractedTasks && (
                   <div className="col-span-2">
-                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Trabajo Realizado (IA)</span>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Detalle del Trabajo</span>
                     <span className="text-sm text-[var(--text-muted)] leading-relaxed">{selectedReport.extractedTasks}</span>
                   </div>
                 )}
-                <div>
-                  <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Horas Totales (IA)</span>
-                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedHours || 0} horas</span>
-                </div>
-                <div>
-                  <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Total Calculado (IA)</span>
-                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedTotal || '-'}</span>
-                </div>
+                {selectedReport.extractedHours > 0 && (
+                  <div>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Horas Registradas</span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedHours} horas</span>
+                  </div>
+                )}
+                {selectedReport.extractedTotal && (
+                  <div>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Total Calculado</span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedTotal}</span>
+                  </div>
+                )}
                 
-                {/* Desglose de horas por día transcrito por la IA */}
                 {selectedReport.dailyHours && selectedReport.dailyHours.length > 0 && (
                   <div className="col-span-2 border-t border-[var(--panel-border)] pt-3 mt-1">
-                    <span className="text-[9px] text-[#CCFF00] font-bold block uppercase tracking-wider mb-2">Desglose de Horas por Día (IA)</span>
+                    <span className={`text-[9px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} font-bold block uppercase tracking-wider mb-2`}>Desglose por Día</span>
                     <div className="space-y-1.5 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
                       {selectedReport.dailyHours.map((dh, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-[var(--panel-border)] text-xs">
                           <span className="font-bold text-[var(--text-main)]">{dh.date}</span>
                           <div className="flex items-center gap-3">
                             {dh.tasks && <span className="text-[10px] text-[var(--text-muted)] italic max-w-[180px] truncate" title={dh.tasks}>{dh.tasks}</span>}
-                            <span className="font-black text-emerald-400 bg-emerald-500/10 px-2 rounded-lg border border-emerald-500/20">{dh.hours}h</span>
+                            <span className={`font-black ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-emerald-700 bg-emerald-100 border-emerald-200'} px-2 rounded-lg border`}>{dh.hours}h</span>
                           </div>
                         </div>
                       ))}
@@ -2445,7 +2431,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Mes de Liquidación *</label>
-                <input type="month" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark]" value={payslipForm.monthStr} onChange={(e) => setPayslipForm({ ...payslipForm, monthStr: e.target.value })} />
+                <input type="month" className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`} value={payslipForm.monthStr} onChange={(e) => setPayslipForm({ ...payslipForm, monthStr: e.target.value })} />
               </div>
 
               <div className="space-y-1.5">
@@ -2694,7 +2680,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-2">
                         {workers.find(w => w.id === activeWorkerChatId)?.name}
                       </h3>
-                      <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest">
+                      <p className={`text-[9px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} font-bold uppercase tracking-widest`}>
                         {workers.find(w => w.id === activeWorkerChatId)?.role || 'Operario'}
                       </p>
                     </div>
@@ -3148,7 +3134,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
              <h3 className="text-lg font-black text-[var(--modal-text-main)] uppercase mb-6 leading-none tracking-tighter">Generar Informe PDF</h3>
              <div className="space-y-4">
                 <div className="flex gap-2"><button onClick={()=>setReportModal({...reportModal, type:'WEEK'})} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition ${reportModal.type==='WEEK'?'bg-blue-600 text-white shadow-lg':'bg-[var(--input-bg)] text-[var(--text-muted)]'}`}>Semanal</button><button onClick={()=>setReportModal({...reportModal, type:'MONTH'})} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition ${reportModal.type==='MONTH'?'bg-blue-600 text-white shadow-lg':'bg-[var(--input-bg)] text-[var(--text-muted)]'}`}>Mensual</button></div>
-                {reportModal.type==='WEEK'?(<input type="date" value={reportModal.selectedDate} onChange={(e)=>setReportModal({...reportModal, selectedDate: e.target.value})} className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark]"/>):(<select value={reportModal.selectedMonth} onChange={(e)=>setReportModal({...reportModal, selectedMonth: parseInt(e.target.value)})} className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] appearance-none">{MONTH_NAMES.map((m,i)=>(<option key={m} value={i}>{m}</option>))}</select>)}
+                {reportModal.type==='WEEK'?(<input type="date" value={reportModal.selectedDate} onChange={(e)=>setReportModal({...reportModal, selectedDate: e.target.value})} className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}/>):(<select value={reportModal.selectedMonth} onChange={(e)=>setReportModal({...reportModal, selectedMonth: parseInt(e.target.value)})} className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] appearance-none">{MONTH_NAMES.map((m,i)=>(<option key={m} value={i}>{m}</option>))}</select>)}
                 <button onClick={handleGenerateWorkerReport} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-2 active:scale-95 shadow-xl transition"><Download size={18}/> Descargar Informe</button>
                 <button onClick={()=>setReportModal({...reportModal, isOpen: false})} className="w-full text-[var(--modal-text-muted)] text-[10px] font-black uppercase mt-2">Cancelar</button>
              </div>
@@ -3340,7 +3326,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       </div>
                       <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)]">
                         <h5 className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">Obras visitadas</h5>
-                        <p className="text-2xl font-black text-emerald-400 mt-2">{pUniqueSites.length}</p>
+                        <p className={`text-2xl font-black ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} mt-2`}>{pUniqueSites.length}</p>
                         <p className="text-[8px] text-[var(--modal-text-muted)] font-black uppercase mt-1">Obras con al menos un registro</p>
                       </div>
                     </div>
@@ -3351,7 +3337,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       {pUniqueSites.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {pUniqueSites.map(site => (
-                            <span key={site} className="text-[9px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                            <span key={site} className={`text-[9px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200'} border flex items-center gap-1`}>
                               <MapPin size={10} /> {site}
                             </span>
                           ))}
@@ -3761,13 +3747,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
               {/* Lista de certificados con Checkbox para multiselección */}
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-[#CCFF00] uppercase tracking-wider block ml-1">Selecciona los Documentos a Adjuntar:</label>
+                <label className={`text-[9px] font-black ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} uppercase tracking-wider block ml-1`}>Selecciona los Documentos a Adjuntar:</label>
                 <div className="grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto custom-scrollbar bg-black/40 p-4 rounded-xl border border-[var(--panel-border)]">
                   {emailModal.worker.certificates && emailModal.worker.certificates.length > 0 ? (
                     emailModal.worker.certificates.map(cert => {
                       const isChecked = emailModal.selectedCertIds.includes(cert.id);
                       return (
-                        <label key={cert.id} className="flex items-center gap-3 text-xs text-[var(--text-main)] cursor-pointer hover:text-[#CCFF00] transition-colors p-1.5 rounded-lg hover:bg-white/5">
+                        <label key={cert.id} className={`flex items-center gap-3 text-xs text-[var(--text-main)] cursor-pointer ${theme === 'dark' ? 'hover:text-[#CCFF00]' : 'hover:text-emerald-600'} transition-colors p-1.5 rounded-lg hover:bg-white/5`}>
                           <input 
                             type="checkbox" 
                             checked={isChecked}
@@ -3780,7 +3766,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                                   : prev.selectedCertIds.filter(id => id !== cert.id)
                               }));
                             }}
-                            className="accent-[#CCFF00] h-4 w-4 cursor-pointer"
+                            className="accent-emerald-500 h-4 w-4 cursor-pointer"
                           />
                           <div className="flex flex-col min-w-0">
                             <span className="font-bold truncate">{cert.name}</span>
@@ -3798,7 +3784,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               {/* Conexión Gmail / Google */}
               <div className="bg-black/40 p-4 rounded-2xl border border-[var(--panel-border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
                 <div className="space-y-1">
-                  <p className="font-bold text-[var(--text-main)] uppercase text-[10px] tracking-wider flex items-center gap-1.5 text-emerald-400">
+                  <p className={`font-bold uppercase text-[10px] tracking-wider flex items-center gap-1.5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
                     <Shield size={12} /> Cuenta de Google Gmail
                   </p>
                   <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase leading-relaxed">
@@ -4062,7 +4048,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
+                 <span className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-400'} font-black uppercase tracking-wider font-sans`}>
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
                  <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>

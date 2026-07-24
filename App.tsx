@@ -116,8 +116,10 @@ export const App: React.FC = () => {
     localStorage.setItem('theme', theme);
     if (theme === 'dark') {
       document.body.classList.add('dark-theme');
+      document.documentElement.classList.add('dark');
     } else {
       document.body.classList.remove('dark-theme');
+      document.documentElement.classList.remove('dark');
     }
   }, [theme]);
 
@@ -333,7 +335,7 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Dynamic favicon update
+  // Dynamic favicon & theme-color update
   useEffect(() => {
     if (appConfig?.faviconUrl) {
       let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
@@ -345,7 +347,11 @@ export const App: React.FC = () => {
       }
       link.href = appConfig.faviconUrl;
     }
-  }, [appConfig?.faviconUrl]);
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', theme === 'dark' ? '#050505' : '#F4F5F7');
+    }
+  }, [appConfig?.faviconUrl, theme]);
 
   // Worker tools filtered list
   const workerTools = useMemo(() => {
@@ -778,7 +784,7 @@ export const App: React.FC = () => {
                   <span>Operario</span>
                   <ExternalLink size={10} className="text-blue-400" />
                 </span>
-                <span className="text-base font-black text-[var(--text-main)] block leading-tight hover:text-[#CCFF00] transition-colors">{selectedWorker?.name}</span>
+                <span className={`text-base font-black text-[var(--text-main)] block leading-tight ${theme === 'dark' ? 'hover:text-[#CCFF00]' : 'hover:text-emerald-600'} transition-colors`}>{selectedWorker?.name}</span>
               </div>
             </div>
             {/* Action Buttons: Theme Switcher & Logout */}
@@ -1539,7 +1545,7 @@ export const App: React.FC = () => {
               <div className="flex items-center justify-between p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl">
                 <div className="space-y-0.5 flex-1 pr-4">
                   <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] flex items-center gap-1.5">
-                    <Zap size={14} className="text-[#CCFF00]" /> Notificación de Fichajes
+                    <Zap size={14} className={theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600"} /> Notificación de Fichajes
                   </h4>
                   <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
                     Avisos en tiempo real al registrar tu entrada, salida o periodos de descanso.
@@ -1548,13 +1554,13 @@ export const App: React.FC = () => {
                 <button 
                   onClick={handleToggleCheckIn}
                   className="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none select-none min-h-[44px] min-w-[56px] flex items-center p-1"
-                  style={{ backgroundColor: notifyCheckIn ? '#CCFF00' : '#27272a' }}
+                  style={{ backgroundColor: notifyCheckIn ? (theme === 'dark' ? '#CCFF00' : '#059669') : '#27272a' }}
                 >
                   <span 
                     className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 absolute"
                     style={{ 
                       transform: notifyCheckIn ? 'translateX(26px)' : 'translateX(4px)',
-                      backgroundColor: notifyCheckIn ? '#050505' : '#ffffff'
+                      backgroundColor: notifyCheckIn ? (theme === 'dark' ? '#050505' : '#ffffff') : '#ffffff'
                     }}
                   />
                 </button>
@@ -1564,7 +1570,7 @@ export const App: React.FC = () => {
               <div className="flex items-center justify-between p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl">
                 <div className="space-y-0.5 flex-1 pr-4">
                   <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] flex items-center gap-1.5">
-                    <FileText size={14} className="text-[#CCFF00]" /> Recordatorios de Certificados
+                    <FileText size={14} className={theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600"} /> Recordatorios de Certificados
                   </h4>
                   <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
                     Avisos y alertas previas a la caducidad de certificados médicos o de prevención.
@@ -1573,13 +1579,13 @@ export const App: React.FC = () => {
                 <button 
                   onClick={handleToggleCertificates}
                   className="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none select-none min-h-[44px] min-w-[56px] flex items-center p-1"
-                  style={{ backgroundColor: notifyCertificates ? '#CCFF00' : '#27272a' }}
+                  style={{ backgroundColor: notifyCertificates ? (theme === 'dark' ? '#CCFF00' : '#059669') : '#27272a' }}
                 >
                   <span 
                     className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 absolute"
                     style={{ 
                       transform: notifyCertificates ? 'translateX(26px)' : 'translateX(4px)',
-                      backgroundColor: notifyCertificates ? '#050505' : '#ffffff'
+                      backgroundColor: notifyCertificates ? (theme === 'dark' ? '#050505' : '#ffffff') : '#ffffff'
                     }}
                   />
                 </button>
@@ -1650,7 +1656,7 @@ export const App: React.FC = () => {
           </button>
           <div>
             <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight font-sans">Mensajería Interna</h2>
-            <p className="text-[10px] text-[#CCFF00] font-bold uppercase tracking-widest">Contacto directo entre compañeros y jefe</p>
+            <p className={`text-[10px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-bold uppercase tracking-widest`}>Contacto directo entre compañeros y jefe</p>
           </div>
         </div>
 
@@ -1668,7 +1674,7 @@ export const App: React.FC = () => {
               onClick={() => setActiveChatPartnerId('ADMIN')}
               className={`flex items-center justify-between p-3 rounded-2xl border transition-all text-left ${
                 activeChatPartnerId === 'ADMIN' 
-                  ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' 
+                  ? (theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' : 'bg-emerald-50 border-emerald-300 text-emerald-700') 
                   : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
               }`}
             >
@@ -1686,7 +1692,7 @@ export const App: React.FC = () => {
               </div>
               
               {partnerUnreadCount('ADMIN') > 0 && (
-                <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2">
+                <span className={`${theme === 'dark' ? 'bg-[#CCFF00] text-black' : 'bg-emerald-600 text-white'} text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2`}>
                   {partnerUnreadCount('ADMIN')}
                 </span>
               )}
@@ -1710,7 +1716,7 @@ export const App: React.FC = () => {
                       onClick={() => setActiveChatPartnerId(w.id)}
                       className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all text-left ${
                         isSelected 
-                          ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' 
+                          ? (theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' : 'bg-emerald-50 border-emerald-300 text-emerald-700') 
                           : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
                       }`}
                     >
@@ -1732,7 +1738,7 @@ export const App: React.FC = () => {
                       </div>
 
                       {unread > 0 && (
-                        <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2">
+                        <span className={`${theme === 'dark' ? 'bg-[#CCFF00] text-black' : 'bg-emerald-600 text-white'} text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2`}>
                           {unread}
                         </span>
                       )}
@@ -1762,7 +1768,7 @@ export const App: React.FC = () => {
                       <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-2 font-sans">
                         {activeChatPartnerId === 'ADMIN' ? '👑 EL JEFE' : workers.find(w => w.id === activeChatPartnerId)?.name}
                       </h3>
-                      <p className="text-[9px] text-[#CCFF00] font-bold uppercase tracking-widest">Chat individual seguro</p>
+                      <p className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-bold uppercase tracking-widest`}>Chat individual seguro</p>
                     </div>
                   </div>
 
@@ -1882,23 +1888,23 @@ export const App: React.FC = () => {
               <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-0.5">
                 Período que cubre el parte <span className="text-emerald-500 font-normal">(Opcional)</span>
               </label>
-              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-full min-w-0 box-border">
-                <div className="flex-1 w-full max-w-full min-w-0 box-border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-full min-w-0 box-border">
+                <div className="w-full max-w-full min-w-0 box-border">
                   <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] block mb-1">Desde</span>
                   <input 
                     type="date" 
                     value={reportStartDate} 
                     onChange={(e) => setReportStartDate(e.target.value)} 
-                    className="w-full max-w-full min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
+                    className={`w-full max-w-full min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--input-text)] focus:border-emerald-500 outline-none block box-border ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}
                   />
                 </div>
-                <div className="flex-1 w-full max-w-full min-w-0 box-border">
+                <div className="w-full max-w-full min-w-0 box-border">
                   <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] block mb-1">Hasta</span>
                   <input 
                     type="date" 
                     value={reportEndDate} 
                     onChange={(e) => setReportEndDate(e.target.value)} 
-                    className="w-full max-w-full min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
+                    className={`w-full max-w-full min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--input-text)] focus:border-emerald-500 outline-none block box-border ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}
                   />
                 </div>
               </div>
@@ -1974,19 +1980,19 @@ export const App: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-[var(--text-muted)] block font-bold uppercase text-[8px]">Total Reportado:</span>
-                            <span className="font-black text-[#CCFF00] text-xs">{report.extractedTotal || '-'}</span>
+                            <span className={`font-black ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} text-xs`}>{report.extractedTotal || '-'}</span>
                           </div>
                         </div>
                       )}
 
                       {report.dailyHours && report.dailyHours.length > 0 && (
                         <div className="border-t border-[var(--panel-border)] pt-2.5 space-y-1">
-                          <span className="text-[8px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Desglose diario (IA):</span>
+                          <span className="text-[8px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Desglose diario:</span>
                           <div className="space-y-1 max-h-[100px] overflow-y-auto custom-scrollbar pr-1">
                             {report.dailyHours.map((dh, idx) => (
                               <div key={idx} className="flex justify-between items-center text-[9px] bg-black/25 px-2 py-1 rounded-lg border border-[var(--panel-border)]">
                                 <span className="font-bold text-[var(--text-main)]">{dh.date}</span>
-                                <span className="font-black text-emerald-400 bg-emerald-500/10 px-1.5 rounded">{dh.hours}h</span>
+                                <span className={`font-black ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-700 bg-emerald-100'} px-1.5 rounded`}>{dh.hours}h</span>
                               </div>
                             ))}
                           </div>
@@ -2006,13 +2012,13 @@ export const App: React.FC = () => {
                             onClick={() => setPreviewPhotoUrl(report.photoUrl)}
                             className="flex-1 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[10px] text-[var(--text-main)] py-2 px-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:bg-slate-500/10"
                           >
-                            <Eye size={12} className="text-[#CCFF00]" />
+                            <Eye size={12} className={theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600"} />
                             Ver Parte
                           </button>
                           <a
                             href={report.photoUrl}
                             download={`parte-${report.id}.png`}
-                            className="flex-1 bg-[#CCFF00]/10 border border-[#CCFF00]/20 hover:border-[#CCFF00]/40 text-[10px] text-[#CCFF00] py-2 px-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center"
+                            className={`flex-1 ${theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/20 text-[#CCFF00] hover:border-[#CCFF00]/40' : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:border-emerald-300'} border text-[10px] py-2 px-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center`}
                           >
                             <Download size={12} />
                             Descargar
@@ -2084,7 +2090,7 @@ export const App: React.FC = () => {
           <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1 mb-1">Filtrar por Mes</label>
           <input 
             type="month" 
-            className="w-full min-w-0 max-w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none block box-border [color-scheme:dark]" 
+            className={`w-full min-w-0 max-w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none block box-border ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`} 
             value={selectedPayslipMonth} 
             onChange={(e) => setSelectedPayslipMonth(e.target.value)} 
           />
@@ -2180,7 +2186,7 @@ export const App: React.FC = () => {
             ) : (
               <>
                 <div className="text-center mb-4">
-                  <span className="text-[10px] text-[#CCFF00] font-black uppercase tracking-[0.2em] bg-[#CCFF00]/10 px-3 py-1 rounded-full border border-[#CCFF00]/20">Operario Detectado</span>
+                  <span className={`text-[10px] ${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border-[#CCFF00]/20' : 'text-emerald-700 bg-emerald-50 border-emerald-200'} font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border`}>Operario Detectado</span>
                   <p className="text-lg font-black text-[var(--text-main)] uppercase tracking-tight mt-2">{matchedWorker?.name}</p>
                   <p className="text-xs text-[var(--text-muted)] font-medium mt-0.5">{matchedWorker?.phone}</p>
                 </div>
@@ -2191,7 +2197,7 @@ export const App: React.FC = () => {
                     value={loginPassword} 
                     onChange={(e) => setLoginPassword(e.target.value)} 
                     onKeyDown={(e) => { if (e.key === 'Enter') handlePhoneLogin(); }}
-                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 pr-12 text-center text-xl font-black focus:border-[#CCFF00] outline-none tracking-widest" 
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 pr-12 text-center text-xl font-black focus:border-emerald-500 outline-none tracking-widest" 
                     placeholder="Contraseña"
                     autoFocus
                   />
@@ -2200,7 +2206,7 @@ export const App: React.FC = () => {
                     onClick={() => setShowLoginPassword(!showLoginPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
                   >
-                    <Eye size={20} className={showLoginPassword ? "text-[#CCFF00]" : ""} />
+                    <Eye size={20} className={showLoginPassword ? (theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600") : ""} />
                   </button>
                 </div>
 
@@ -2375,7 +2381,7 @@ export const App: React.FC = () => {
              </div>
              <div className="flex gap-2">{(['ALL', 'DAY', 'WEEK', 'MONTH'] as const).map(p => (<button key={p} onClick={() => setHistoryPeriod(p)} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${historyPeriod === p ? 'bg-blue-600 border-blue-500 text-white' : 'bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>{p === 'ALL' ? 'Todo' : p === 'DAY' ? 'Día' : p === 'WEEK' ? 'Semana' : 'Mes'}</button>))}</div>
              {historyPeriod === 'MONTH' && (<div className="animate-slideDown relative"><select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none appearance-none">{MONTH_NAMES.map((name, idx) => (<option key={name} value={idx} className="bg-[var(--panel-bg)] text-[var(--text-main)]">{name}</option>))}</select><ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" size={16} /></div>)}
-             {(historyPeriod === 'WEEK' || historyPeriod === 'DAY') && (<div className="animate-slideDown flex flex-col gap-1"><span className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest ml-1">{historyPeriod === 'DAY' ? 'Elegir día:' : 'Elegir día de la semana:'}</span><div className="relative"><CalendarDays size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 pl-11 pr-4 text-xs font-bold outline-none [color-scheme:dark]"/></div></div>)}
+             {(historyPeriod === 'WEEK' || historyPeriod === 'DAY') && (<div className="animate-slideDown flex flex-col gap-1"><span className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest ml-1">{historyPeriod === 'DAY' ? 'Elegir día:' : 'Elegir día de la semana:'}</span><div className="relative"><CalendarDays size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className={`w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 pl-11 pr-4 text-xs font-bold outline-none ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}/></div></div>)}
            </div>
            <div className="md:flex-1 md:overflow-y-auto space-y-3 pb-4 custom-scrollbar">
               {filteredHistory.map(log => (
@@ -2476,7 +2482,7 @@ case Step.WORKER_TOOLS: return (
                  <input 
                    type={showRegPin ? "text" : "password"} 
                    placeholder="Elige contraseña" 
-                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" 
+                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-emerald-500 outline-none" 
                    value={regPin} 
                    onChange={(e)=>setRegPin(e.target.value)}
                  />
@@ -2485,7 +2491,7 @@ case Step.WORKER_TOOLS: return (
                    onClick={() => setShowRegPin(!showRegPin)}
                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
                  >
-                   <Eye size={18} className={showRegPin ? "text-[#CCFF00]" : ""} />
+                   <Eye size={18} className={showRegPin ? (theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600") : ""} />
                  </button>
                </div>
 
@@ -2493,7 +2499,7 @@ case Step.WORKER_TOOLS: return (
                  <input 
                    type={showRegPinConfirm ? "text" : "password"} 
                    placeholder="Confirma tu contraseña" 
-                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" 
+                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-emerald-500 outline-none" 
                    value={regPinConfirm} 
                    onChange={(e)=>setRegPinConfirm(e.target.value)}
                  />
@@ -2502,12 +2508,12 @@ case Step.WORKER_TOOLS: return (
                    onClick={() => setShowRegPinConfirm(!showRegPinConfirm)}
                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
                  >
-                   <Eye size={18} className={showRegPinConfirm ? "text-[#CCFF00]" : ""} />
+                   <Eye size={18} className={showRegPinConfirm ? (theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600") : ""} />
                  </button>
                </div>
              </div>
 
-             <button onClick={handleRegistration} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shadow-[#CCFF00]/10 shrink-0">Registrarme</button>
+             <button onClick={handleRegistration} className={`w-full ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'} font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shrink-0`}>Registrarme</button>
            </div>
         </div>
       );
@@ -2572,7 +2578,7 @@ case Step.WORKER_TOOLS: return (
               </h2>
               
               <p className="text-zinc-400 text-xs font-medium mb-6 leading-relaxed max-w-xs mx-auto font-sans">
-                Hola <span className="text-[#CCFF00] font-black">{selectedWorker.name}</span>. Para garantizar la entrega de nóminas y partes oficiales, es obligatorio registrar tu correo electrónico.
+                Hola <span className={`${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-black`}>{selectedWorker.name}</span>. Para garantizar la entrega de nóminas y partes oficiales, es obligatorio registrar tu correo electrónico.
               </p>
 
               <div className="w-full space-y-4">
@@ -2642,7 +2648,7 @@ case Step.WORKER_TOOLS: return (
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
+                 <span className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-400'} font-black uppercase tracking-wider font-sans`}>
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
                  <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>
