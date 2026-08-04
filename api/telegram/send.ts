@@ -1,4 +1,50 @@
-import { sendTelegramMessage } from '../../server/telegram';
+type TelegramResult = {
+  ok: boolean;
+  status?: number;
+  error?: string;
+};
+
+const sendTelegramMessage = async (
+  mensaje: string,
+  botToken?: string,
+  chatId?: string
+): Promise<TelegramResult> => {
+  const cleanBotToken = botToken?.trim();
+  const cleanChatId = chatId?.trim();
+  const cleanMessage = mensaje?.trim();
+
+  if (!cleanMessage) {
+    return { ok: false, status: 400, error: 'El mensaje de Telegram es obligatorio.' };
+  }
+
+  if (!cleanBotToken || !cleanChatId || cleanBotToken === 'your_bot_token_here') {
+    return { ok: false, status: 503, error: 'Telegram no esta configurado en el servidor.' };
+  }
+
+  const response = await fetch('https://api.telegram.org/bot' + cleanBotToken + '/sendMessage', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      chat_id: cleanChatId,
+      text: cleanMessage.slice(0, 4096),
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    return {
+      ok: false,
+      status: response.status,
+      error: data?.description || 'Telegram rechazo la notificacion.',
+    };
+  }
+
+  return { ok: true };
+};
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -6,10 +52,11 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const result = await sendTelegramMessage(req.body?.mensaje || '', {
-      botToken: process.env.TELEGRAM_BOT_TOKEN,
-      chatId: process.env.TELEGRAM_CHAT_ID,
-    });
+    const result = await sendTelegramMessage(
+      req.body?.mensaje || '',
+      process.env.TELEGRAM_BOT_TOKEN,
+      process.env.TELEGRAM_CHAT_ID
+    );
 
     if (!result.ok) {
       return res.status(result.status || 500).json({ error: result.error });
