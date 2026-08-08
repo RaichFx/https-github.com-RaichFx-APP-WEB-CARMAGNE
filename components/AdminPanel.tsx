@@ -86,7 +86,7 @@ const calculateTotalsFromLogs = (logs: WorkLog[]) => {
 const LogIcon = ({ type, size = 18 }: { type: LogType, size?: number }) => {
   switch (type) {
     case LogType.ENTRADA:
-      return <Zap size={size} className="text-emerald-600 dark:text-emerald-400 dark:drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />;
+      return <Zap size={size} className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />;
     case LogType.SALIDA:
       return <LogOut size={size} className="text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.5)]" />;
     case LogType.INICIO_DESCANSO:
@@ -132,6 +132,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const payslipFileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'workers' | 'sites' | 'logs' | 'tools' | 'hours' | 'admins' | 'settings' | 'reports' | 'payslips' | 'chat'>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [logs, setLogs] = useState<WorkLog[]>([]);
@@ -1364,6 +1365,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     return baseItems;
   }, [isSuperAdmin]);
 
+  const activeSidebarItem = sidebarItems.find(item => item.id === activeTab) || sidebarItems[0];
+  const ActiveMobileIcon = activeSidebarItem.icon;
+
   const renderDashboard = () => (
     <div className="space-y-6 animate-fadeIn pb-32">
       {/* Metrics Row */}
@@ -1428,7 +1432,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             ) : (
               <button
                 onClick={handleGoogleSignInForGmail}
-                className={`w-full md:w-auto font-black py-3.5 px-6 rounded-xl uppercase text-[10px] tracking-wider transition-all duration-300 shadow-lg active:scale-95 flex items-center justify-center gap-2.5 font-sans border ${theme === 'dark' ? 'bg-transparent border-[#CCFF00]/50 hover:bg-[#CCFF00] hover:text-black text-[#CCFF00]' : 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-700'}`}
+                className={`w-full md:w-auto font-black py-3.5 px-6 rounded-xl uppercase text-[10px] tracking-wider transition-all duration-300 shadow-lg active:scale-95 flex items-center justify-center gap-2.5 font-sans border ${theme === 'dark' ? 'bg-transparent border-[#CCFF00]/50 hover:bg-[#CCFF00] hover:text-black text-[#CCFF00]' : 'bg-[#CCFF00] border-[#b8e600] text-black hover:bg-[#b8e600]'}`}
               >
                 <KeyRound size={14} /> VINCULAR CUENTA GOOGLE
               </button>
@@ -1445,7 +1449,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <FileText className={theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} size={16} /> Sincronización Google Sheets
                 </h4>
                 {config.googleSheetUrl ? (
-                  <span className={`px-2 py-0.5 border text-[8px] font-black rounded-lg uppercase ${theme === 'dark' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+                  <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-lg uppercase">
                     Vinculada
                   </span>
                 ) : (
@@ -1468,7 +1472,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <button
                   disabled={isSyncingSheets}
                   onClick={handleSyncGoogleSheets}
-                  className={`flex-1 disabled:opacity-50 text-[10px] font-black tracking-widest py-3 px-4 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-lg ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black shadow-[#CCFF00]/5' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10'}`}
+                  className="flex-1 bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black text-[10px] font-black tracking-widest py-3 px-4 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-[#CCFF00]/5"
                 >
                   <RefreshCw size={12} className={isSyncingSheets ? 'animate-spin' : ''} />
                   {isSyncingSheets ? 'SINCRONIZANDO...' : config.googleSheetUrl ? 'SINCRONIZAR DATOS' : 'CREAR HOJA EN DRIVE'}
@@ -1520,7 +1524,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={14} />
             <input type="text" placeholder="Buscar operario..." className="bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-xl py-2.5 pl-9 pr-4 text-xs text-[var(--text-main)] outline-none w-full sm:w-48" value={hoursSearchQuery} onChange={(e) => setHoursSearchQuery(e.target.value)} />
           </div>
-          <input type="date" className={`bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-xl py-2.5 px-3 text-xs text-[var(--text-main)] ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`} value={hoursFilterDate} onChange={(e) => setHoursFilterDate(e.target.value)} />
+          <input type="date" className="bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-xl py-2.5 px-3 text-xs text-[var(--text-main)] [color-scheme:dark]" value={hoursFilterDate} onChange={(e) => setHoursFilterDate(e.target.value)} />
         </div>
       </div>
 
@@ -1614,7 +1618,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           </div>
           <div className="space-y-1.5">
             <label className="text-[8px] font-black text-[var(--text-muted)] uppercase ml-1">Fecha</label>
-            <input type="date" className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] outline-none ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`} value={logFilterDate} onChange={(e) => setLogFilterDate(e.target.value)} />
+            <input type="date" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark] outline-none" value={logFilterDate} onChange={(e) => setLogFilterDate(e.target.value)} />
           </div>
         </div>
       )}
@@ -2025,7 +2029,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               onClick={() => setShowReportFilters(!showReportFilters)}
               className={`p-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold uppercase transition-all ${
                 showReportFilters 
-                  ? (theme === 'dark' ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-300 text-emerald-700') 
+                  ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400' 
                   : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] text-[var(--text-muted)]'
               }`}
             >
@@ -2078,7 +2082,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 type="date" 
                 value={reportFilterStartDate}
                 onChange={(e) => setReportFilterStartDate(e.target.value)}
-                className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] outline-none ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}
+                className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark] outline-none"
               />
             </div>
 
@@ -2088,7 +2092,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 type="date" 
                 value={reportFilterEndDate}
                 onChange={(e) => setReportFilterEndDate(e.target.value)}
-                className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] outline-none ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}
+                className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark] outline-none"
               />
             </div>
 
@@ -2136,10 +2140,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     </div>
                   </div>
 
-                  {report.extractedDates && report.extractedDates !== 'Sin período especificado' && (
-                    <div className="space-y-1 p-3 bg-[var(--island-bg)] rounded-xl border border-[var(--panel-border)] text-[10px]">
-                      <span className="text-[var(--text-muted)] block uppercase font-bold text-[8px]">Período Registrado:</span>
-                      <span className="font-bold text-[var(--text-main)] block">{report.extractedDates}</span>
+                  {report.isAiParsed && (
+                    <div className="space-y-2 p-3 bg-[var(--island-bg)] rounded-xl border border-[var(--panel-border)]">
+                      <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Lectura de IA (Gemini):</p>
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div>
+                          <span className="text-[var(--text-muted)] block uppercase">Fechas:</span>
+                          <span className="font-bold text-[var(--text-main)]">{report.extractedDates || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[var(--text-muted)] block uppercase">Horas:</span>
+                          <span className="font-bold text-[var(--text-main)]">{report.extractedHours || 0}h</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-[var(--text-muted)] block uppercase">Tareas:</span>
+                          <span className="font-bold text-[var(--text-main)] truncate block">{report.extractedTasks || '-'}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-[var(--text-muted)] block uppercase">Total Calculado:</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{report.extractedTotal || '-'}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                   
@@ -2225,7 +2246,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     >
                       <ZoomOut size={14} />
                     </button>
-                    <span className={`font-mono ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-black min-w-[42px] text-center`}>{Math.round(zoomLevel * 100)}%</span>
+                    <span className="font-mono text-[#CCFF00] font-black min-w-[42px] text-center">{Math.round(zoomLevel * 100)}%</span>
                     <button 
                       onClick={() => setZoomLevel(prev => Math.min(4, prev + 0.5))}
                       disabled={zoomLevel >= 4}
@@ -2275,7 +2296,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleDownloadSingleReportPDF(selectedReport)}
-                    className={`w-full py-3 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-yellow-400 text-black shadow-[0_0_15px_rgba(204,255,0,0.15)]' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10'}`}
+                    className="w-full bg-[#CCFF00] hover:bg-yellow-400 text-black py-3 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-1.5 transition-all shadow-[0_0_15px_rgba(204,255,0,0.15)]"
                   >
                     <FileText size={16} /> Descargar Ficha PDF Completa
                   </button>
@@ -2293,39 +2314,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 </div>
                 {selectedReport.extractedDates && (
                   <div className="col-span-2">
-                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Período del Parte</span>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Fechas de Trabajo (IA)</span>
                     <span className="text-sm font-bold text-[var(--text-main)]">{selectedReport.extractedDates}</span>
                   </div>
                 )}
                 {selectedReport.extractedTasks && (
                   <div className="col-span-2">
-                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Detalle del Trabajo</span>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Trabajo Realizado (IA)</span>
                     <span className="text-sm text-[var(--text-muted)] leading-relaxed">{selectedReport.extractedTasks}</span>
                   </div>
                 )}
-                {selectedReport.extractedHours > 0 && (
-                  <div>
-                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Horas Registradas</span>
-                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedHours} horas</span>
-                  </div>
-                )}
-                {selectedReport.extractedTotal && (
-                  <div>
-                    <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Total Calculado</span>
-                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedTotal}</span>
-                  </div>
-                )}
+                <div>
+                  <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Horas Totales (IA)</span>
+                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedHours || 0} horas</span>
+                </div>
+                <div>
+                  <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Total Calculado (IA)</span>
+                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedTotal || '-'}</span>
+                </div>
                 
+                {/* Desglose de horas por día transcrito por la IA */}
                 {selectedReport.dailyHours && selectedReport.dailyHours.length > 0 && (
                   <div className="col-span-2 border-t border-[var(--panel-border)] pt-3 mt-1">
-                    <span className={`text-[9px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} font-bold block uppercase tracking-wider mb-2`}>Desglose por Día</span>
+                    <span className="text-[9px] text-[#CCFF00] font-bold block uppercase tracking-wider mb-2">Desglose de Horas por Día (IA)</span>
                     <div className="space-y-1.5 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
                       {selectedReport.dailyHours.map((dh, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-[var(--panel-border)] text-xs">
                           <span className="font-bold text-[var(--text-main)]">{dh.date}</span>
                           <div className="flex items-center gap-3">
                             {dh.tasks && <span className="text-[10px] text-[var(--text-muted)] italic max-w-[180px] truncate" title={dh.tasks}>{dh.tasks}</span>}
-                            <span className={`font-black ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-emerald-700 bg-emerald-100 border-emerald-200'} px-2 rounded-lg border`}>{dh.hours}h</span>
+                            <span className="font-black text-emerald-400 bg-emerald-500/10 px-2 rounded-lg border border-emerald-500/20">{dh.hours}h</span>
                           </div>
                         </div>
                       ))}
@@ -2431,7 +2449,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Mes de Liquidación *</label>
-                <input type="month" className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`} value={payslipForm.monthStr} onChange={(e) => setPayslipForm({ ...payslipForm, monthStr: e.target.value })} />
+                <input type="month" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark]" value={payslipForm.monthStr} onChange={(e) => setPayslipForm({ ...payslipForm, monthStr: e.target.value })} />
               </div>
 
               <div className="space-y-1.5">
@@ -2680,7 +2698,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-2">
                         {workers.find(w => w.id === activeWorkerChatId)?.name}
                       </h3>
-                      <p className={`text-[9px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} font-bold uppercase tracking-widest`}>
+                      <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest">
                         {workers.find(w => w.id === activeWorkerChatId)?.role || 'Operario'}
                       </p>
                     </div>
@@ -2848,7 +2866,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             <div className="space-y-2">
               <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Contraseña Administrador Principal</label>
               <div className="relative">
-                <input type="text" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl p-4 text-xs text-indigo-400 outline-none focus:border-indigo-500" value={config.adminPassword} onChange={(e)=>setConfig({...config, adminPassword: e.target.value})} />
+                <input type="password" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl p-4 text-xs text-indigo-400 outline-none focus:border-indigo-500" value={config.adminPassword} onChange={(e)=>setConfig({...config, adminPassword: e.target.value})} autoComplete="new-password" />
                 <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700" size={16}/>
               </div>
             </div>
@@ -2864,9 +2882,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   );
 
   return (
-    <div className="flex h-[100dvh] bg-[var(--bg-color)] text-[var(--text-main)] overflow-hidden">
+    <div className="flex h-[100dvh] bg-[var(--bg-color)] text-[var(--text-main)] overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
       {showSaveSuccess && (
-        <div className="fixed top-[calc(1.5rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
           <div className="bg-emerald-600 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl border border-emerald-500/30">
             <Check size={18} strokeWidth={3} />
             <span className="text-xs font-black uppercase tracking-widest">Configuración Guardada</span>
@@ -2912,10 +2930,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="min-h-[3.5rem] pt-[env(safe-area-inset-top,0px)] md:pt-0 border-b border-[var(--panel-border)] flex items-center justify-between px-6 bg-[var(--panel-bg)] backdrop-blur-md shrink-0">
+        <header className="h-14 border-b border-[var(--panel-border)] flex items-center justify-between px-6 bg-[var(--panel-bg)] backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsLogoutConfirmOpen(true)} className="md:hidden p-2 bg-[var(--panel-bg)] rounded-xl text-[var(--text-muted)]"><ArrowLeft size={18}/></button>
-            <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-widest leading-none">{activeTab}</span>
+            <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-widest leading-none">{activeSidebarItem.label}</span>
           </div>
           <div className="flex items-center gap-3">
              {theme && setTheme && (
@@ -3083,31 +3101,75 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           {activeTab === 'settings' && isSuperAdmin && renderSettings()}
         </div>
 
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--panel-bg)] backdrop-blur-2xl border-t border-[var(--panel-border)] flex items-center justify-start gap-6 overflow-x-auto py-3 px-5 z-50 shadow-2xl scrollbar-none whitespace-nowrap pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
-          {sidebarItems.map(item => {
-            const isChatTab = item.id === 'chat';
-            const unreadCount = isChatTab ? adminTotalUnreadCount : 0;
-            return (
-              <button 
-                key={item.id} 
-                onClick={() => setActiveTab(item.id as any)} 
-                className={`flex flex-col items-center gap-1 shrink-0 transition-all relative ${
-                  activeTab === item.id ? 'text-blue-500' : 'text-[var(--text-muted)]'
-                }`}
-              >
-                <div className="relative">
-                  <item.icon size={20} className={activeTab === item.id ? 'drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]' : ''} />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-[#CCFF00] text-black text-[8px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-black shadow-[0_0_5px_rgba(204,255,0,0.5)]">
-                      {unreadCount}
+        <div className="md:hidden fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pointer-events-none">
+          {isMobileMenuOpen && (
+            <button
+              aria-label="Cerrar menú"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-[2px] pointer-events-auto"
+            />
+          )}
+
+          <nav className="relative mx-auto max-w-sm pointer-events-auto">
+            {isMobileMenuOpen && (
+              <div className="mb-3 rounded-[2rem] border border-[var(--panel-border)] bg-[var(--panel-bg)]/95 backdrop-blur-2xl shadow-2xl p-3 grid grid-cols-2 gap-2 animate-fadeIn">
+                {sidebarItems.map(item => {
+                  const isChatTab = item.id === 'chat';
+                  const unreadCount = isChatTab ? adminTotalUnreadCount : 0;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id as any);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`relative flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all active:scale-[0.98] ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                          : 'bg-[var(--btn-glass-bg)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                      }`}
+                    >
+                      <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        isActive ? 'bg-white/15' : 'bg-[var(--panel-bg)] border border-[var(--panel-border)]'
+                      }`}>
+                        <item.icon size={17} />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
+                      {unreadCount > 0 && (
+                        <span className="absolute top-2 right-2 bg-[#CCFF00] text-black text-[8px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(204,255,0,0.5)]">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              aria-expanded={isMobileMenuOpen}
+              className="w-full rounded-[1.75rem] border border-[var(--panel-border)] bg-[var(--panel-bg)]/95 backdrop-blur-2xl shadow-2xl px-4 py-3 flex items-center justify-between active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/25 shrink-0">
+                  <ActiveMobileIcon size={20} />
+                  {activeSidebarItem.id === 'chat' && adminTotalUnreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#CCFF00] text-black text-[8px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center border border-black">
+                      {adminTotalUnreadCount}
                     </span>
                   )}
                 </div>
-                <span className="text-[7px] font-black uppercase tracking-tighter">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+                <div className="text-left min-w-0">
+                  <p className="text-[8px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">Menú admin</p>
+                  <p className="text-sm font-black uppercase tracking-tight text-[var(--text-main)] truncate">{activeSidebarItem.label}</p>
+                </div>
+              </div>
+              <ChevronDown size={18} className={`text-[var(--text-muted)] transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+          </nav>
+        </div>
       </main>
 
       {isToolModalOpen && (
@@ -3134,7 +3196,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
              <h3 className="text-lg font-black text-[var(--modal-text-main)] uppercase mb-6 leading-none tracking-tighter">Generar Informe PDF</h3>
              <div className="space-y-4">
                 <div className="flex gap-2"><button onClick={()=>setReportModal({...reportModal, type:'WEEK'})} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition ${reportModal.type==='WEEK'?'bg-blue-600 text-white shadow-lg':'bg-[var(--input-bg)] text-[var(--text-muted)]'}`}>Semanal</button><button onClick={()=>setReportModal({...reportModal, type:'MONTH'})} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition ${reportModal.type==='MONTH'?'bg-blue-600 text-white shadow-lg':'bg-[var(--input-bg)] text-[var(--text-muted)]'}`}>Mensual</button></div>
-                {reportModal.type==='WEEK'?(<input type="date" value={reportModal.selectedDate} onChange={(e)=>setReportModal({...reportModal, selectedDate: e.target.value})} className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}/>):(<select value={reportModal.selectedMonth} onChange={(e)=>setReportModal({...reportModal, selectedMonth: parseInt(e.target.value)})} className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] appearance-none">{MONTH_NAMES.map((m,i)=>(<option key={m} value={i}>{m}</option>))}</select>)}
+                {reportModal.type==='WEEK'?(<input type="date" value={reportModal.selectedDate} onChange={(e)=>setReportModal({...reportModal, selectedDate: e.target.value})} className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark]"/>):(<select value={reportModal.selectedMonth} onChange={(e)=>setReportModal({...reportModal, selectedMonth: parseInt(e.target.value)})} className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] appearance-none">{MONTH_NAMES.map((m,i)=>(<option key={m} value={i}>{m}</option>))}</select>)}
                 <button onClick={handleGenerateWorkerReport} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-2 active:scale-95 shadow-xl transition"><Download size={18}/> Descargar Informe</button>
                 <button onClick={()=>setReportModal({...reportModal, isOpen: false})} className="w-full text-[var(--modal-text-muted)] text-[10px] font-black uppercase mt-2">Cancelar</button>
              </div>
@@ -3326,7 +3388,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       </div>
                       <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)]">
                         <h5 className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">Obras visitadas</h5>
-                        <p className={`text-2xl font-black ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} mt-2`}>{pUniqueSites.length}</p>
+                        <p className="text-2xl font-black text-emerald-400 mt-2">{pUniqueSites.length}</p>
                         <p className="text-[8px] text-[var(--modal-text-muted)] font-black uppercase mt-1">Obras con al menos un registro</p>
                       </div>
                     </div>
@@ -3337,7 +3399,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       {pUniqueSites.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {pUniqueSites.map(site => (
-                            <span key={site} className={`text-[9px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200'} border flex items-center gap-1`}>
+                            <span key={site} className="text-[9px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                               <MapPin size={10} /> {site}
                             </span>
                           ))}
@@ -3421,7 +3483,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                               subject: `Acreditaciones Laborales - ${selectedWorkerProfile.name} - CARMAGNE INSTAL SL`,
                               body: `Estimado Cliente,\n\nAdjunto le hacemos llegar las acreditaciones, certificados y documentación médica del operario ${selectedWorkerProfile.name} correspondientes a los requisitos de acceso solicitados.\n\nAtentamente,\nControl de Administración\nCARMAGNE INSTAL SL.`
                             })}
-                            className={`font-black text-[9px] uppercase px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all active:scale-95 ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-yellow-400 text-black shadow-[0_0_10px_rgba(204,255,0,0.2)]' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md'}`}
+                            className="bg-[#CCFF00] hover:bg-yellow-400 text-black font-black text-[9px] uppercase px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-[0_0_10px_rgba(204,255,0,0.2)] hover:shadow-[0_0_15px_rgba(204,255,0,0.4)] transition-all active:scale-95"
                           >
                             <Mail size={12} /> Enviar por Email (Gmail)
                           </button>
@@ -3747,13 +3809,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
               {/* Lista de certificados con Checkbox para multiselección */}
               <div className="space-y-2">
-                <label className={`text-[9px] font-black ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} uppercase tracking-wider block ml-1`}>Selecciona los Documentos a Adjuntar:</label>
+                <label className="text-[9px] font-black text-[#CCFF00] uppercase tracking-wider block ml-1">Selecciona los Documentos a Adjuntar:</label>
                 <div className="grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto custom-scrollbar bg-black/40 p-4 rounded-xl border border-[var(--panel-border)]">
                   {emailModal.worker.certificates && emailModal.worker.certificates.length > 0 ? (
                     emailModal.worker.certificates.map(cert => {
                       const isChecked = emailModal.selectedCertIds.includes(cert.id);
                       return (
-                        <label key={cert.id} className={`flex items-center gap-3 text-xs text-[var(--text-main)] cursor-pointer ${theme === 'dark' ? 'hover:text-[#CCFF00]' : 'hover:text-emerald-600'} transition-colors p-1.5 rounded-lg hover:bg-white/5`}>
+                        <label key={cert.id} className="flex items-center gap-3 text-xs text-[var(--text-main)] cursor-pointer hover:text-[#CCFF00] transition-colors p-1.5 rounded-lg hover:bg-white/5">
                           <input 
                             type="checkbox" 
                             checked={isChecked}
@@ -3766,7 +3828,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                                   : prev.selectedCertIds.filter(id => id !== cert.id)
                               }));
                             }}
-                            className="accent-emerald-500 h-4 w-4 cursor-pointer"
+                            className="accent-[#CCFF00] h-4 w-4 cursor-pointer"
                           />
                           <div className="flex flex-col min-w-0">
                             <span className="font-bold truncate">{cert.name}</span>
@@ -3784,7 +3846,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               {/* Conexión Gmail / Google */}
               <div className="bg-black/40 p-4 rounded-2xl border border-[var(--panel-border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
                 <div className="space-y-1">
-                  <p className={`font-bold uppercase text-[10px] tracking-wider flex items-center gap-1.5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  <p className="font-bold text-[var(--text-main)] uppercase text-[10px] tracking-wider flex items-center gap-1.5 text-emerald-400">
                     <Shield size={12} /> Cuenta de Google Gmail
                   </p>
                   <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase leading-relaxed">
@@ -3803,7 +3865,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 ) : (
                   <button 
                     onClick={handleGoogleSignInForGmail}
-                    className={`px-3.5 py-2 rounded-xl font-black text-[9px] uppercase flex items-center gap-1.5 transition-all ${theme === 'dark' ? 'bg-[#CCFF00] text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(204,255,0,0.2)]' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md'}`}
+                    className="bg-[#CCFF00] text-black hover:bg-yellow-400 px-3.5 py-2 rounded-xl font-black text-[9px] uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(204,255,0,0.2)] hover:shadow-[0_0_15px_rgba(204,255,0,0.4)] transition-all"
                   >
                     <KeyRound size={12} /> Conectar Google
                   </button>
@@ -3891,7 +3953,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               <div className="pt-4 flex justify-end">
                 <button 
                   onClick={() => setUnauthorizedDomain(null)}
-                  className={`font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
                 >
                   Entendido
                 </button>
@@ -3940,7 +4002,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               <div className="pt-4 flex justify-end">
                 <button 
                   onClick={() => setOperationNotAllowed(false)}
-                  className={`font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
                 >
                   Entendido
                 </button>
@@ -4018,7 +4080,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     href={directUrl || `https://console.cloud.google.com/apis/library/${googleApiError.apiName === 'Gmail API' ? 'gmail.googleapis.com' : 'sheets.googleapis.com'}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5 text-center justify-center ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                    className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5 text-center justify-center"
                   >
                     {directUrl ? "Habilitar API Directamente" : "Ir a la Consola"} <ExternalLink size={12} />
                   </a>
@@ -4048,7 +4110,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-black uppercase tracking-wider font-sans`}>
+                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
                  <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>
