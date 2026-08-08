@@ -67,6 +67,20 @@ export const normalizeSpanishPhone = (phone: string): string => {
 
 export const isSpanishPhone = (phone: string): boolean => /^\+34[6789]\d{8}$/.test(phone);
 
+export const getSpanishPhoneLookupVariants = (phone: string): string[] => {
+  const normalized = normalizeSpanishPhone(phone);
+  const compact = phone.trim().replace(/\s/g, '');
+  const withoutPrefix = normalized.startsWith('+34') ? normalized.slice(3) : normalized;
+  const withoutPlus = normalized.startsWith('+') ? normalized.slice(1) : normalized;
+
+  return Array.from(new Set([
+    normalized,
+    withoutPlus,
+    withoutPrefix,
+    compact,
+  ].filter(Boolean)));
+};
+
 export const hashSecret = (secret: string) => {
   const iterations = 120000;
   const salt = randomBytes(16).toString('base64url');
@@ -251,6 +265,29 @@ export const queryFirestoreByField = async <T = any>(
   return (Array.isArray(data) ? data : [])
     .filter((row) => row.document)
     .map((row) => docToJs<T>(row.document));
+};
+
+export const queryFirestoreByAnyFieldValue = async <T = any>(
+  collectionId: string,
+  fieldPath: string,
+  values: Array<string | boolean>,
+  limit = 1
+): Promise<FirestoreDocument<T>[]> => {
+  const results: FirestoreDocument<T>[] = [];
+  const seen = new Set<string>();
+
+  for (const value of Array.from(new Set(values))) {
+    const matches = await queryFirestoreByField<T>(collectionId, fieldPath, value, limit);
+    for (const match of matches) {
+      if (!seen.has(match.id)) {
+        seen.add(match.id);
+        results.push(match);
+      }
+      if (results.length >= limit) return results;
+    }
+  }
+
+  return results;
 };
 
 export const createFirebaseCustomToken = (uid: string, claims: Record<string, any>) => {
