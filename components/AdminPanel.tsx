@@ -119,6 +119,18 @@ const dataUriToBlob = (dataUri: string): { blob: Blob; mimeType: string } => {
   return { blob: new Blob([bytes], { type: mimeType }), mimeType };
 };
 
+const downloadDataUri = (dataUri: string, fileName: string) => {
+  const { blob } = dataUriToBlob(dataUri);
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+};
+
 const getCertificateFileName = (cert: WorkerCertificate, mimeType: string) => {
   const baseName = (cert.name || 'certificado').trim().replace(/[\\/:*?"<>|]+/g, '-');
   if (/\.[a-z0-9]{2,5}$/i.test(baseName)) return baseName;
@@ -883,7 +895,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     try {
       // 1. If we have a Google access token, try to send via real Gmail API
       if (googleToken) {
-        const rawMessage = buildMimeMessage(to, subject, body, selectedCerts.map(c => ({ name: c.name, fileBase64: c.fileBase64 })));
+        const attachments = await Promise.all(selectedCerts.map(async (cert) => ({
+          name: cert.name,
+          fileBase64: cert.fileBase64 && cert.fileBase64.length > 50
+            ? cert.fileBase64
+            : await StorageService.getCertificateBase64(cert.id),
+        })));
+        const missingAttachment = attachments.find(att => !att.fileBase64 || att.fileBase64.length < 50);
+        if (missingAttachment) {
+          alert(`No se pudo cargar el certificado "${missingAttachment.name}" desde Storage.`);
+          return;
+        }
+        const rawMessage = buildMimeMessage(to, subject, body, attachments);
         
         const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
           method: 'POST',
@@ -1001,15 +1024,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     }
   };
 
-  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.type !== 'application/pdf') {
         alert("Solo se admiten archivos PDF.");
+        if (payslipFileInputRef.current) payslipFileInputRef.current.value = '';
         return;
       }
       if (file.size > 5000000) {
         alert("El archivo PDF es demasiado pesado. Máximo 5MB.");
+        if (payslipFileInputRef.current) payslipFileInputRef.current.value = '';
+        return;
+      }
+      try {
+        const protectedPdf = await isPasswordProtectedPdf(file);
+        if (protectedPdf) {
+          alert("No se puede subir esta nómina porque el PDF está protegido con contraseña. Sube una versión sin contraseña.");
+          if (payslipFileInputRef.current) payslipFileInputRef.current.value = '';
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking payslip PDF password protection", err);
+        alert("No se pudo comprobar si el PDF está protegido. Por seguridad, no se ha subido.");
+        if (payslipFileInputRef.current) payslipFileInputRef.current.value = '';
         return;
       }
       const reader = new FileReader();
@@ -1201,18 +1239,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             workerId: selectedWorkerProfile.id,
             name: name,
             fileBase64: fileData,
+            mimeType: isPdf ? 'application/pdf' : (file.type || 'image/jpeg'),
             uploadDate: new Date().toLocaleDateString('es-ES'),
             size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
           };
 
-          // Save full document in 'certificates' collection
-          await StorageService.saveCertificateDoc(newCertDoc);
+          // Save the file in Firebase Storage and only metadata/path in Firestore
+          const savedCert = await StorageService.saveCertificateDoc(newCertDoc);
 
-          // Store metadata (and lightweight base64 if small) on worker document
+          // Store only metadata on worker document. Legacy base64 is still readable through the certificates collection.
           const certForWorker = {
             id: certId,
             name: name,
-            fileBase64: fileData.length < 250000 ? fileData : '',
+            fileBase64: '',
+            filePath: savedCert.filePath,
+            mimeType: savedCert.mimeType,
             uploadDate: newCertDoc.uploadDate,
             size: newCertDoc.size
           };
@@ -2713,10 +2754,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                           </span>
                         </td>
                         <td className="p-4 text-right">
-                          {ps.pdfBase64 && (
-                            <a href={ps.pdfBase64} download={`Nomina_${ps.workerName.replace(/\s+/g, '_')}_${ps.monthStr}.pdf`} className="inline-flex p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 hover:bg-emerald-500 hover:text-white dark:hover:text-black transition">
+                          {(ps.pdfBase64 || ps.pdfPath) && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const pdfData = await StorageService.getPayslipPdfBase64(ps);
+                                if (!pdfData) {
+                                  alert("No se pudo cargar el PDF de la nómina.");
+                                  return;
+                                }
+                                downloadDataUri(pdfData, `Nomina_${ps.workerName.replace(/\s+/g, '_')}_${ps.monthStr}.pdf`);
+                              }}
+                              className="inline-flex p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 hover:bg-emerald-500 hover:text-white dark:hover:text-black transition"
+                            >
                               <Download size={14} />
-                            </a>
+                            </button>
                           )}
                         </td>
                       </tr>
