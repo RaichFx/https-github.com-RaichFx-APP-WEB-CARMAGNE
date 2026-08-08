@@ -1,8 +1,9 @@
 import {
   createFirebaseCustomToken,
+  getSpanishPhoneLookupVariants,
   isSpanishPhone,
   normalizeSpanishPhone,
-  queryFirestoreByField,
+  queryFirestoreByAnyFieldValue,
   verifySecret,
 } from '../../server/firebaseAdminRest';
 import { checkRateLimit } from '../../server/rateLimit';
@@ -31,7 +32,12 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const matches = await queryFirestoreByField<Worker>('workers', 'phone', phone, 1);
+    const matches = await queryFirestoreByAnyFieldValue<Worker>(
+      'workers',
+      'phone',
+      getSpanishPhoneLookupVariants(phone),
+      1
+    );
     const workerDoc = matches[0];
 
     if (!workerDoc) {
