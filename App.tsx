@@ -13,6 +13,8 @@ import { Worker, Site, WorkLog, LogType, GeoLocationData, WorkMode, AdminUser, T
 import { AdminPanel } from './components/AdminPanel';
 import { InstallTutorial } from './components/InstallTutorial';
 import { ConfirmationModal } from './components/ConfirmationModal';
+import { signInWithCustomToken, signOut as firebaseSignOut } from 'firebase/auth';
+import { auth } from './services/firebase';
 
 enum Step {
   LOGIN_PHONE = 0,
@@ -22,7 +24,7 @@ enum Step {
   WORKER_REPORTS = 18,
   WORKER_PAYSLIPS = 19,
   WORKER_PROFILE = 20,
-  WORKER_CERTIFICATES = 21,
+  WORKER_SETTINGS = 21,
   WORKER_CHAT = 22,
   SELECT_SITE = 2,
   SELECT_ACTION = 3,
@@ -93,6 +95,32 @@ const calculateTotalsFromLogs = (logs: WorkLog[]) => {
   return { totalWork, totalBreak, isOngoing };
 };
 
+const isPasswordProtectedPdf = async (file: File): Promise<boolean> => {
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if (!isPdf) return false;
+
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+
+  const compactPdfText = binary.replace(/\s+/g, '');
+  return compactPdfText.includes('/Encrypt') || compactPdfText.includes('/Filter/Standard') || compactPdfText.includes('/EncryptMetadata');
+};
+
+const downloadDataUri = (dataUri: string, fileName: string) => {
+  const link = document.createElement('a');
+  link.href = dataUri;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
 const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0 }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number }) => {
   const baseSize = size === "sm" ? 28 : size === "md" ? 64 : size === "lg" ? 140 : 64;
   const iconSize = baseSize * scale;
@@ -116,10 +144,8 @@ export const App: React.FC = () => {
     localStorage.setItem('theme', theme);
     if (theme === 'dark') {
       document.body.classList.add('dark-theme');
-      document.documentElement.classList.add('dark');
     } else {
       document.body.classList.remove('dark-theme');
-      document.documentElement.classList.remove('dark');
     }
   }, [theme]);
 
@@ -157,8 +183,6 @@ export const App: React.FC = () => {
   const certFileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [certNameInput, setCertNameInput] = useState('');
-  const [certSearch, setCertSearch] = useState('');
-  const [uploadingCert, setUploadingCert] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editDni, setEditDni] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -267,37 +291,29 @@ export const App: React.FC = () => {
     const timer = setTimeout(() => setIsAppLoading(false), 2000);
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     
-    // Load data from storage
-    const storedWorkers = StorageService.getWorkers();
-    setWorkers(storedWorkers);
+    // Load only cached non-sensitive UI data before authentication.
     setSites(StorageService.getSites());
-    setWorkerLogs(StorageService.getLogs()); 
-    setAdmins(StorageService.getAdmins());
-    setAllTools(StorageService.getTools());
     setAppConfig(StorageService.getConfig());
-    setChats(StorageService.getChats());
 
-    // Check for existing session
-    const savedWorkerId = localStorage.getItem('carmagne_session_worker_id');
-    if (savedWorkerId) {
-      const worker = storedWorkers.find(w => w.id === savedWorkerId);
+    return () => {
+      clearTimeout(timer); clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedWorker?.id || isAdmin) return;
+
+    const unsubWorker = StorageService.subscribeToWorker(selectedWorker.id, (worker) => {
       if (worker && worker.active) {
         setSelectedWorker(worker);
-        setCurrentStep(Step.WORKER_DASHBOARD);
-      }
-    }
-
-    const unsubWorkers = StorageService.subscribeToWorkers((ws) => {
-      setWorkers(ws);
-      // Update session if worker data changed
-      const currentId = localStorage.getItem('carmagne_session_worker_id');
-      if (currentId) {
-        const found = ws.find(w => w.id === currentId);
-        if (found) setSelectedWorker(found);
+        setWorkers([worker]);
+      } else {
+        resetApp();
+        setError('Cuenta desactivada o pendiente de aprobación.');
       }
     });
     const unsubSites = StorageService.subscribeToSites(setSites);
-    const unsubLogs = StorageService.subscribeToLogs((newLogs) => {
+    const unsubLogs = StorageService.subscribeToWorkerLogs(selectedWorker.id, (newLogs) => {
       setWorkerLogs(newLogs);
       newLogs.forEach(log => {
         if (log.timestamp > mountTimeRef.current && !notifiedIdsRef.current.has(log.id)) {
@@ -305,12 +321,10 @@ export const App: React.FC = () => {
         }
       });
     });
-    const unsubAdmins = StorageService.subscribeToAdmins(setAdmins);
-    const unsubTools = StorageService.subscribeToTools(setAllTools);
-    const unsubConfig = StorageService.subscribeToConfig(setAppConfig);
-    const unsubReports = StorageService.subscribeToReports(setMyReports);
-    const unsubPayslips = StorageService.subscribeToPayslips(setMyPayslips);
-    const unsubChats = StorageService.subscribeToChats((newChats) => {
+    const unsubTools = StorageService.subscribeToWorkerTools(selectedWorker.id, setAllTools);
+    const unsubReports = StorageService.subscribeToWorkerReports(selectedWorker.id, setMyReports);
+    const unsubPayslips = StorageService.subscribeToWorkerPayslips(selectedWorker.id, setMyPayslips);
+    const unsubChats = StorageService.subscribeToWorkerChats(selectedWorker.id, (newChats) => {
       setChats(newChats);
       newChats.forEach(msg => {
         if (msg.timestamp > mountTimeRef.current && !notifiedIdsRef.current.has(msg.id)) {
@@ -332,12 +346,11 @@ export const App: React.FC = () => {
       });
     });
     return () => {
-      clearTimeout(timer); clearInterval(interval);
-      unsubWorkers(); unsubSites(); unsubLogs(); unsubAdmins(); unsubTools(); unsubConfig(); unsubReports(); unsubPayslips(); unsubChats();
+      unsubWorker(); unsubSites(); unsubLogs(); unsubTools(); unsubReports(); unsubPayslips(); unsubChats();
     };
-  }, []);
+  }, [selectedWorker?.id, isAdmin]);
 
-  // Dynamic favicon & theme-color update
+  // Dynamic favicon update
   useEffect(() => {
     if (appConfig?.faviconUrl) {
       let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
@@ -349,11 +362,7 @@ export const App: React.FC = () => {
       }
       link.href = appConfig.faviconUrl;
     }
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', theme === 'dark' ? '#050505' : '#F4F5F7');
-    }
-  }, [appConfig?.faviconUrl, theme]);
+  }, [appConfig?.faviconUrl]);
 
   // Worker tools filtered list
   const workerTools = useMemo(() => {
@@ -467,35 +476,59 @@ export const App: React.FC = () => {
     return total;
   };
 
-  const handlePhoneLogin = () => {
+  const handlePhoneLogin = async () => {
     const formattedPhone = processSpanishPhone(loginPhone);
     if(!isPhoneValidSpain(formattedPhone)) { setError("Solo se permiten números de España (+34)"); return; }
-    const worker = workers.find(w => w.phone && processSpanishPhone(w.phone) === formattedPhone);
-    if (worker) {
-      if (!worker.active) { setError("Cuenta desactivada."); return; }
-      
-      if (!isPhoneVerified) {
-        setMatchedWorker(worker);
-        setIsPhoneVerified(true);
-        setError('');
-        setLoginPassword('');
+
+    if (!isPhoneVerified) {
+      setMatchedWorker(null);
+      setIsPhoneVerified(true);
+      setError('');
+      setLoginPassword('');
+      return;
+    }
+
+    if (!loginPassword.trim()) {
+      setError('Introduce tu contraseña.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/worker-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formattedPhone, password: loginPassword }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 404) {
+        if (confirm("Este número no está registrado. ¿Quieres crear una cuenta nueva?")) {
+          setRegPhone(formattedPhone);
+          setError('');
+          setCurrentStep(Step.REGISTER);
+        }
         return;
       }
 
-      const expectedPassword = worker.pin || '0000';
-      if (loginPassword === expectedPassword) {
-        setSelectedWorker(worker); 
-        localStorage.setItem('carmagne_session_worker_id', worker.id);
-        setError(''); 
-        setIsPhoneVerified(false);
-        setMatchedWorker(null);
-        setLoginPassword('');
-        setCurrentStep(Step.WORKER_DASHBOARD);
-      } else {
-        setError('Contraseña incorrecta');
+      if (!response.ok || !data.token || !data.worker) {
+        setError(data.error || 'No se pudo iniciar sesión.');
+        return;
       }
-    } else if(confirm("Este número no está registrado. ¿Quieres crear una cuenta nueva?")) {
-      setRegPhone(formattedPhone); setError(''); setCurrentStep(Step.REGISTER);
+
+      await signInWithCustomToken(auth, data.token);
+      setSelectedWorker(data.worker as Worker);
+      setWorkers([data.worker as Worker]);
+      setError('');
+      setIsPhoneVerified(false);
+      setMatchedWorker(null);
+      setLoginPassword('');
+      setCurrentStep(Step.WORKER_DASHBOARD);
+    } catch (err) {
+      console.error("Error en login seguro de trabajador:", err);
+      setError('Error al iniciar sesión.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -590,27 +623,37 @@ export const App: React.FC = () => {
     if (!regPin.trim()) { setError('La contraseña es obligatoria.'); return; }
     if (regPin !== regPinConfirm) { setError('Las contraseñas no coinciden.'); return; }
     setLoading(true);
-    const newWorker: Worker = { 
-      id: `W${Date.now()}`, 
-      name: regName, 
-      dni: regDni, 
-      phone: fPhone, 
-      email: regEmail,
-      pin: regPin.trim(), 
-      qrCode: `QR_${Date.now()}`, 
-      active: true, 
-      defaultMode: 'HORAS' 
-    };
     try { 
-      await StorageService.registerNewWorker(newWorker); 
-      setSelectedWorker(newWorker); 
-      localStorage.setItem('carmagne_session_worker_id', newWorker.id);
+      const response = await fetch('/api/auth/register-worker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: regName.trim(),
+          dni: regDni.trim(),
+          phone: fPhone,
+          email: regEmail.trim(),
+          password: regPin.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data.error || 'Error al registrar.');
+        return;
+      }
 
       // Notificación Telegram: Nuevo Operario
-      const telegramMessage = `🆕 <b>Nuevo Operario Registrado</b>\n👷‍♂️ Nombre: <b>${newWorker.name}</b>\n🆔 DNI: ${newWorker.dni}\n📱 Teléfono: ${newWorker.phone}\n📧 Email: ${newWorker.email}`;
+      const telegramMessage = `🆕 <b>Nuevo Operario Pendiente de Aprobación</b>\n👷‍♂️ Nombre: <b>${regName.trim()}</b>\n🆔 DNI: ${regDni.trim()}\n📱 Teléfono: ${fPhone}\n📧 Email: ${regEmail.trim()}`;
       TelegramService.enviarNotificacionTelegram(telegramMessage);
 
-      setCurrentStep(Step.WORKER_DASHBOARD); 
+      alert("Registro enviado. Tu cuenta queda pendiente de aprobación por el administrador.");
+      setRegName('');
+      setRegDni('');
+      setRegEmail('');
+      setRegPin('');
+      setRegPinConfirm('');
+      setLoginPassword('');
+      setIsPhoneVerified(false);
+      setCurrentStep(Step.LOGIN_PHONE); 
     } catch (err) { setError('Error al registrar.'); } finally { setLoading(false); }
   };
 
@@ -726,7 +769,7 @@ export const App: React.FC = () => {
   };
 
   const resetApp = () => { 
-    localStorage.removeItem('carmagne_session_worker_id');
+    firebaseSignOut(auth).catch(() => {});
     setCurrentStep(Step.LOGIN_PHONE); 
     setSelectedWorker(null); 
     setSelectedSite(null); 
@@ -735,24 +778,35 @@ export const App: React.FC = () => {
     setLoginPhone(''); 
   };
 
-  // Fix: Added the missing verifyAdminPassword function to handle admin panel authentication
-  const verifyAdminPassword = () => {
-    if (adminUsernameInput === 'admin' && adminPasswordInput === appConfig.adminPassword) {
-      setIsAdmin(true);
-      setCurrentAdminUser(null);
-      setShowAdminLogin(false);
-      setAdminError('');
-      return;
-    }
+  const verifyAdminPassword = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: adminUsernameInput,
+          password: adminPasswordInput,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
 
-    const matchedAdmin = admins.find(a => a.username === adminUsernameInput && a.password === adminPasswordInput);
-    if (matchedAdmin) {
+      if (!response.ok || !data.token) {
+        setAdminError(data.error || 'Credenciales incorrectas');
+        return;
+      }
+
+      await signInWithCustomToken(auth, data.token);
       setIsAdmin(true);
-      setCurrentAdminUser(matchedAdmin);
+      setCurrentAdminUser((data.admin || null) as AdminUser | null);
       setShowAdminLogin(false);
       setAdminError('');
-    } else {
-      setAdminError('Credenciales incorrectas');
+      setAdminPasswordInput('');
+    } catch (err) {
+      console.error("Error en login seguro de admin:", err);
+      setAdminError('No se pudo iniciar sesión de administrador.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -786,7 +840,7 @@ export const App: React.FC = () => {
                   <span>Operario</span>
                   <ExternalLink size={10} className="text-blue-400" />
                 </span>
-                <span className={`text-base font-black text-[var(--text-main)] block leading-tight ${theme === 'dark' ? 'hover:text-[#CCFF00]' : 'hover:text-emerald-600'} transition-colors`}>{selectedWorker?.name}</span>
+                <span className="text-base font-black text-[var(--text-main)] block leading-tight hover:text-[#CCFF00] transition-colors">{selectedWorker?.name}</span>
               </div>
             </div>
             {/* Action Buttons: Theme Switcher & Logout */}
@@ -831,19 +885,19 @@ export const App: React.FC = () => {
               <div className="text-blue-500 bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10"><User size={24} /></div>
               <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mi Perfil</span>
             </button>
-            {/* Navigation: Certificates */}
-            <button onClick={() => setCurrentStep(Step.WORKER_CERTIFICATES)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-emerald-500/30 transition-all duration-300">
-              <div className={`${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border-[#CCFF00]/10' : 'text-emerald-600 bg-emerald-50 border-emerald-200'} p-3 rounded-2xl border`}><Shield size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Certificados</span>
+            {/* Navigation: Settings */}
+            <button onClick={() => setCurrentStep(Step.WORKER_SETTINGS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-purple-500/30 transition-all duration-300">
+              <div className="text-purple-500 bg-purple-500/10 p-3 rounded-2xl border border-purple-500/10"><BellRing size={24} /></div>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Ajustes</span>
             </button>
             {/* Navigation: Chat / Mensajes */}
-            <button onClick={() => setCurrentStep(Step.WORKER_CHAT)} className={`bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] ${theme === 'dark' ? 'hover:border-[#CCFF00]/30' : 'hover:border-emerald-500/30'} transition-all duration-300 relative`}>
+            <button onClick={() => setCurrentStep(Step.WORKER_CHAT)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-[#CCFF00]/30 transition-all duration-300 relative">
               {unreadChatsCount > 0 && (
-                <div className={`absolute top-2 right-2 text-[9px] font-black px-2 py-0.5 rounded-full ${theme === 'dark' ? 'bg-[#CCFF00] text-black shadow-[0_0_10px_rgba(204,255,0,0.4)]' : 'bg-emerald-600 text-white shadow-md'}`}>
+                <div className="absolute top-2 right-2 bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(204,255,0,0.4)]">
                   {unreadChatsCount}
                 </div>
               )}
-              <div className={`${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border-[#CCFF00]/10' : 'text-emerald-600 bg-emerald-50 border-emerald-200'} p-3 rounded-2xl border`}><MessageSquare size={24} /></div>
+              <div className="text-[#CCFF00] bg-[#CCFF00]/10 p-3 rounded-2xl border border-[#CCFF00]/10"><MessageSquare size={24} /></div>
               <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mensajes</span>
             </button>
           </div>
@@ -1110,17 +1164,39 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleAddCertificate = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddCertificate = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && selectedWorker) {
       const name = certNameInput.trim() || file.name.split('.')[0];
       const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|heic)$/i.test(file.name);
       const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 
+      if (!isImage && !isPdf) {
+        alert("Solo se pueden subir certificados en PDF o imagen (JPG, PNG, WEBP o HEIC).");
+        if (certFileInputRef.current) certFileInputRef.current.value = '';
+        return;
+      }
+
       if (isPdf && file.size > 750 * 1024) {
         alert(`El archivo PDF es demasiado grande (${(file.size / 1024).toFixed(0)} KB). El tamaño máximo permitido para archivos PDF es de 750 KB para no superar el límite de almacenamiento de Firebase.\n\nSugerencia: Puedes hacer una foto o captura de pantalla al certificado y subir la imagen.`);
         if (certFileInputRef.current) certFileInputRef.current.value = '';
         return;
+      }
+
+      if (isPdf) {
+        try {
+          const protectedPdf = await isPasswordProtectedPdf(file);
+          if (protectedPdf) {
+            alert("No se puede subir este certificado porque el PDF está protegido con contraseña. Sube una versión sin contraseña o una imagen/captura.");
+            if (certFileInputRef.current) certFileInputRef.current.value = '';
+            return;
+          }
+        } catch (err) {
+          console.error("Error checking PDF password protection", err);
+          alert("No se pudo comprobar si el PDF está protegido. Por seguridad, no se ha subido.");
+          if (certFileInputRef.current) certFileInputRef.current.value = '';
+          return;
+        }
       }
 
       const reader = new FileReader();
@@ -1144,18 +1220,21 @@ export const App: React.FC = () => {
             workerId: selectedWorker.id,
             name: name,
             fileBase64: fileData,
+            mimeType: isPdf ? 'application/pdf' : (file.type || 'image/jpeg'),
             uploadDate: new Date().toLocaleDateString('es-ES'),
             size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
           };
 
-          // Save full document in 'certificates' collection
-          await StorageService.saveCertificateDoc(newCertDoc);
+          // Save the file in Firebase Storage and only metadata/path in Firestore
+          const savedCert = await StorageService.saveCertificateDoc(newCertDoc);
 
-          // Store metadata (and lightweight base64 if small) on worker document
+          // Store only metadata on worker document. Legacy base64 is still readable through the certificates collection.
           const certForWorker = {
             id: certId,
             name: name,
-            fileBase64: fileData.length < 250000 ? fileData : '',
+            fileBase64: '',
+            filePath: savedCert.filePath,
+            mimeType: savedCert.mimeType,
             uploadDate: newCertDoc.uploadDate,
             size: newCertDoc.size
           };
@@ -1208,20 +1287,20 @@ export const App: React.FC = () => {
 
     return (
       <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 shrink-0">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-4 mb-6 shrink-0">
+          <div className="flex items-center gap-4">
             <button 
               onClick={() => {
                 setIsEditingProfile(false);
                 setCurrentStep(Step.WORKER_DASHBOARD);
               }} 
-              className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10 shrink-0"
+              className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10"
             >
               <ChevronLeft size={20}/>
             </button>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base sm:text-lg md:text-xl font-black text-[var(--text-main)] uppercase tracking-tight leading-tight">Mi Perfil Profesional</h2>
-              <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Visualiza y gestiona tus datos</p>
+            <div>
+              <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Mi Perfil Profesional</h2>
+              <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Visualiza y gestiona tus datos</p>
             </div>
           </div>
 
@@ -1236,9 +1315,7 @@ export const App: React.FC = () => {
             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 border transition-all active:scale-95 ${
               isEditingProfile 
                 ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20' 
-                : theme === 'dark'
-                  ? 'bg-[#CCFF00]/10 text-[#CCFF00] border-[#CCFF00]/20 hover:bg-[#CCFF00]/20'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                : 'bg-[#CCFF00]/10 text-[#CCFF00] border-[#CCFF00]/20 hover:bg-[#CCFF00]/20'
             }`}
           >
             {isEditingProfile ? (
@@ -1310,7 +1387,7 @@ export const App: React.FC = () => {
           {isEditingProfile ? (
             <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[#CCFF00]/20 p-6 rounded-[2rem] shadow-[var(--panel-shadow)] space-y-4">
               <div className="border-b border-[var(--panel-border)] pb-3">
-                <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border-[#CCFF00]/20' : 'text-emerald-700 bg-emerald-50 border-emerald-300'}`}>Modo de Edición</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-[#CCFF00] bg-[#CCFF00]/10 px-2.5 py-1 rounded-md border border-[#CCFF00]/20">Modo de Edición</span>
                 <p className="text-xs text-[var(--text-muted)] font-medium mt-2">Modifica tus datos de contacto y acceso. El número de teléfono modificado será tu nuevo identificador para iniciar sesión.</p>
               </div>
 
@@ -1344,7 +1421,7 @@ export const App: React.FC = () => {
                     value={editPhone} 
                     onChange={(e) => setEditPhone(e.target.value)} 
                     placeholder="600000000"
-                    className={`w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-black focus:outline-none mt-1 ${theme === 'dark' ? 'focus:border-[#CCFF00]' : 'focus:border-emerald-500'}`}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-black focus:outline-none focus:border-[#CCFF00] mt-1"
                   />
                 </div>
               </div>
@@ -1352,7 +1429,7 @@ export const App: React.FC = () => {
               <button 
                 onClick={handleSaveProfile}
                 disabled={loading}
-                className={`w-full font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 flex items-center justify-center gap-2 active:scale-95 shadow-lg transition-all disabled:opacity-50 ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10'}`}
+                className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-[#CCFF00]/10 transition-all disabled:opacity-50"
               >
                 <Save size={14} /> {loading ? "Guardando..." : "Guardar Perfil"}
               </button>
@@ -1368,8 +1445,8 @@ export const App: React.FC = () => {
                 <p className="text-sm font-black text-[var(--text-main)] mt-1 break-all">{selectedWorker.email || 'No registrado'}</p>
               </div>
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
-                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código PIN de Acceso</p>
-                <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin || '0000'}</p>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Acceso seguro</p>
+                <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin ? 'PIN legacy configurado' : 'Contraseña protegida'}</p>
               </div>
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
                 <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código QR asignado</p>
@@ -1382,83 +1459,83 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* Certificados / Documentos section (Solo lectura / descarga) */}
+          {/* Certificados / Documentos section */}
           <div className="space-y-4">
-            <div className="border-t border-[var(--panel-border)] pt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h4 className="text-sm font-black text-[var(--text-main)] uppercase tracking-widest flex items-center gap-2">
-                  <Shield size={16} className={theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600"} />
-                  Mis Certificados y Documentos
-                </h4>
-                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Consulta y descarga de tus acreditaciones profesionales</p>
-              </div>
-              <button 
-                onClick={() => setCurrentStep(Step.WORKER_CERTIFICATES)}
-                className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border flex items-center justify-center gap-1.5 active:scale-95 transition-all shrink-0 ${
-                  theme === 'dark' 
-                    ? 'bg-[#CCFF00]/10 border-[#CCFF00]/30 text-[#CCFF00] hover:bg-[#CCFF00]/20' 
-                    : 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
-                }`}
-              >
-                <Upload size={12} /> Ir a Gestionar / Subir
-              </button>
+            <div className="border-t border-[var(--panel-border)] pt-5 text-center sm:text-left">
+              <h4 className="text-sm font-black text-[var(--text-main)] uppercase tracking-widest">Mis Certificados y Documentos</h4>
+              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Sube y gestiona tus aptitudes médicas, prevención, etc.</p>
             </div>
 
-            {/* List of Certificates (Read only) */}
+            {/* Formulario rápido para subir certificado */}
+            <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)] space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input 
+                  type="text" 
+                  placeholder="Nombre del documento (Ej: Prevención de Riesgos 20h)" 
+                  value={certNameInput}
+                  onChange={(e) => setCertNameInput(e.target.value)}
+                  className="flex-1 bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500"
+                />
+                <button 
+                  onClick={() => certFileInputRef.current?.click()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase px-5 py-3 rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shrink-0"
+                >
+                  <Upload size={14} /> Seleccionar archivo
+                </button>
+                <input 
+                  type="file" 
+                  ref={certFileInputRef} 
+                  className="hidden" 
+                  accept="application/pdf,image/*,.pdf,.jpg,.jpeg,.png,.webp,.heic"
+                  onChange={handleAddCertificate} 
+                />
+              </div>
+            </div>
+
+            {/* List of Certificates */}
             {certificates.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {certificates.map(cert => (
-                  <div key={cert.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] flex flex-col justify-between gap-3 hover:border-emerald-500/30 transition-all shadow-[var(--panel-shadow)]">
+                  <div key={cert.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] flex flex-col justify-between gap-3 hover:border-blue-500/20 transition-all shadow-[var(--panel-shadow)]">
                     <div>
                       <h5 className="font-black text-[var(--text-main)] text-xs uppercase tracking-tight truncate" title={cert.name}>{cert.name}</h5>
                       <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase mt-1">Subido: {cert.uploadDate} {cert.size && `• ${cert.size}`}</p>
                     </div>
-                    <div>
-                      <button 
-                        onClick={async () => {
-                          let base64 = cert.fileBase64;
-                          if (!base64 || base64.length < 50) {
-                            base64 = await StorageService.getCertificateBase64(cert.id);
-                          }
-                          if (base64) {
-                            const newWin = window.open();
-                            if (newWin) {
-                              newWin.document.write(`<iframe src="${base64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                    <div className="flex gap-2 justify-end">
+                      <a 
+                        href={cert.fileBase64 || '#'} 
+                        download={cert.name}
+                        onClick={async (e) => {
+                          if (!cert.fileBase64 || cert.fileBase64.length < 50) {
+                            e.preventDefault();
+                            const base64 = await StorageService.getCertificateBase64(cert.id);
+                            if (base64) {
+                              downloadDataUri(base64, cert.name);
                             } else {
-                              const link = document.createElement('a');
-                              link.href = base64;
-                              link.download = cert.name;
-                              link.click();
+                              alert("No se pudo cargar el archivo del certificado desde Firebase.");
                             }
-                          } else {
-                            alert("No se pudo cargar el archivo del certificado desde Firebase.");
                           }
                         }}
-                        title="Ver o Descargar Certificado"
-                        className={`w-full p-2.5 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
-                          theme === 'dark' 
-                            ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border-blue-500/30' 
-                            : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'
-                        }`}
+                        title="Descargar Certificado"
+                        className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white transition-all text-[9px] font-black uppercase flex items-center gap-1 px-3"
                       >
-                        <Eye size={13} /> Ver / Descargar Documento
+                        <Download size={12} /> Descargar
+                      </a>
+                      <button 
+                        onClick={() => handleDeleteCertificate(cert.id)}
+                        title="Eliminar Certificado"
+                        className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-all"
+                      >
+                        <Trash2 size={12} />
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center p-8 bg-zinc-900/5 dark:bg-white/5 border border-dashed border-[var(--panel-border)] rounded-2xl space-y-2">
-                <FileText className="mx-auto text-[var(--text-muted)] opacity-40" size={28} />
-                <p className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-wider">No se han subido certificados aún.</p>
-                <button 
-                  onClick={() => setCurrentStep(Step.WORKER_CERTIFICATES)}
-                  className={`text-[9px] font-black uppercase px-3 py-1.5 rounded-xl border inline-flex items-center gap-1 active:scale-95 transition-all ${
-                    theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/30 text-[#CCFF00]' : 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                  }`}
-                >
-                  <Upload size={12} /> Ir a la sección de Certificados
-                </button>
+              <div className="text-center p-8 bg-zinc-900/5 dark:bg-white/5 border border-dashed border-[var(--panel-border)] rounded-2xl">
+                <FileText className="mx-auto text-[var(--text-muted)] mb-2" size={24} />
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">No has subido ningún certificado aún.</p>
               </div>
             )}
           </div>
@@ -1467,240 +1544,143 @@ export const App: React.FC = () => {
     );
   };
 
-  const renderWorkerCertificates = () => {
+  const renderWorkerSettings = () => {
     if (!selectedWorker) return null;
-    const certificates = selectedWorker.certificates || [];
 
-    const filteredCerts = certificates.filter(c => 
-      !certSearch || c.name.toLowerCase().includes(certSearch.toLowerCase()) || c.uploadDate.includes(certSearch)
-    );
+    // Default to true if not set
+    const notifyCheckIn = selectedWorker.notificationPreferences?.notifyCheckIn ?? true;
+    const notifyCertificates = selectedWorker.notificationPreferences?.notifyCertificates ?? true;
 
-    const commonTypes = [
-      "PRL 20h Electricidad",
-      "Aptitud Médica",
-      "DNI / NIE",
-      "Tarjeta TPC",
-      "Trabajos en Altura",
-      "Riesgo Eléctrico (TEL)"
-    ];
+    const handleToggleCheckIn = async () => {
+      const updatedPrefs = {
+        ...(selectedWorker.notificationPreferences || {}),
+        notifyCheckIn: !notifyCheckIn
+      };
+      const updatedWorker = {
+        ...selectedWorker,
+        notificationPreferences: updatedPrefs
+      };
+      const updatedList = workers.map(w => w.id === selectedWorker.id ? updatedWorker : w);
+      try {
+        await StorageService.saveWorkers(updatedList);
+        setWorkers(updatedList);
+        setSelectedWorker(updatedWorker);
+      } catch (err) {
+        console.error("Error updating settings:", err);
+        alert("Error al guardar la configuración en Firebase.");
+      }
+    };
+
+    const handleToggleCertificates = async () => {
+      const updatedPrefs = {
+        ...(selectedWorker.notificationPreferences || {}),
+        notifyCertificates: !notifyCertificates
+      };
+      const updatedWorker = {
+        ...selectedWorker,
+        notificationPreferences: updatedPrefs
+      };
+      const updatedList = workers.map(w => w.id === selectedWorker.id ? updatedWorker : w);
+      try {
+        await StorageService.saveWorkers(updatedList);
+        setWorkers(updatedList);
+        setSelectedWorker(updatedWorker);
+      } catch (err) {
+        console.error("Error updating settings:", err);
+        alert("Error al guardar la configuración en Firebase.");
+      }
+    };
 
     return (
       <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4 text-[var(--text-main)]">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 shrink-0">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-            <button 
-              onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} 
-              className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10 active:scale-95 transition-all shrink-0"
-            >
-              <ChevronLeft size={20}/>
-            </button>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base sm:text-lg md:text-xl font-black text-[var(--text-main)] uppercase tracking-tight leading-tight">
-                Certificados y Documentos
-              </h2>
-              <p className={`text-[10px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'}`}>
-                Acreditaciones y prevención de riesgos
-              </p>
-            </div>
-          </div>
-          <div className={`self-start sm:self-auto px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase flex items-center gap-1.5 shrink-0 whitespace-nowrap ${theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/30 text-[#CCFF00]' : 'bg-emerald-50 border-emerald-300 text-emerald-800'}`}>
-            <Shield size={14} className="shrink-0" />
-            <span>{certificates.length} {certificates.length === 1 ? 'Documento' : 'Documentos'}</span>
+        <div className="flex items-center gap-4 mb-6 shrink-0">
+          <button 
+            onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} 
+            className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10 active:scale-95 transition-all"
+          >
+            <ChevronLeft size={20}/>
+          </button>
+          <div>
+            <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Ajustes del Sistema</h2>
+            <p className="text-[10px] text-purple-500 font-bold uppercase tracking-widest">Gestión de notificaciones y avisos</p>
           </div>
         </div>
 
         <div className="md:flex-1 md:overflow-y-auto space-y-6 pb-6 custom-scrollbar pr-1">
-          {/* Quick Upload Banner */}
-          <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] p-6 rounded-[2rem] shadow-[var(--panel-shadow)] space-y-4">
-            <div className="flex items-center justify-between border-b border-[var(--panel-border)] pb-3">
+          {/* Settings Section Card */}
+          <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] p-6 rounded-[2rem] shadow-[var(--panel-shadow)] space-y-6">
+            <div className="flex items-center gap-3 border-b border-[var(--panel-border)] pb-4">
+              <div className="p-2 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/10">
+                <BellRing size={20} />
+              </div>
               <div>
-                <h3 className="text-sm font-black text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2">
-                  <Upload size={16} className={theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} />
-                  Subir Nuevo Certificado
-                </h3>
-                <p className="text-[10px] text-[var(--text-muted)] font-medium mt-0.5">
-                  Adjunta tus títulos, diplomas de prevención, aptitud médica o acreditaciones (PDF o Imagen).
-                </p>
+                <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)]">Preferencias de Alertas</h3>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-tight">Activa o desactiva las notificaciones automáticas</p>
               </div>
             </div>
 
-            {/* Common category chips */}
-            <div>
-              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-2">Sugerencias rápidas:</p>
-              <div className="flex flex-wrap gap-2">
-                {commonTypes.map(type => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setCertNameInput(type)}
-                    className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border transition-all active:scale-95 ${
-                      certNameInput === type
-                        ? theme === 'dark'
-                          ? 'bg-[#CCFF00] text-black border-[#CCFF00]'
-                          : 'bg-emerald-600 text-white border-emerald-600'
-                        : theme === 'dark'
-                          ? 'bg-zinc-800/80 text-zinc-300 border-zinc-700 hover:border-[#CCFF00]/50'
-                          : 'bg-slate-100 text-slate-700 border-slate-200 hover:border-emerald-500'
-                    }`}
-                  >
-                    + {type}
-                  </button>
-                ))}
+            <div className="space-y-4">
+              {/* Option 1: Fichajes */}
+              <div className="flex items-center justify-between p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl">
+                <div className="space-y-0.5 flex-1 pr-4">
+                  <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] flex items-center gap-1.5">
+                    <Zap size={14} className="text-[#CCFF00]" /> Notificación de Fichajes
+                  </h4>
+                  <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
+                    Avisos en tiempo real al registrar tu entrada, salida o periodos de descanso.
+                  </p>
+                </div>
+                <button 
+                  onClick={handleToggleCheckIn}
+                  className="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none select-none min-h-[44px] min-w-[56px] flex items-center p-1"
+                  style={{ backgroundColor: notifyCheckIn ? '#CCFF00' : '#27272a' }}
+                >
+                  <span 
+                    className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 absolute"
+                    style={{ 
+                      transform: notifyCheckIn ? 'translateX(26px)' : 'translateX(4px)',
+                      backgroundColor: notifyCheckIn ? '#050505' : '#ffffff'
+                    }}
+                  />
+                </button>
+              </div>
+
+              {/* Option 2: Certificados */}
+              <div className="flex items-center justify-between p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl">
+                <div className="space-y-0.5 flex-1 pr-4">
+                  <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] flex items-center gap-1.5">
+                    <FileText size={14} className="text-[#CCFF00]" /> Recordatorios de Certificados
+                  </h4>
+                  <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
+                    Avisos y alertas previas a la caducidad de certificados médicos o de prevención.
+                  </p>
+                </div>
+                <button 
+                  onClick={handleToggleCertificates}
+                  className="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none select-none min-h-[44px] min-w-[56px] flex items-center p-1"
+                  style={{ backgroundColor: notifyCertificates ? '#CCFF00' : '#27272a' }}
+                >
+                  <span 
+                    className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 absolute"
+                    style={{ 
+                      transform: notifyCertificates ? 'translateX(26px)' : 'translateX(4px)',
+                      backgroundColor: notifyCertificates ? '#050505' : '#ffffff'
+                    }}
+                  />
+                </button>
               </div>
             </div>
-
-            {/* Form inputs */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
-              <input 
-                type="text" 
-                placeholder="Nombre del documento (Ej: Prevención 20h, Aptitud Médica...)" 
-                value={certNameInput}
-                onChange={(e) => setCertNameInput(e.target.value)}
-                className={`flex-1 bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl px-4 py-3.5 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none ${theme === 'dark' ? 'focus:border-[#CCFF00]' : 'focus:border-emerald-500'}`}
-              />
-              <button 
-                disabled={uploadingCert}
-                onClick={() => certFileInputRef.current?.click()}
-                className={`font-black text-xs uppercase px-6 py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shrink-0 disabled:opacity-50 ${
-                  theme === 'dark' 
-                    ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' 
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
-                }`}
-              >
-                {uploadingCert ? (
-                  <>
-                    <Clock className="animate-spin" size={16} /> Subiendo...
-                  </>
-                ) : (
-                  <>
-                    <Upload size={16} /> Seleccionar y Subir
-                  </>
-                )}
-              </button>
-              <input 
-                type="file" 
-                ref={certFileInputRef} 
-                className="hidden" 
-                accept="application/pdf,image/*"
-                onChange={async (e) => {
-                  setUploadingCert(true);
-                  try {
-                    await handleAddCertificate(e);
-                  } finally {
-                    setUploadingCert(false);
-                  }
-                }} 
-              />
-            </div>
-            <p className="text-[9px] text-[var(--text-muted)] font-medium italic">
-              * Formatos aceptados: PDF, JPG, PNG, WEBP (Máx. 750 KB para PDF o imágenes auto-comprimidas).
-            </p>
           </div>
 
-          {/* Search bar & list header */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h3 className="text-sm font-black text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2">
-                <FileText size={16} className="text-blue-500" />
-                Mis Documentos Registrados ({filteredCerts.length})
-              </h3>
-
-              {certificates.length > 3 && (
-                <div className="relative w-full sm:w-64">
-                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                  <input
-                    type="text"
-                    placeholder="Buscar certificado..."
-                    value={certSearch}
-                    onChange={(e) => setCertSearch(e.target.value)}
-                    className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl pl-9 pr-4 py-2 text-xs text-[var(--text-main)] focus:outline-none"
-                  />
-                  {certSearch && (
-                    <button onClick={() => setCertSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-white">
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              )}
+          {/* Context Info Banner */}
+          <div className="bg-purple-500/5 border border-purple-500/10 p-5 rounded-3xl flex gap-3.5 items-start">
+            <Info size={18} className="text-purple-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-purple-400">Sincronización en la Nube</h4>
+              <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
+                Tus preferencias se guardan de forma segura en tu perfil de operario. La empresa respetará tu elección para el envío de alertas automatizadas.
+              </p>
             </div>
-
-            {/* Certificate List Grid */}
-            {filteredCerts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredCerts.map(cert => (
-                  <div key={cert.id} className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] flex flex-col justify-between gap-4 hover:border-emerald-500/30 transition-all shadow-[var(--panel-shadow)] group relative">
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className={`p-2.5 rounded-2xl shrink-0 ${theme === 'dark' ? 'bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
-                            <Shield size={18} />
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="font-black text-[var(--text-main)] text-xs uppercase tracking-tight truncate" title={cert.name}>{cert.name}</h4>
-                            <span className="text-[8px] font-black uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 inline-block mt-0.5">
-                              Vigente
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-2.5 rounded-xl flex items-center justify-between text-[9px] text-[var(--text-muted)] font-mono">
-                        <span>FECHA: {cert.uploadDate}</span>
-                        <span>{cert.size || 'S/E'}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 pt-1 border-t border-[var(--panel-border)]">
-                      <button 
-                        onClick={async () => {
-                          let base64 = cert.fileBase64;
-                          if (!base64 || base64.length < 50) {
-                            base64 = await StorageService.getCertificateBase64(cert.id);
-                          }
-                          if (base64) {
-                            const newWin = window.open();
-                            if (newWin) {
-                              newWin.document.write(`<iframe src="${base64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                            } else {
-                              const link = document.createElement('a');
-                              link.href = base64;
-                              link.download = cert.name;
-                              link.click();
-                            }
-                          } else {
-                            alert("No se pudo obtener el documento desde Firebase.");
-                          }
-                        }}
-                        className={`flex-1 py-2.5 px-3 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
-                          theme === 'dark' 
-                            ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border-blue-500/30' 
-                            : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'
-                        }`}
-                      >
-                        <Eye size={13} /> Ver / Descargar
-                      </button>
-
-                      <button 
-                        onClick={() => handleDeleteCertificate(cert.id)}
-                        title="Eliminar Certificado"
-                        className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-all active:scale-95 border border-rose-500/20"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center p-12 bg-zinc-900/5 dark:bg-white/5 border border-dashed border-[var(--panel-border)] rounded-3xl">
-                <Shield className="mx-auto text-[var(--text-muted)] mb-3 opacity-40" size={36} />
-                <p className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">No se han encontrado certificados</p>
-                <p className="text-[10px] font-medium text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
-                  {certSearch ? "Prueba a cambiar el filtro de búsqueda." : "Utiliza el formulario superior para adjuntar tus diplomas, títulos de prevención o documentos de la empresa."}
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -1755,7 +1735,7 @@ export const App: React.FC = () => {
           </button>
           <div>
             <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight font-sans">Mensajería Interna</h2>
-            <p className={`text-[10px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-bold uppercase tracking-widest`}>Contacto directo entre compañeros y jefe</p>
+            <p className="text-[10px] text-[#CCFF00] font-bold uppercase tracking-widest">Contacto directo entre compañeros y jefe</p>
           </div>
         </div>
 
@@ -1773,7 +1753,7 @@ export const App: React.FC = () => {
               onClick={() => setActiveChatPartnerId('ADMIN')}
               className={`flex items-center justify-between p-3 rounded-2xl border transition-all text-left ${
                 activeChatPartnerId === 'ADMIN' 
-                  ? (theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' : 'bg-emerald-50 border-emerald-300 text-emerald-700') 
+                  ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' 
                   : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
               }`}
             >
@@ -1791,7 +1771,7 @@ export const App: React.FC = () => {
               </div>
               
               {partnerUnreadCount('ADMIN') > 0 && (
-                <span className={`${theme === 'dark' ? 'bg-[#CCFF00] text-black' : 'bg-emerald-600 text-white'} text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2`}>
+                <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2">
                   {partnerUnreadCount('ADMIN')}
                 </span>
               )}
@@ -1815,7 +1795,7 @@ export const App: React.FC = () => {
                       onClick={() => setActiveChatPartnerId(w.id)}
                       className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all text-left ${
                         isSelected 
-                          ? (theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' : 'bg-emerald-50 border-emerald-300 text-emerald-700') 
+                          ? 'bg-[#CCFF00]/10 border-[#CCFF00]/40 text-[#CCFF00]' 
                           : 'bg-[var(--btn-glass-bg)] border-[var(--btn-glass-border)] hover:bg-slate-500/5'
                       }`}
                     >
@@ -1837,7 +1817,7 @@ export const App: React.FC = () => {
                       </div>
 
                       {unread > 0 && (
-                        <span className={`${theme === 'dark' ? 'bg-[#CCFF00] text-black' : 'bg-emerald-600 text-white'} text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2`}>
+                        <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2">
                           {unread}
                         </span>
                       )}
@@ -1867,7 +1847,7 @@ export const App: React.FC = () => {
                       <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-2 font-sans">
                         {activeChatPartnerId === 'ADMIN' ? '👑 EL JEFE' : workers.find(w => w.id === activeChatPartnerId)?.name}
                       </h3>
-                      <p className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-bold uppercase tracking-widest`}>Chat individual seguro</p>
+                      <p className="text-[9px] text-[#CCFF00] font-bold uppercase tracking-widest">Chat individual seguro</p>
                     </div>
                   </div>
 
@@ -1983,27 +1963,27 @@ export const App: React.FC = () => {
             </div>
 
             {/* Período del Parte de Trabajo (OPCIONAL) */}
-            <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-4 rounded-2xl w-full max-w-full min-w-0 box-border overflow-hidden">
+            <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-4 rounded-2xl w-full">
               <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-0.5">
-                Período que cubre el parte <span className={`${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} font-normal`}>(Opcional)</span>
+                Período que cubre el parte <span className="text-emerald-500 font-normal">(Opcional)</span>
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-full min-w-0 box-border">
-                <div className="w-full max-w-full min-w-0 box-border">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <div className="flex-1 w-full min-w-0">
                   <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] block mb-1">Desde</span>
                   <input 
                     type="date" 
                     value={reportStartDate} 
                     onChange={(e) => setReportStartDate(e.target.value)} 
-                    className={`w-full max-w-full min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--input-text)] focus:border-emerald-500 outline-none block box-border ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
                   />
                 </div>
-                <div className="w-full max-w-full min-w-0 box-border">
+                <div className="flex-1 w-full min-w-0">
                   <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] block mb-1">Hasta</span>
                   <input 
                     type="date" 
                     value={reportEndDate} 
                     onChange={(e) => setReportEndDate(e.target.value)} 
-                    className={`w-full max-w-full min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--input-text)] focus:border-emerald-500 outline-none block box-border ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-3 text-xs sm:text-sm text-[var(--input-text)] focus:border-blue-500 outline-none block box-border [color-scheme:dark]"
                   />
                 </div>
               </div>
@@ -2012,12 +1992,12 @@ export const App: React.FC = () => {
             {/* Comentarios (OPCIONAL) */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1">
-                Comentarios / Observaciones <span className={`${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} font-normal`}>(Opcional)</span>
+                Comentarios / Observaciones <span className="text-emerald-500 font-normal">(Opcional)</span>
               </label>
               <textarea value={reportComments} onChange={(e) => setReportComments(e.target.value)} placeholder="Ej: He trabajado horas extras el martes..." className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3 text-xs text-[var(--input-text)] h-20 resize-none focus:border-blue-500 outline-none" />
             </div>
 
-            <button disabled={submittingReport || !reportPhoto} onClick={handleSendWeeklyReport} className={`w-full py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black disabled:bg-slate-800 disabled:text-slate-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-slate-200 disabled:text-slate-400'}`}>
+            <button disabled={submittingReport || !reportPhoto} onClick={handleSendWeeklyReport} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black disabled:bg-slate-800 disabled:text-slate-500 py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300">
               {submittingReport ? (
                 <>
                   <Clock className="animate-spin text-black" size={16} /> Subiendo parte...
@@ -2079,19 +2059,19 @@ export const App: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-[var(--text-muted)] block font-bold uppercase text-[8px]">Total Reportado:</span>
-                            <span className={`font-black ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} text-xs`}>{report.extractedTotal || '-'}</span>
+                            <span className="font-black text-[#CCFF00] text-xs">{report.extractedTotal || '-'}</span>
                           </div>
                         </div>
                       )}
 
                       {report.dailyHours && report.dailyHours.length > 0 && (
                         <div className="border-t border-[var(--panel-border)] pt-2.5 space-y-1">
-                          <span className="text-[8px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Desglose diario:</span>
+                          <span className="text-[8px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Desglose diario (IA):</span>
                           <div className="space-y-1 max-h-[100px] overflow-y-auto custom-scrollbar pr-1">
                             {report.dailyHours.map((dh, idx) => (
                               <div key={idx} className="flex justify-between items-center text-[9px] bg-black/25 px-2 py-1 rounded-lg border border-[var(--panel-border)]">
                                 <span className="font-bold text-[var(--text-main)]">{dh.date}</span>
-                                <span className={`font-black ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-700 bg-emerald-100'} px-1.5 rounded`}>{dh.hours}h</span>
+                                <span className="font-black text-emerald-400 bg-emerald-500/10 px-1.5 rounded">{dh.hours}h</span>
                               </div>
                             ))}
                           </div>
@@ -2111,13 +2091,13 @@ export const App: React.FC = () => {
                             onClick={() => setPreviewPhotoUrl(report.photoUrl)}
                             className="flex-1 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[10px] text-[var(--text-main)] py-2 px-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:bg-slate-500/10"
                           >
-                            <Eye size={12} className={theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600"} />
+                            <Eye size={12} className="text-[#CCFF00]" />
                             Ver Parte
                           </button>
                           <a
                             href={report.photoUrl}
                             download={`parte-${report.id}.png`}
-                            className={`flex-1 ${theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/20 text-[#CCFF00] hover:border-[#CCFF00]/40' : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:border-emerald-300'} border text-[10px] py-2 px-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center`}
+                            className="flex-1 bg-[#CCFF00]/10 border border-[#CCFF00]/20 hover:border-[#CCFF00]/40 text-[10px] text-[#CCFF00] py-2 px-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center"
                           >
                             <Download size={12} />
                             Descargar
@@ -2135,7 +2115,7 @@ export const App: React.FC = () => {
         {/* Modal Vista Previa de Imagen */}
         {previewPhotoUrl && (
           <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fadeIn">
-            <div className="absolute top-[calc(1rem+env(safe-area-inset-top,0px))] right-4 flex items-center gap-2">
+            <div className="absolute top-4 right-4 flex items-center gap-2">
               <a
                 href={previewPhotoUrl}
                 download="parte-semanal.png"
@@ -2177,34 +2157,29 @@ export const App: React.FC = () => {
     };
 
     return (
-      <div className="flex flex-col w-full max-w-full min-w-0 md:h-full animate-fadeIn md:overflow-hidden">
-        <div className="flex items-center gap-4 mb-4 shrink-0 w-full max-w-full min-w-0">
-          <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10 active:scale-95 transition-all">
+      <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden">
+        <div className="flex items-center gap-4 mb-4 shrink-0">
+          <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10">
             <ChevronLeft size={20}/>
           </button>
-          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter truncate">Mis Nóminas</h2>
+          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Mis Nóminas</h2>
         </div>
 
-        <div className="mb-4 shrink-0 w-full max-w-full min-w-0">
+        <div className="mb-4 shrink-0">
           <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1 mb-1">Filtrar por Mes</label>
-          <input 
-            type="month" 
-            className={`w-full min-w-0 max-w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none block box-border ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`} 
-            value={selectedPayslipMonth} 
-            onChange={(e) => setSelectedPayslipMonth(e.target.value)} 
-          />
+          <input type="month" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none [color-scheme:dark]" value={selectedPayslipMonth} onChange={(e) => setSelectedPayslipMonth(e.target.value)} />
         </div>
 
-        <div className="md:flex-1 md:overflow-y-auto space-y-4 pb-4 custom-scrollbar w-full max-w-full min-w-0">
+        <div className="md:flex-1 md:overflow-y-auto space-y-4 pb-4 custom-scrollbar pr-1">
           {filteredPayslips.length > 0 ? (
             filteredPayslips.map(ps => (
-              <div key={ps.id} className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] space-y-4 w-full max-w-full min-w-0 box-border">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-black text-[var(--text-main)] text-sm uppercase truncate">{ps.title}</h4>
+              <div key={ps.id} className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-black text-[var(--text-main)] text-sm uppercase">{ps.title}</h4>
                     <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase mt-0.5">{ps.monthStr}</p>
                   </div>
-                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
                     ps.status === 'SIGNED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
                   }`}>
                     {ps.status === 'SIGNED' ? 'Firmado' : 'Enviado'}
@@ -2227,14 +2202,25 @@ export const App: React.FC = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  {ps.pdfBase64 && (
-                    <a href={ps.pdfBase64} download={`Nomina_${selectedWorker?.name.replace(/\s+/g, '_')}_${ps.monthStr}.pdf`} className="flex-1 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] py-3 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1 text-[var(--text-main)] active:scale-95 transition-all text-center">
+                  {(ps.pdfBase64 || ps.pdfPath) && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const pdfData = await StorageService.getPayslipPdfBase64(ps);
+                        if (!pdfData) {
+                          alert("No se pudo cargar el PDF de la nómina.");
+                          return;
+                        }
+                        downloadDataUri(pdfData, `Nomina_${selectedWorker?.name.replace(/\s+/g, '_')}_${ps.monthStr}.pdf`);
+                      }}
+                      className="flex-1 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] py-3 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1 text-[var(--text-main)]"
+                    >
                       <Download size={14} /> Descargar PDF
-                    </a>
+                    </button>
                   )}
 
                   {ps.status !== 'SIGNED' && (
-                    <button onClick={() => handleSignPayslip(ps)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-500/10 active:scale-95 transition-all">
+                    <button onClick={() => handleSignPayslip(ps)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-500/10">
                       ✍️ Firmar Nómina
                     </button>
                   )}
@@ -2242,7 +2228,7 @@ export const App: React.FC = () => {
               </div>
             ))
           ) : (
-            <div className="text-center py-12 px-4 bg-[var(--panel-bg)]/40 rounded-3xl border border-dashed border-[var(--panel-border)] w-full max-w-full min-w-0 box-border">
+            <div className="text-center py-12 bg-[var(--panel-bg)]/40 rounded-3xl border border-dashed border-[var(--panel-border)]">
               <p className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-widest">No hay nóminas para este mes</p>
             </div>
           )}
@@ -2272,12 +2258,12 @@ export const App: React.FC = () => {
                   value={loginPhone} 
                   onChange={(e) => setLoginPhone(e.target.value)} 
                   onKeyDown={(e) => { if (e.key === 'Enter') handlePhoneLogin(); }}
-                  className={`w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-xl font-black outline-none text-center tracking-widest ${theme === 'dark' ? 'focus:border-[#CCFF00]' : 'focus:border-emerald-500'}`} 
+                  className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-xl font-black focus:border-[#CCFF00] outline-none text-center tracking-widest" 
                   placeholder="600000000"
                 />
                 <button 
                   onClick={handlePhoneLogin} 
-                  className={`w-full font-black py-4 rounded-2xl shadow-lg mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'}`}
+                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#CCFF00]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
                 >
                   Continuar <ArrowRight size={14} />
                 </button>
@@ -2285,9 +2271,9 @@ export const App: React.FC = () => {
             ) : (
               <>
                 <div className="text-center mb-4">
-                  <span className={`text-[10px] ${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border-[#CCFF00]/20' : 'text-emerald-700 bg-emerald-50 border-emerald-200'} font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border`}>Operario Detectado</span>
-                  <p className="text-lg font-black text-[var(--text-main)] uppercase tracking-tight mt-2">{matchedWorker?.name}</p>
-                  <p className="text-xs text-[var(--text-muted)] font-medium mt-0.5">{matchedWorker?.phone}</p>
+                  <span className="text-[10px] text-[#CCFF00] font-black uppercase tracking-[0.2em] bg-[#CCFF00]/10 px-3 py-1 rounded-full border border-[#CCFF00]/20">Verificación segura</span>
+                  <p className="text-lg font-black text-[var(--text-main)] uppercase tracking-tight mt-2">Introduce tu contraseña</p>
+                  <p className="text-xs text-[var(--text-muted)] font-medium mt-0.5">{processSpanishPhone(loginPhone)}</p>
                 </div>
                 
                 <div className="relative">
@@ -2296,7 +2282,7 @@ export const App: React.FC = () => {
                     value={loginPassword} 
                     onChange={(e) => setLoginPassword(e.target.value)} 
                     onKeyDown={(e) => { if (e.key === 'Enter') handlePhoneLogin(); }}
-                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 pr-12 text-center text-xl font-black focus:border-emerald-500 outline-none tracking-widest" 
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 pr-12 text-center text-xl font-black focus:border-[#CCFF00] outline-none tracking-widest" 
                     placeholder="Contraseña"
                     autoFocus
                   />
@@ -2305,13 +2291,13 @@ export const App: React.FC = () => {
                     onClick={() => setShowLoginPassword(!showLoginPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
                   >
-                    <Eye size={20} className={showLoginPassword ? (theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600") : ""} />
+                    <Eye size={20} className={showLoginPassword ? "text-[#CCFF00]" : ""} />
                   </button>
                 </div>
 
                 <button 
                   onClick={handlePhoneLogin} 
-                  className={`w-full font-black py-4 rounded-2xl shadow-lg mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'}`}
+                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#CCFF00]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
                 >
                   Entrar <ArrowRight size={14} />
                 </button>
@@ -2350,7 +2336,7 @@ export const App: React.FC = () => {
       case Step.WORKER_REPORTS: return renderWorkerReports();
       case Step.WORKER_PAYSLIPS: return renderWorkerPayslips();
       case Step.WORKER_PROFILE: return renderWorkerProfile();
-      case Step.WORKER_CERTIFICATES: return renderWorkerCertificates();
+      case Step.WORKER_SETTINGS: return renderWorkerSettings();
       case Step.WORKER_CHAT: return renderWorkerChat();
       case Step.SELECT_SITE: return (
         <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden">
@@ -2480,7 +2466,7 @@ export const App: React.FC = () => {
              </div>
              <div className="flex gap-2">{(['ALL', 'DAY', 'WEEK', 'MONTH'] as const).map(p => (<button key={p} onClick={() => setHistoryPeriod(p)} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${historyPeriod === p ? 'bg-blue-600 border-blue-500 text-white' : 'bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>{p === 'ALL' ? 'Todo' : p === 'DAY' ? 'Día' : p === 'WEEK' ? 'Semana' : 'Mes'}</button>))}</div>
              {historyPeriod === 'MONTH' && (<div className="animate-slideDown relative"><select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none appearance-none">{MONTH_NAMES.map((name, idx) => (<option key={name} value={idx} className="bg-[var(--panel-bg)] text-[var(--text-main)]">{name}</option>))}</select><ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" size={16} /></div>)}
-             {(historyPeriod === 'WEEK' || historyPeriod === 'DAY') && (<div className="animate-slideDown flex flex-col gap-1"><span className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest ml-1">{historyPeriod === 'DAY' ? 'Elegir día:' : 'Elegir día de la semana:'}</span><div className="relative"><CalendarDays size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className={`w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 pl-11 pr-4 text-xs font-bold outline-none ${theme === 'dark' ? '[color-scheme:dark]' : '[color-scheme:light]'}`}/></div></div>)}
+             {(historyPeriod === 'WEEK' || historyPeriod === 'DAY') && (<div className="animate-slideDown flex flex-col gap-1"><span className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest ml-1">{historyPeriod === 'DAY' ? 'Elegir día:' : 'Elegir día de la semana:'}</span><div className="relative"><CalendarDays size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 pl-11 pr-4 text-xs font-bold outline-none [color-scheme:dark]"/></div></div>)}
            </div>
            <div className="md:flex-1 md:overflow-y-auto space-y-3 pb-4 custom-scrollbar">
               {filteredHistory.map(log => (
@@ -2581,7 +2567,7 @@ case Step.WORKER_TOOLS: return (
                  <input 
                    type={showRegPin ? "text" : "password"} 
                    placeholder="Elige contraseña" 
-                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-emerald-500 outline-none" 
+                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" 
                    value={regPin} 
                    onChange={(e)=>setRegPin(e.target.value)}
                  />
@@ -2590,7 +2576,7 @@ case Step.WORKER_TOOLS: return (
                    onClick={() => setShowRegPin(!showRegPin)}
                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
                  >
-                   <Eye size={18} className={showRegPin ? (theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600") : ""} />
+                   <Eye size={18} className={showRegPin ? "text-[#CCFF00]" : ""} />
                  </button>
                </div>
 
@@ -2598,7 +2584,7 @@ case Step.WORKER_TOOLS: return (
                  <input 
                    type={showRegPinConfirm ? "text" : "password"} 
                    placeholder="Confirma tu contraseña" 
-                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-emerald-500 outline-none" 
+                   className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#CCFF00] outline-none" 
                    value={regPinConfirm} 
                    onChange={(e)=>setRegPinConfirm(e.target.value)}
                  />
@@ -2607,12 +2593,12 @@ case Step.WORKER_TOOLS: return (
                    onClick={() => setShowRegPinConfirm(!showRegPinConfirm)}
                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
                  >
-                   <Eye size={18} className={showRegPinConfirm ? (theme === 'dark' ? "text-[#CCFF00]" : "text-emerald-600") : ""} />
+                   <Eye size={18} className={showRegPinConfirm ? "text-[#CCFF00]" : ""} />
                  </button>
                </div>
              </div>
 
-             <button onClick={handleRegistration} className={`w-full ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'} font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shrink-0`}>Registrarme</button>
+             <button onClick={handleRegistration} className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shadow-[#CCFF00]/10 shrink-0">Registrarme</button>
            </div>
         </div>
       );
@@ -2624,9 +2610,9 @@ case Step.WORKER_TOOLS: return (
     }
   };
 
-  if (isAdmin) return <AdminPanel onBack={() => setIsAdmin(false)} currentUser={currentAdminUser} theme={theme} setTheme={setTheme} />;
+  if (isAdmin) return <AdminPanel onBack={() => { firebaseSignOut(auth).catch(() => {}); setIsAdmin(false); setCurrentAdminUser(null); }} currentUser={currentAdminUser} theme={theme} setTheme={setTheme} />;
   return (
-    <div className="min-h-[100dvh] w-full max-w-full min-w-0 overflow-x-hidden flex items-center justify-center p-0 md:p-6 relative md:overflow-hidden font-inter select-none text-[var(--text-main)]">
+    <div className="min-h-[100dvh] w-full min-w-full flex items-center justify-center p-0 md:p-6 relative md:overflow-hidden font-inter select-none text-[var(--text-main)]">
       {/* Background Liquid Glows */}
       <div className="liquid-bg hidden md:block">
         <div className="liquid-glow-1"></div>
@@ -2634,8 +2620,8 @@ case Step.WORKER_TOOLS: return (
       </div>
 
       {/* Main 16:9 Aspect ratio container on desktop, full-screen on mobile */}
-      <div className="w-full max-w-full min-w-0 min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative overflow-x-hidden box-border">
-        <div className="flex-1 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:p-8 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] md:pt-8 flex flex-col md:overflow-hidden relative z-10 w-full max-w-full min-w-0 box-border">
+      <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
+        <div className="flex-1 px-4 py-4 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8 flex flex-col md:overflow-hidden relative z-10">
           {renderStep()}
         </div>
       </div>
@@ -2677,7 +2663,7 @@ case Step.WORKER_TOOLS: return (
               </h2>
               
               <p className="text-zinc-400 text-xs font-medium mb-6 leading-relaxed max-w-xs mx-auto font-sans">
-                Hola <span className={`${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-black`}>{selectedWorker.name}</span>. Para garantizar la entrega de nóminas y partes oficiales, es obligatorio registrar tu correo electrónico.
+                Hola <span className="text-[#CCFF00] font-black">{selectedWorker.name}</span>. Para garantizar la entrega de nóminas y partes oficiales, es obligatorio registrar tu correo electrónico.
               </p>
 
               <div className="w-full space-y-4">
@@ -2709,7 +2695,7 @@ case Step.WORKER_TOOLS: return (
                 <button 
                   onClick={handleSaveForceEmail} 
                   disabled={loading}
-                  className={`w-full disabled:opacity-50 font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all duration-300 active:scale-95 shadow-lg font-sans ${theme === 'dark' ? 'bg-[#CCFF00] hover:bg-[#e1ff33] text-black shadow-[#CCFF00]/10' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'}`}
+                  className="w-full bg-[#CCFF00] hover:bg-[#e1ff33] disabled:opacity-50 text-black font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all duration-300 active:scale-95 shadow-lg shadow-[#CCFF00]/10 font-sans"
                 >
                   {loading ? 'Guardando...' : 'GUARDAR Y CONTINUAR'}
                 </button>
@@ -2747,7 +2733,7 @@ case Step.WORKER_TOOLS: return (
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className={`text-[9px] ${theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} font-black uppercase tracking-wider font-sans`}>
+                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
                  <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>

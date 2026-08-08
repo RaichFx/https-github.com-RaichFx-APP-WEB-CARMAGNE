@@ -15,13 +15,23 @@ export interface Worker {
   qrCode: string;
   active: boolean;
   pin: string;
+  pinHash?: string;
+  authUid?: string;
   dni?: string;
   role?: string;
   phone?: string;
   email?: string;
   defaultMode?: WorkMode;
   photoUrl?: string;
-  certificates?: { id: string; name: string; fileBase64: string; uploadDate: string; size?: string }[];
+  certificates?: {
+    id: string;
+    name: string;
+    fileBase64?: string;
+    filePath?: string;
+    mimeType?: string;
+    uploadDate: string;
+    size?: string;
+  }[];
   notificationPreferences?: {
     notifyCheckIn?: boolean;
     notifyCertificates?: boolean;
@@ -132,6 +142,8 @@ export interface Payslip {
   sentTimestamp: number;
   status: 'SENT' | 'RECEIVED' | 'SIGNED';
   pdfBase64?: string; // Opcional, para almacenar el PDF autogenerado o subido
+  pdfPath?: string;
+  pdfMimeType?: string;
 }
 
 export interface ChatMessage {

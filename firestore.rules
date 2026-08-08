@@ -1,0 +1,144 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() ? request.auth.token.role : null;
+    }
+
+    function workerId() {
+      return signedIn() ? request.auth.token.workerId : null;
+    }
+
+    function isAdmin() {
+      return role() == 'admin' || role() == 'superadmin';
+    }
+
+    function isWorker(id) {
+      return role() == 'worker' && workerId() == id;
+    }
+
+    function ownsWorkerField() {
+      return role() == 'worker' && request.resource.data.workerId == workerId();
+    }
+
+    function ownedExistingWorkerField() {
+      return role() == 'worker' && resource.data.workerId == workerId();
+    }
+
+    function isOwnWorkerCreateOrUpdate(id) {
+      return isWorker(id)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'dni',
+          'phone',
+          'email',
+          'photoUrl',
+          'certificates',
+          'notificationPreferences',
+          'defaultMode'
+        ]);
+    }
+
+    function hasNoEmbeddedFile(fieldName) {
+      return !request.resource.data.keys().hasAny([fieldName])
+        || request.resource.data[fieldName] == '';
+    }
+
+    match /workers/{id} {
+      allow read: if isAdmin() || isWorker(id);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isOwnWorkerCreateOrUpdate(id);
+    }
+
+    match /admins/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /config/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /sites/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /tools/{id} {
+      allow read: if isAdmin() || ownedExistingWorkerField();
+      allow create: if isAdmin() || (
+        ownsWorkerField()
+        && request.resource.data.id == id
+        && request.resource.data.workerId == workerId()
+      );
+      allow update, delete: if isAdmin() || (ownedExistingWorkerField() && ownsWorkerField());
+    }
+
+    match /logs/{id} {
+      allow read: if isAdmin() || ownedExistingWorkerField();
+      allow create: if isAdmin() || (
+        ownsWorkerField()
+        && request.resource.data.id == id
+        && request.resource.data.workerId == workerId()
+      );
+      allow update, delete: if isAdmin();
+    }
+
+    match /weekly_reports/{id} {
+      allow read: if isAdmin() || ownedExistingWorkerField();
+      allow create: if isAdmin() || (
+        ownsWorkerField()
+        && request.resource.data.id == id
+        && request.resource.data.workerId == workerId()
+      );
+      allow update, delete: if isAdmin();
+    }
+
+    match /payslips/{id} {
+      allow read: if isAdmin() || ownedExistingWorkerField();
+      allow create: if isAdmin() && hasNoEmbeddedFile('pdfBase64');
+      allow delete: if isAdmin();
+      allow update: if isAdmin() || (
+        ownedExistingWorkerField()
+        && ownsWorkerField()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'SIGNED'
+      );
+    }
+
+    match /chats/{id} {
+      allow read: if isAdmin()
+        || resource.data.senderId == workerId()
+        || resource.data.receiverId == workerId();
+      allow create: if isAdmin()
+        || (
+          role() == 'worker'
+          && request.resource.data.id == id
+          && request.resource.data.senderId == workerId()
+          && request.resource.data.receiverId == 'ADMIN'
+          && request.resource.data.read == false
+        );
+      allow update: if isAdmin()
+        || (
+          role() == 'worker'
+          && (resource.data.senderId == workerId() || resource.data.receiverId == workerId())
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /certificates/{id} {
+      allow read: if isAdmin() || ownedExistingWorkerField();
+      allow create: if (isAdmin() || ownsWorkerField()) && hasNoEmbeddedFile('fileBase64');
+      allow update: if (isAdmin() || (ownedExistingWorkerField() && ownsWorkerField())) && hasNoEmbeddedFile('fileBase64');
+      allow delete: if isAdmin() || (ownedExistingWorkerField() && ownsWorkerField());
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
