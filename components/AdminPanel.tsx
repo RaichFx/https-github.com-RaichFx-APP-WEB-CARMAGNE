@@ -83,6 +83,23 @@ const calculateTotalsFromLogs = (logs: WorkLog[]) => {
   return { totalWork, totalBreak, isOngoing };
 };
 
+const isPasswordProtectedPdf = async (file: File): Promise<boolean> => {
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if (!isPdf) return false;
+
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+
+  const compactPdfText = binary.replace(/\s+/g, '');
+  return compactPdfText.includes('/Encrypt') || compactPdfText.includes('/Filter/Standard') || compactPdfText.includes('/EncryptMetadata');
+};
+
 const LogIcon = ({ type, size = 18 }: { type: LogType, size?: number }) => {
   switch (type) {
     case LogType.ENTRADA:
@@ -1089,7 +1106,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     }
   };
 
-  const handleAddCertificate = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddCertificate = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && selectedWorkerProfile) {
       const name = certNameInput.trim() || file.name.split('.')[0];
@@ -1100,6 +1117,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         alert(`El archivo PDF es demasiado grande (${(file.size / 1024).toFixed(0)} KB). El tamaño máximo para PDFs es de 750 KB para no superar el límite de almacenamiento de Firebase.\n\nSugerencia: Puedes hacer una foto o captura de pantalla al certificado y subir la imagen.`);
         if (certFileInputRef.current) certFileInputRef.current.value = '';
         return;
+      }
+
+      if (isPdf) {
+        try {
+          const protectedPdf = await isPasswordProtectedPdf(file);
+          if (protectedPdf) {
+            alert("No se puede subir este certificado porque el PDF está protegido con contraseña. Por favor, sube una versión sin contraseña o una imagen/captura del certificado.");
+            if (certFileInputRef.current) certFileInputRef.current.value = '';
+            return;
+          }
+        } catch (err) {
+          console.error("Error checking PDF password protection", err);
+          alert("No se pudo comprobar si el PDF está protegido con contraseña. Por seguridad, no se ha subido. Prueba con una versión sin contraseña o una imagen/captura.");
+          if (certFileInputRef.current) certFileInputRef.current.value = '';
+          return;
+        }
       }
 
       const reader = new FileReader();
@@ -3463,10 +3496,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                         <input 
                           type="file" 
                           ref={certFileInputRef} 
+                          accept="application/pdf,image/*,.pdf,.jpg,.jpeg,.png,.webp,.heic"
                           className="hidden" 
                           onChange={handleAddCertificate} 
                         />
                       </div>
+                      <p className="text-[8px] font-bold uppercase tracking-wider text-amber-500">
+                        PDFs protegidos con contraseña no se aceptan. Sube una versión sin contraseña o una imagen/captura.
+                      </p>
                     </div>
 
                     {/* Lista de certificados */}
