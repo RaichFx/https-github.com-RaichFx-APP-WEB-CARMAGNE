@@ -1,7 +1,8 @@
 
 import { Worker, Site, WorkLog, AppConfig, LogType, AdminUser, ToolRecord, WeeklyReport, Payslip, ChatMessage } from '../types';
-import { db } from './firebase';
-import { collection, doc, setDoc, updateDoc, onSnapshot, deleteDoc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { db, storage } from './firebase';
+import { collection, doc, setDoc, updateDoc, onSnapshot, deleteDoc, getDoc, getDocs, writeBatch, query, where } from 'firebase/firestore';
+import { ref as storageRef, uploadString, getBytes, deleteObject } from 'firebase/storage';
 
 const KEYS = {
   WORKERS: 'carmagne_workers',
@@ -32,18 +33,13 @@ export const ELECTRICAL_BRANDS_LIST = [
   "Facom", "Palmerá", "Irazola", "Weller", "Hikoki", "Festool"
 ];
 
-const INITIAL_WORKERS: Worker[] = [
-  { id: 'W-BRAYAN-01', name: 'Brayan', dni: '', phone: '', pin: '1234', qrCode: 'QR_BRAYAN', active: true, defaultMode: 'HORAS' }
-];
+const INITIAL_WORKERS: Worker[] = [];
 
-const INITIAL_SITES: Site[] = [
-  { id: 'S001', name: 'Barakaldo 106', address: '13 Av. Altos Hornos de Vizcaya', active: true, coordinates: { latitude: 43.30087, longitude: -2.99256 } }
-];
+const INITIAL_SITES: Site[] = [];
 
 const INITIAL_CONFIG: AppConfig = { 
   adminPhone: '34631400010', 
   googleSheetUrl: '', 
-  adminPassword: 'admin', 
   logoUrl: '/logo.png', 
   logoScaleLogin: 1.0,
   logoScaleDashboard: 1.0
@@ -86,6 +82,32 @@ const stripHeavyBase64 = (obj: any): any => {
     result[key] = stripHeavyBase64(obj[key]);
   }
   return result;
+};
+
+const stripSensitiveLocalFields = (key: string, data: any): any => {
+  if (key === KEYS.WORKERS && Array.isArray(data)) {
+    return data.map(worker => ({
+      ...worker,
+      pin: '',
+      pinHash: '',
+    }));
+  }
+
+  if (key === KEYS.ADMINS && Array.isArray(data)) {
+    return data.map(admin => ({
+      ...admin,
+      password: '',
+    }));
+  }
+
+  if (key === KEYS.CONFIG && data && typeof data === 'object') {
+    return {
+      ...data,
+      adminPassword: '',
+    };
+  }
+
+  return data;
 };
 
 export const compressImage = (dataUrl: string, maxWidth = 400, maxHeight = 400, quality = 0.7): Promise<string> => {
@@ -135,9 +157,59 @@ const loadLocal = <T>(key: string, initial: T): T => {
 const saveLocal = <T>(key: string, data: T): void => {
   try {
     const cloned = safeClone(data);
-    const cleaned = stripHeavyBase64(cloned);
+    const cleaned = stripSensitiveLocalFields(key, stripHeavyBase64(cloned));
     localStorage.setItem(key, JSON.stringify(cleaned));
   } catch (e) { console.error("Error saving to local", e); }
+};
+
+type StoredFileDoc = {
+  id: string;
+  workerId: string;
+  name: string;
+  fileBase64?: string;
+  filePath?: string;
+  mimeType?: string;
+  uploadDate: string;
+  size?: string;
+};
+
+const sanitizeStorageFileName = (name: string) =>
+  (name || 'archivo')
+    .trim()
+    .replace(/[\\/:*?"<>|#%{}[\]^~`]+/g, '-')
+    .replace(/\s+/g, '_')
+    .slice(0, 120);
+
+const getMimeTypeFromDataUri = (dataUri?: string, fallback = 'application/octet-stream') => {
+  const match = dataUri?.match(/^data:([^;]+);/);
+  return match?.[1] || fallback;
+};
+
+const bytesToDataUri = (bytes: ArrayBuffer, mimeType: string) => {
+  const chunkSize = 0x8000;
+  const view = new Uint8Array(bytes);
+  let binary = '';
+  for (let i = 0; i < view.length; i += chunkSize) {
+    binary += String.fromCharCode(...view.subarray(i, i + chunkSize));
+  }
+  return `data:${mimeType};base64,${btoa(binary)}`;
+};
+
+const uploadDataUriToStorage = async (path: string, dataUri: string, contentType?: string) => {
+  const ref = storageRef(storage, path);
+  await uploadString(ref, dataUri, 'data_url', {
+    contentType: contentType || getMimeTypeFromDataUri(dataUri),
+    customMetadata: {
+      sensitive: 'true',
+    },
+  });
+  return path;
+};
+
+const readStorageFileAsDataUri = async (path: string, mimeType: string) => {
+  const ref = storageRef(storage, path);
+  const bytes = await getBytes(ref);
+  return bytesToDataUri(bytes, mimeType);
 };
 
 export const StorageService = {
@@ -173,13 +245,24 @@ export const StorageService = {
       console.error("onSnapshot error in subscribeToTools:", err);
     });
   },
+  subscribeToWorkerTools: (workerId: string, callback: (tools: ToolRecord[]) => void) => {
+    callback(loadLocal<ToolRecord[]>(KEYS.TOOLS, []).filter(t => t.workerId === workerId));
+    return onSnapshot(query(collection(db, "tools"), where("workerId", "==", workerId)), (snapshot) => {
+      const tools = snapshot.docs.map(doc => doc.data() as ToolRecord);
+      const sorted = [...tools].sort((a, b) => b.timestamp - a.timestamp);
+      saveLocal(KEYS.TOOLS, sorted);
+      callback(sorted);
+    }, (err) => {
+      console.error("onSnapshot error in subscribeToWorkerTools:", err);
+    });
+  },
 
   getWorkers: (): Worker[] => loadLocal(KEYS.WORKERS, INITIAL_WORKERS),
   registerNewWorker: async (worker: Worker) => {
     const current = loadLocal<Worker[]>(KEYS.WORKERS, INITIAL_WORKERS);
     saveLocal(KEYS.WORKERS, [...current, worker]);
     try { 
-      await setDoc(doc(db, "workers", worker.id), safeClone(worker)); 
+      await setDoc(doc(db, "workers", worker.id), safeClone(worker), { merge: true }); 
     } catch (e) {
       console.error("Firestore error in registerNewWorker:", e);
       throw e;
@@ -199,7 +282,7 @@ export const StorageService = {
       if (changedWorkers.length > 0) {
         await Promise.all(changedWorkers.map(async w => {
           try {
-            await setDoc(doc(db, "workers", w.id), safeClone(w));
+            await setDoc(doc(db, "workers", w.id), safeClone(w), { merge: true });
           } catch (err) {
             console.error(`Error saving worker ${w.id} / ${w.name}:`, err);
             throw err;
@@ -230,6 +313,21 @@ export const StorageService = {
       callback(workers);
     }, (err) => {
       console.error("onSnapshot error in subscribeToWorkers:", err);
+    });
+  },
+  subscribeToWorker: (workerId: string, callback: (worker: Worker | null) => void) => {
+    const cached = loadLocal<Worker[]>(KEYS.WORKERS, INITIAL_WORKERS).find(w => w.id === workerId) || null;
+    callback(cached);
+    return onSnapshot(doc(db, "workers", workerId), (snapshot) => {
+      if (!snapshot.exists()) {
+        callback(null);
+        return;
+      }
+      const worker = snapshot.data() as Worker;
+      saveLocal(KEYS.WORKERS, [worker]);
+      callback(worker);
+    }, (err) => {
+      console.error("onSnapshot error in subscribeToWorker:", err);
     });
   },
 
@@ -371,6 +469,17 @@ export const StorageService = {
       console.error("onSnapshot error in subscribeToLogs:", err);
     });
   },
+  subscribeToWorkerLogs: (workerId: string, callback: (logs: WorkLog[]) => void) => {
+    callback(loadLocal<WorkLog[]>(KEYS.LOGS, []).filter(l => l.workerId === workerId));
+    return onSnapshot(query(collection(db, "logs"), where("workerId", "==", workerId)), (snapshot) => {
+      const logs = snapshot.docs.map(doc => doc.data() as WorkLog);
+      const sorted = [...logs].sort((a, b) => b.timestamp - a.timestamp);
+      saveLocal(KEYS.LOGS, sorted);
+      callback(sorted);
+    }, (err) => {
+      console.error("onSnapshot error in subscribeToWorkerLogs:", err);
+    });
+  },
 
   getConfig: (): AppConfig => loadLocal(KEYS.CONFIG, INITIAL_CONFIG),
   saveConfig: async (config: AppConfig) => {
@@ -446,13 +555,33 @@ export const StorageService = {
       console.error("onSnapshot error in subscribeToReports:", err);
     });
   },
+  subscribeToWorkerReports: (workerId: string, callback: (reports: WeeklyReport[]) => void) => {
+    callback(loadLocal<WeeklyReport[]>(KEYS.REPORTS, []).filter(r => r.workerId === workerId));
+    return onSnapshot(query(collection(db, "weekly_reports"), where("workerId", "==", workerId)), (snapshot) => {
+      const reports = snapshot.docs.map(doc => doc.data() as WeeklyReport);
+      const sorted = [...reports].sort((a, b) => b.timestamp - a.timestamp);
+      saveLocal(KEYS.REPORTS, sorted);
+      callback(sorted);
+    }, (err) => {
+      console.error("onSnapshot error in subscribeToWorkerReports:", err);
+    });
+  },
 
   getPayslips: (): Payslip[] => loadLocal(KEYS.PAYSLIPS, []),
   addPayslip: async (payslip: Payslip) => {
+    const storageBackedPayslip = { ...payslip };
+    if (payslip.pdfBase64 && !payslip.pdfPath) {
+      const filePath = `payslips/${payslip.workerId}/${payslip.id}/${sanitizeStorageFileName(payslip.title || payslip.id)}.pdf`;
+      await uploadDataUriToStorage(filePath, payslip.pdfBase64, 'application/pdf');
+      storageBackedPayslip.pdfPath = filePath;
+      storageBackedPayslip.pdfMimeType = 'application/pdf';
+      storageBackedPayslip.pdfBase64 = '';
+    }
+
     const payslips = loadLocal<Payslip[]>(KEYS.PAYSLIPS, []);
-    saveLocal(KEYS.PAYSLIPS, [payslip, ...payslips]);
+    saveLocal(KEYS.PAYSLIPS, [storageBackedPayslip, ...payslips]);
     try { 
-      await setDoc(doc(db, "payslips", payslip.id), safeClone(payslip)); 
+      await setDoc(doc(db, "payslips", storageBackedPayslip.id), safeClone(storageBackedPayslip)); 
     } catch (e) {
       console.error("Firestore error in addPayslip:", e);
       throw e;
@@ -460,8 +589,12 @@ export const StorageService = {
   },
   deletePayslip: async (id: string) => {
     const payslips = loadLocal<Payslip[]>(KEYS.PAYSLIPS, []);
+    const existing = payslips.find(p => p.id === id);
     saveLocal(KEYS.PAYSLIPS, payslips.filter(p => p.id !== id));
     try { 
+      if (existing?.pdfPath) {
+        await deleteObject(storageRef(storage, existing.pdfPath)).catch(() => {});
+      }
       await deleteDoc(doc(db, "payslips", id)); 
     } catch (e) {
       console.error("Firestore error in deletePayslip:", e);
@@ -489,6 +622,27 @@ export const StorageService = {
       console.error("onSnapshot error in subscribeToPayslips:", err);
     });
   },
+  subscribeToWorkerPayslips: (workerId: string, callback: (payslips: Payslip[]) => void) => {
+    callback(loadLocal<Payslip[]>(KEYS.PAYSLIPS, []).filter(p => p.workerId === workerId));
+    return onSnapshot(query(collection(db, "payslips"), where("workerId", "==", workerId)), (snapshot) => {
+      const payslips = snapshot.docs.map(doc => doc.data() as Payslip);
+      const sorted = [...payslips].sort((a, b) => b.sentTimestamp - a.sentTimestamp);
+      saveLocal(KEYS.PAYSLIPS, sorted);
+      callback(sorted);
+    }, (err) => {
+      console.error("onSnapshot error in subscribeToWorkerPayslips:", err);
+    });
+  },
+  getPayslipPdfBase64: async (payslip: Payslip): Promise<string> => {
+    if (payslip.pdfBase64 && payslip.pdfBase64.length > 50) return payslip.pdfBase64;
+    if (!payslip.pdfPath) return '';
+    try {
+      return await readStorageFileAsDataUri(payslip.pdfPath, payslip.pdfMimeType || 'application/pdf');
+    } catch (e) {
+      console.error("Error fetching payslip PDF:", e);
+      return '';
+    }
+  },
 
   getChats: (): ChatMessage[] => loadLocal(KEYS.CHATS, []),
   sendMessage: async (msg: ChatMessage) => {
@@ -512,9 +666,41 @@ export const StorageService = {
       console.error("onSnapshot error in subscribeToChats:", err);
     });
   },
+  subscribeToWorkerChats: (workerId: string, callback: (messages: ChatMessage[]) => void) => {
+    const emit = (sent: ChatMessage[], received: ChatMessage[]) => {
+      const byId = new Map<string, ChatMessage>();
+      [...sent, ...received].forEach(msg => byId.set(msg.id, msg));
+      const sorted = [...byId.values()].sort((a, b) => a.timestamp - b.timestamp);
+      saveLocal(KEYS.CHATS, sorted);
+      callback(sorted);
+    };
+
+    let sentMessages = loadLocal<ChatMessage[]>(KEYS.CHATS, []).filter(c => c.senderId === workerId);
+    let receivedMessages = loadLocal<ChatMessage[]>(KEYS.CHATS, []).filter(c => c.receiverId === workerId);
+    emit(sentMessages, receivedMessages);
+
+    const unsubSent = onSnapshot(query(collection(db, "chats"), where("senderId", "==", workerId)), (snapshot) => {
+      sentMessages = snapshot.docs.map(doc => doc.data() as ChatMessage);
+      emit(sentMessages, receivedMessages);
+    }, (err) => {
+      console.error("onSnapshot error in subscribeToWorkerChats sent:", err);
+    });
+
+    const unsubReceived = onSnapshot(query(collection(db, "chats"), where("receiverId", "==", workerId)), (snapshot) => {
+      receivedMessages = snapshot.docs.map(doc => doc.data() as ChatMessage);
+      emit(sentMessages, receivedMessages);
+    }, (err) => {
+      console.error("onSnapshot error in subscribeToWorkerChats received:", err);
+    });
+
+    return () => {
+      unsubSent();
+      unsubReceived();
+    };
+  },
   markMessagesAsRead: async (senderId: string, receiverId: string) => {
     try {
-      const snapshot = await getDocs(collection(db, "chats"));
+      const snapshot = await getDocs(query(collection(db, "chats"), where("receiverId", "==", receiverId)));
       const batch = writeBatch(db);
       let updated = false;
       snapshot.docs.forEach(d => {
@@ -532,18 +718,32 @@ export const StorageService = {
     }
   },
 
-  saveCertificateDoc: async (cert: { id: string; workerId: string; name: string; fileBase64: string; uploadDate: string; size?: string }) => {
-    try {
-      const cache = loadLocal<any[]>('carmagne_certs_cache', []);
-      const updated = [cert, ...cache.filter(c => c.id !== cert.id)];
-      localStorage.setItem('carmagne_certs_cache', JSON.stringify(updated.slice(0, 15)));
-    } catch (e) {
-      console.warn("Local storage cert cache error", e);
+  saveCertificateDoc: async (cert: StoredFileDoc) => {
+    const storageBackedCert: StoredFileDoc = { ...cert };
+    if (cert.fileBase64 && !cert.filePath) {
+      const mimeType = cert.mimeType || getMimeTypeFromDataUri(cert.fileBase64, 'application/octet-stream');
+      const extension = mimeType === 'application/pdf'
+        ? 'pdf'
+        : mimeType === 'image/png'
+          ? 'png'
+          : mimeType === 'image/webp'
+            ? 'webp'
+            : mimeType === 'image/heic'
+              ? 'heic'
+              : mimeType.startsWith('image/')
+                ? 'jpg'
+                : 'bin';
+      const filePath = `certificates/${cert.workerId}/${cert.id}/${sanitizeStorageFileName(cert.name)}.${extension}`;
+      await uploadDataUriToStorage(filePath, cert.fileBase64, mimeType);
+      storageBackedCert.filePath = filePath;
+      storageBackedCert.mimeType = mimeType;
+      storageBackedCert.fileBase64 = '';
     }
 
     try {
-      await setDoc(doc(db, "certificates", cert.id), safeClone(cert));
-      console.log(`[Firebase Sync] Certificate ${cert.id} saved in certificates collection.`);
+      await setDoc(doc(db, "certificates", storageBackedCert.id), safeClone(storageBackedCert));
+      console.log(`[Firebase Sync] Certificate ${storageBackedCert.id} saved in certificates collection.`);
+      return storageBackedCert;
     } catch (e) {
       console.error("Firestore error in saveCertificateDoc:", e);
       throw e;
@@ -561,8 +761,11 @@ export const StorageService = {
       const docRef = doc(db, "certificates", certId);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
-        const data = snap.data();
+        const data = snap.data() as StoredFileDoc;
         if (data && data.fileBase64) return data.fileBase64;
+        if (data?.filePath) {
+          return await readStorageFileAsDataUri(data.filePath, data.mimeType || 'application/octet-stream');
+        }
       }
     } catch (e) {
       console.error("Error fetching certificate base64:", e);
@@ -577,6 +780,12 @@ export const StorageService = {
     } catch (e) {}
 
     try {
+      const docRef = doc(db, "certificates", certId);
+      const snap = await getDoc(docRef).catch(() => null);
+      const existing = snap?.exists() ? snap.data() as StoredFileDoc : null;
+      if (existing?.filePath) {
+        await deleteObject(storageRef(storage, existing.filePath)).catch(() => {});
+      }
       await deleteDoc(doc(db, "certificates", certId));
     } catch (e) {
       console.error("Error deleting certificate doc:", e);
