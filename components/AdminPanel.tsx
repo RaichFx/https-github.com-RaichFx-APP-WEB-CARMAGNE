@@ -21,6 +21,8 @@ interface AdminPanelProps {
   setTheme?: (theme: 'light' | 'dark') => void;
 }
 
+type WorkerCertificate = NonNullable<Worker['certificates']>[number];
+
 const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -98,6 +100,42 @@ const isPasswordProtectedPdf = async (file: File): Promise<boolean> => {
 
   const compactPdfText = binary.replace(/\s+/g, '');
   return compactPdfText.includes('/Encrypt') || compactPdfText.includes('/Filter/Standard') || compactPdfText.includes('/EncryptMetadata');
+};
+
+const dataUriToBlob = (dataUri: string): { blob: Blob; mimeType: string } => {
+  const [header, encodedData] = dataUri.split(',');
+  if (!header?.startsWith('data:') || !encodedData) {
+    throw new Error('Formato de archivo no válido.');
+  }
+
+  const mimeType = header.match(/data:([^;]+)/)?.[1] || 'application/octet-stream';
+  const binaryString = header.includes(';base64') ? atob(encodedData) : decodeURIComponent(encodedData);
+  const bytes = new Uint8Array(binaryString.length);
+
+  for (let i = 0; i < binaryString.length; i += 1) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  return { blob: new Blob([bytes], { type: mimeType }), mimeType };
+};
+
+const getCertificateFileName = (cert: WorkerCertificate, mimeType: string) => {
+  const baseName = (cert.name || 'certificado').trim().replace(/[\\/:*?"<>|]+/g, '-');
+  if (/\.[a-z0-9]{2,5}$/i.test(baseName)) return baseName;
+
+  const extension = mimeType === 'application/pdf'
+    ? 'pdf'
+    : mimeType === 'image/png'
+      ? 'png'
+      : mimeType === 'image/webp'
+        ? 'webp'
+        : mimeType === 'image/heic'
+          ? 'heic'
+          : mimeType.startsWith('image/')
+            ? 'jpg'
+            : 'bin';
+
+  return `${baseName}.${extension}`;
 };
 
 const LogIcon = ({ type, size = 18 }: { type: LogType, size?: number }) => {
@@ -295,6 +333,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const certFileInputRef = useRef<HTMLInputElement>(null);
   const workerPhotoInputRef = useRef<HTMLInputElement>(null);
   const [certNameInput, setCertNameInput] = useState('');
+  const [certificateActionId, setCertificateActionId] = useState<string | null>(null);
 
   // Mejoas: Zoom states for weekly reports
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -1113,6 +1152,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|heic)$/i.test(file.name);
       const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 
+      if (!isImage && !isPdf) {
+        alert("Solo se pueden subir certificados en PDF o imagen (JPG, PNG, WEBP o HEIC).");
+        if (certFileInputRef.current) certFileInputRef.current.value = '';
+        return;
+      }
+
       if (isPdf && file.size > 750 * 1024) {
         alert(`El archivo PDF es demasiado grande (${(file.size / 1024).toFixed(0)} KB). El tamaño máximo para PDFs es de 750 KB para no superar el límite de almacenamiento de Firebase.\n\nSugerencia: Puedes hacer una foto o captura de pantalla al certificado y subir la imagen.`);
         if (certFileInputRef.current) certFileInputRef.current.value = '';
@@ -1190,6 +1235,76 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const getCertificateDataUri = async (cert: WorkerCertificate): Promise<string> => {
+    if (cert.fileBase64 && cert.fileBase64.length > 50) return cert.fileBase64;
+
+    const base64 = await StorageService.getCertificateBase64(cert.id);
+    if (!base64 || base64.length < 50) {
+      throw new Error('No se pudo recuperar el certificado desde Firebase.');
+    }
+
+    return base64;
+  };
+
+  const handleViewCertificate = async (cert: WorkerCertificate) => {
+    const actionId = `${cert.id}:view`;
+    const previewWindow = window.open('', '_blank');
+    if (previewWindow) {
+      previewWindow.document.title = `Cargando ${cert.name}`;
+      previewWindow.document.body.innerHTML = '<p style="font-family: sans-serif; padding: 24px;">Cargando certificado...</p>';
+      previewWindow.opener = null;
+    }
+
+    try {
+      setCertificateActionId(actionId);
+      const fileData = await getCertificateDataUri(cert);
+      const { blob, mimeType } = dataUriToBlob(fileData);
+
+      if (mimeType !== 'application/pdf' && !mimeType.startsWith('image/')) {
+        if (previewWindow) previewWindow.close();
+        alert("Este tipo de archivo no se puede previsualizar. Usa el botón Descargar.");
+        return;
+      }
+
+      const blobUrl = URL.createObjectURL(blob);
+      if (previewWindow) {
+        previewWindow.location.href = blobUrl;
+      } else {
+        const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+        if (!opened) alert("El navegador bloqueó la ventana de vista previa. Permite ventanas emergentes o usa Descargar.");
+      }
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+    } catch (err: any) {
+      if (previewWindow) previewWindow.close();
+      console.error("Error viewing certificate:", err);
+      alert(err?.message || "No se pudo abrir el certificado.");
+    } finally {
+      setCertificateActionId(null);
+    }
+  };
+
+  const handleDownloadCertificate = async (cert: WorkerCertificate) => {
+    const actionId = `${cert.id}:download`;
+    try {
+      setCertificateActionId(actionId);
+      const fileData = await getCertificateDataUri(cert);
+      const { blob, mimeType } = dataUriToBlob(fileData);
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = getCertificateFileName(cert, mimeType);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+    } catch (err: any) {
+      console.error("Error downloading certificate:", err);
+      alert(err?.message || "No se pudo descargar el certificado.");
+    } finally {
+      setCertificateActionId(null);
     }
   };
 
@@ -3535,32 +3650,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                                 <p className="text-[8px] text-[var(--modal-text-muted)] font-bold uppercase mt-1">Subido: {cert.uploadDate} {cert.size && `• ${cert.size}`}</p>
                               </div>
                               <div className="flex gap-2 justify-end">
-                                <a 
-                                  href={cert.fileBase64 || '#'} 
-                                  download={cert.name}
-                                  onClick={async (e) => {
-                                    if (!cert.fileBase64 || cert.fileBase64.length < 50) {
-                                      e.preventDefault();
-                                      const base64 = await StorageService.getCertificateBase64(cert.id);
-                                      if (base64) {
-                                        const link = document.createElement('a');
-                                        link.href = base64;
-                                        link.download = cert.name;
-                                        link.click();
-                                      } else {
-                                        alert("No se pudo cargar el archivo del certificado desde Firebase.");
-                                      }
-                                    }
-                                  }}
-                                  title="Descargar Certificado"
-                                  className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white transition-all text-[9px] font-black uppercase flex items-center gap-1 px-3"
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewCertificate(cert)}
+                                  disabled={certificateActionId !== null}
+                                  title="Ver Certificado"
+                                  className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white disabled:opacity-50 disabled:cursor-wait transition-all text-[9px] font-black uppercase flex items-center gap-1 px-3"
                                 >
-                                  <Download size={12} /> Descargar
-                                </a>
+                                  <Eye size={12} /> {certificateActionId === `${cert.id}:view` ? 'Abriendo...' : 'Ver'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadCertificate(cert)}
+                                  disabled={certificateActionId !== null}
+                                  title="Descargar Certificado"
+                                  className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-wait transition-all text-[9px] font-black uppercase flex items-center gap-1 px-3"
+                                >
+                                  <Download size={12} /> {certificateActionId === `${cert.id}:download` ? 'Bajando...' : 'Descargar'}
+                                </button>
                                 <button 
                                   onClick={() => handleDeleteCertificate(cert.id)}
+                                  disabled={certificateActionId !== null}
                                   title="Eliminar Certificado"
-                                  className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-all"
+                                  className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
                                   <Trash2 size={12} />
                                 </button>
