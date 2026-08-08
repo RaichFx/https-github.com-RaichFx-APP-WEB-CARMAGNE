@@ -2,33 +2,24 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function role() {
-      return signedIn() ? request.auth.token.role : null;
-    }
-
-    function workerId() {
-      return signedIn() ? request.auth.token.workerId : null;
-    }
-
     function isAdmin() {
-      return role() == 'admin' || role() == 'superadmin';
+      return request.auth != null
+        && (request.auth.token.role == 'admin' || request.auth.token.role == 'superadmin');
     }
 
     function isWorker(id) {
-      return role() == 'worker' && workerId() == id;
+      return request.auth != null
+        && request.auth.token.role == 'worker'
+        && request.auth.token.workerId == id;
     }
 
     match /certificates/{id}/{allPaths=**} {
-      allow read, write, delete: if isAdmin() || isWorker(id);
+      allow read, write: if isAdmin() || isWorker(id);
     }
 
     match /payslips/{id}/{allPaths=**} {
       allow read: if isAdmin() || isWorker(id);
-      allow write, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /{allPaths=**} {
