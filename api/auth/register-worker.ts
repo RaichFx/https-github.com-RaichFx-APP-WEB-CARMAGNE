@@ -1,10 +1,9 @@
 import {
   hashSecret,
-  getSpanishPhoneLookupVariants,
   isSpanishPhone,
   normalizeSpanishPhone,
-  queryFirestoreByAnyFieldValue,
   queryFirestoreByField,
+  queryFirestoreBySpanishPhone,
   setFirestoreDocument,
 } from '../../server/firebaseAdminRest';
 import { checkRateLimit } from '../../server/rateLimit';
@@ -31,12 +30,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const existingPhone = await queryFirestoreByAnyFieldValue<Worker>(
-      'workers',
-      'phone',
-      getSpanishPhoneLookupVariants(phone),
-      1
-    );
+    const existingPhone = await queryFirestoreBySpanishPhone<Worker>('workers', 'phone', phone, 1);
     if (existingPhone.length > 0) {
       return res.status(409).json({ error: 'Este telefono ya esta registrado.' });
     }
