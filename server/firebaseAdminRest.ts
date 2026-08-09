@@ -290,6 +290,55 @@ export const queryFirestoreByAnyFieldValue = async <T = any>(
   return results;
 };
 
+export const listFirestoreCollection = async <T = any>(
+  collectionId: string,
+  pageSize = 300
+): Promise<FirestoreDocument<T>[]> => {
+  const accessToken = await getGoogleAccessToken();
+  const results: FirestoreDocument<T>[] = [];
+  let pageToken = '';
+
+  do {
+    const url = new URL(`${firestoreBaseUrl()}/${collectionId}`);
+    url.searchParams.set('pageSize', String(pageSize));
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.error?.message || 'No se pudo listar Firestore.');
+    }
+
+    results.push(...(data.documents || []).map((doc: any) => docToJs<T>(doc)));
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+
+  return results;
+};
+
+export const queryFirestoreBySpanishPhone = async <T = any>(
+  collectionId: string,
+  fieldPath: string,
+  phone: string,
+  limit = 1
+): Promise<FirestoreDocument<T>[]> => {
+  const normalizedPhone = normalizeSpanishPhone(phone);
+  const exactMatches = await queryFirestoreByAnyFieldValue<T>(
+    collectionId,
+    fieldPath,
+    getSpanishPhoneLookupVariants(phone),
+    limit
+  );
+  if (exactMatches.length > 0) return exactMatches;
+
+  const allDocs = await listFirestoreCollection<T>(collectionId);
+  return allDocs
+    .filter((doc) => normalizeSpanishPhone(String((doc.data as any)?.[fieldPath] || '')) === normalizedPhone)
+    .slice(0, limit);
+};
+
 export const createFirebaseCustomToken = (uid: string, claims: Record<string, any>) => {
   const serviceAccount = assertServiceAccount();
   const now = Math.floor(Date.now() / 1000);
