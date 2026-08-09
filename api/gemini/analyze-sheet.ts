@@ -1,4 +1,4 @@
-import { analyzeSheetFromPayload } from '../../server/gemini';
+import { analyzeSheetFromPayload } from '../../server/gemini.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
