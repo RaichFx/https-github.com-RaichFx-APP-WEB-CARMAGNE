@@ -4,8 +4,8 @@ import {
   normalizeSpanishPhone,
   queryFirestoreBySpanishPhone,
   verifySecret,
-} from '../../server/firebaseAdminRest';
-import { checkRateLimit } from '../../server/rateLimit';
+} from '../../server/firebaseAdminRest.js';
+import { checkRateLimit } from '../../server/rateLimit.js';
 import type { Worker } from '../../types';
 
 const publicWorker = (worker: Worker) => {
