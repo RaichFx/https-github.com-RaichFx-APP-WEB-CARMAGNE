@@ -1,8 +1,8 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { analyzeSheetFromPayload } from './server/gemini';
-import { sendTelegramMessage } from './server/telegram';
+import { analyzeSheetFromPayload } from './server/gemini.js';
+import { sendTelegramMessage } from './server/telegram.js';
 
 async function startServer() {
   const app = express();
