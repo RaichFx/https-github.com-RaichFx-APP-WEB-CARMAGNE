@@ -5,8 +5,8 @@ import {
   queryFirestoreByField,
   queryFirestoreBySpanishPhone,
   setFirestoreDocument,
-} from '../../server/firebaseAdminRest';
-import { checkRateLimit } from '../../server/rateLimit';
+} from '../../server/firebaseAdminRest.js';
+import { checkRateLimit } from '../../server/rateLimit.js';
 import type { Worker } from '../../types';
 
 export default async function handler(req: any, res: any) {
