@@ -122,10 +122,11 @@ const downloadDataUri = (dataUri: string, fileName: string) => {
   link.remove();
 };
 
-const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0 }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number }) => {
+const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0, theme = "light" }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number, theme?: "light" | "dark" }) => {
   const baseSize = size === "sm" ? 28 : size === "md" ? 64 : size === "lg" ? 140 : 64;
   const iconSize = baseSize * scale;
-  const logoSrc = logoUrl || "/logo.png";
+  const configuredLogo = logoUrl || "/logo.png";
+  const logoSrc = configuredLogo === "/logo.png" ? (theme === "dark" ? "/logo.png" : "/logo-black.png") : configuredLogo;
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
       <img 
@@ -2152,7 +2153,7 @@ export const App: React.FC = () => {
         <div className="flex flex-col h-full animate-fadeIn justify-center items-center py-4 max-w-sm mx-auto w-full">
           <div className="text-center w-full">
             <div className="inline-flex mb-6">
-              <AppLogo size="lg" logoUrl={appConfig.logoUrl} scale={appConfig.logoScaleLogin} />
+              <AppLogo size="lg" logoUrl={appConfig.logoUrl} scale={appConfig.logoScaleLogin} theme={theme} />
             </div>
             <h2 className="text-3xl font-black text-[var(--text-main)] tracking-tighter uppercase font-sans">CARMAGNE INSTAL SL</h2>
             <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-[0.25em] mt-1">Acceso Operario</p>
