@@ -35,6 +35,16 @@ const formatMsToTime = (ms: number) => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
+const normalizeSpanishPhone = (phone: string): string => {
+  let cleaned = phone.trim().replace(/\s/g, '');
+  if (cleaned.startsWith('0034')) cleaned = '+34' + cleaned.slice(4);
+  if (cleaned.length === 9 && /^[6789]/.test(cleaned)) cleaned = '+34' + cleaned;
+  if (cleaned.startsWith('34') && cleaned.length === 11) cleaned = '+' + cleaned;
+  return cleaned;
+};
+
+const isSpanishPhone = (phone: string): boolean => /^\+34[6789]\d{8}$/.test(phone);
+
 const calculateTotalsFromLogs = (logs: WorkLog[]) => {
   const sorted = [...logs].sort((a, b) => a.timestamp - b.timestamp);
   let totalWork = 0;
@@ -165,15 +175,17 @@ const LogIcon = ({ type, size = 18 }: { type: LogType, size?: number }) => {
   }
 };
 
-const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0 }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number }) => {
+const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0, theme = "light" }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number, theme?: "light" | "dark" }) => {
   const baseSize = size === "sm" ? 28 : size === "md" ? 64 : size === "lg" ? 140 : 64;
   const iconSize = baseSize * scale;
+  const configuredLogo = logoUrl || "/logo.png";
+  const logoSrc = configuredLogo === "/logo.png" ? (theme === "dark" ? "/logo.png" : "/logo-black.png") : configuredLogo;
   
-  if (logoUrl) {
+  if (logoSrc) {
     return (
       <div className={`relative flex items-center justify-center ${className}`}>
         <img 
-          src={logoUrl} 
+          src={logoSrc} 
           alt="Company Logo" 
           style={{ width: iconSize, height: iconSize }} 
           className="object-contain rounded-2xl drop-shadow-[0_0_15px_rgba(59,130,246,0.4)]"
@@ -1099,11 +1111,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   };
 
   const handleSaveWorker = async () => {
+    const normalizedPhone = workerForm.phone ? normalizeSpanishPhone(workerForm.phone) : '';
     if (!workerForm.name) {
       setWorkerFormError('El nombre es un campo obligatorio.');
       return;
     }
     if (workerForm.phone) {
+      if (!isSpanishPhone(normalizedPhone)) {
+        setWorkerFormError('El teléfono debe ser un número español válido, por ejemplo +34600111222.');
+        return;
+      }
       if (!workerForm.email) {
         setWorkerFormError('El correo electrónico es obligatorio para los operarios con número de teléfono.');
         return;
@@ -1120,7 +1137,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         ...editingWorker,
         name: workerForm.name,
         dni: workerForm.dni,
-        phone: workerForm.phone,
+        phone: normalizedPhone,
         email: workerForm.email,
         pin: workerForm.pin || '0000',
         role: workerForm.role,
@@ -1138,7 +1155,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         id: `W${Date.now()}`,
         name: workerForm.name,
         dni: workerForm.dni,
-        phone: workerForm.phone,
+        phone: normalizedPhone,
         email: workerForm.email,
         pin: workerForm.pin || '0000',
         qrCode: `QR_${Date.now()}`,
@@ -3094,7 +3111,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
       <aside className="hidden md:flex flex-col w-64 border-r border-[var(--panel-border)] p-6 gap-8 bg-[var(--panel-bg)]">
         <div className="flex items-center gap-3">
-          <AppLogo size="sm" logoUrl={config.logoUrl} scale={config.logoScaleDashboard} />
+          <AppLogo size="sm" logoUrl={config.logoUrl} scale={config.logoScaleDashboard} theme={theme} />
           <h1 className="text-xs font-black tracking-tighter uppercase leading-tight">CARMAGNE<br/>INSTAL SL</h1>
         </div>
         <nav className="flex flex-col gap-2">
