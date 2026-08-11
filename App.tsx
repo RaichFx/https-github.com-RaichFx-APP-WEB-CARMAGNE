@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   User, MapPin, CheckCircle, 
@@ -1507,7 +1507,7 @@ export const App: React.FC = () => {
                 {certificates.map(cert => (
                   <div key={cert.id} className="flex items-center justify-between gap-3 p-3 bg-[var(--btn-glass-bg)] rounded-2xl border border-[var(--panel-border)]">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="bg-green-500/10 text-green-500 p-2 rounded-xl shrink-0"><CheckCircle2 size={16} /></div>
+                      <div className="bg-green-500/10 text-green-500 p-2 rounded-xl shrink-0"><CheckCircle size={16} /></div>
                       <div className="min-w-0">
                         <p className="text-[11px] font-black text-[var(--text-main)] truncate">{cert.name}</p>
                         <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase">{cert.uploadDate}</p>
@@ -1552,7 +1552,7 @@ export const App: React.FC = () => {
             </div>
             <div className="space-y-3">
               <input type="text" value={certNameInput} onChange={(e) => setCertNameInput(e.target.value)} placeholder="Nombre del certificado" className="w-full p-4 rounded-2xl bg-[var(--btn-glass-bg)] border border-[var(--panel-border)] text-sm font-bold outline-none focus:border-blue-500 transition-colors text-[var(--text-main)]" />
-              <button onClick={() => certFileInputRef.current?.click()} className="w-full p-4 rounded-2xl bg-blue-500 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-blue-500/20"><UploadCloud size={18} /> Seleccionar archivo</button>
+              <button onClick={() => certFileInputRef.current?.click()} className="w-full p-4 rounded-2xl bg-blue-500 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-blue-500/20"><Upload size={18} /> Seleccionar archivo</button>
               <input ref={certFileInputRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden" onChange={handleAddCertificate} />
             </div>
           </div>
@@ -1575,7 +1575,7 @@ export const App: React.FC = () => {
                 {certificates.map(cert => (
                   <div key={cert.id} className="p-3 bg-[var(--btn-glass-bg)] rounded-2xl border border-[var(--panel-border)]">
                     <div className="flex items-center gap-3 min-w-0 mb-3">
-                      <div className="bg-green-500/10 text-green-500 p-2 rounded-xl shrink-0"><CheckCircle2 size={16} /></div>
+                      <div className="bg-green-500/10 text-green-500 p-2 rounded-xl shrink-0"><CheckCircle size={16} /></div>
                       <div className="min-w-0">
                         <p className="text-[12px] font-black text-[var(--text-main)] truncate">{cert.name}</p>
                         <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase">Subido el {cert.uploadDate}</p>
