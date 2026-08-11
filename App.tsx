@@ -16,6 +16,7 @@ import { ConfirmationModal } from './components/ConfirmationModal';
 import { signInWithCustomToken, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from './services/firebase';
 
+type WorkerCertificate = NonNullable<Worker['certificates']>[number];
 enum Step {
   LOGIN_PHONE = 0,
   WORKER_DASHBOARD = 15,
@@ -24,7 +25,7 @@ enum Step {
   WORKER_REPORTS = 18,
   WORKER_PAYSLIPS = 19,
   WORKER_PROFILE = 20,
-  WORKER_SETTINGS = 21,
+  WORKER_CERTIFICATES = 21,
   WORKER_CHAT = 22,
   SELECT_SITE = 2,
   SELECT_ACTION = 3,
@@ -885,10 +886,10 @@ export const App: React.FC = () => {
               <div className="text-blue-500 bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10"><User size={24} /></div>
               <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mi Perfil</span>
             </button>
-            {/* Navigation: Settings */}
-            <button onClick={() => setCurrentStep(Step.WORKER_SETTINGS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-purple-500/30 transition-all duration-300">
-              <div className="text-purple-500 bg-purple-500/10 p-3 rounded-2xl border border-purple-500/10"><BellRing size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Ajustes</span>
+            {/* Navigation: Certificates */}
+            <button onClick={() => setCurrentStep(Step.WORKER_CERTIFICATES)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
+              <div className="text-blue-500 bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10"><FileText size={24} /></div>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Certificados</span>
             </button>
             {/* Navigation: Chat / Mensajes */}
             <button onClick={() => setCurrentStep(Step.WORKER_CHAT)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-[#CCFF00]/30 transition-all duration-300 relative">
@@ -1281,6 +1282,34 @@ export const App: React.FC = () => {
     }
   };
 
+  const getWorkerCertificateDataUri = async (cert: WorkerCertificate) => {
+    if (cert.fileBase64 && cert.fileBase64.length > 50) return cert.fileBase64;
+    return await StorageService.getCertificateBase64(cert.id);
+  };
+
+  const handleViewWorkerCertificate = async (cert: WorkerCertificate) => {
+    const dataUri = await getWorkerCertificateDataUri(cert);
+    if (!dataUri) {
+      alert("No se pudo cargar el archivo del certificado desde Firebase.");
+      return;
+    }
+
+    const viewer = window.open(dataUri, '_blank', 'noopener,noreferrer');
+    if (!viewer) {
+      downloadDataUri(dataUri, cert.name);
+    }
+  };
+
+  const handleDownloadWorkerCertificate = async (cert: WorkerCertificate) => {
+    const dataUri = await getWorkerCertificateDataUri(cert);
+    if (!dataUri) {
+      alert("No se pudo cargar el archivo del certificado desde Firebase.");
+      return;
+    }
+
+    downloadDataUri(dataUri, cert.name);
+  };
+
   const renderWorkerProfile = () => {
     if (!selectedWorker) return null;
     const certificates = selectedWorker.certificates || [];
@@ -1460,228 +1489,108 @@ export const App: React.FC = () => {
           )}
 
           {/* Certificados / Documentos section */}
-          <div className="space-y-4">
-            <div className="border-t border-[var(--panel-border)] pt-5 text-center sm:text-left">
-              <h4 className="text-sm font-black text-[var(--text-main)] uppercase tracking-widest">Mis Certificados y Documentos</h4>
-              <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Sube y gestiona tus aptitudes médicas, prevención, etc.</p>
-            </div>
-
-            {/* Formulario rápido para subir certificado */}
-            <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)] space-y-4">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input 
-                  type="text" 
-                  placeholder="Nombre del documento (Ej: Prevención de Riesgos 20h)" 
-                  value={certNameInput}
-                  onChange={(e) => setCertNameInput(e.target.value)}
-                  className="flex-1 bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-3 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500"
-                />
-                <button 
-                  onClick={() => certFileInputRef.current?.click()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase px-5 py-3 rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shrink-0"
-                >
-                  <Upload size={14} /> Seleccionar archivo
-                </button>
-                <input 
-                  type="file" 
-                  ref={certFileInputRef} 
-                  className="hidden" 
-                  accept="application/pdf,image/*,.pdf,.jpg,.jpeg,.png,.webp,.heic"
-                  onChange={handleAddCertificate} 
-                />
+          <div className="bg-[var(--panel-bg)] rounded-[2rem] p-6 border border-[var(--panel-border)] shadow-sm">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h4 className="text-sm font-black text-[var(--text-main)] uppercase tracking-widest">Mis Certificados y Documentos</h4>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Solo lectura desde tu perfil profesional</p>
               </div>
+              <div className="bg-blue-500/10 text-blue-500 p-3 rounded-2xl"><FileText size={22} /></div>
             </div>
-
-            {/* List of Certificates */}
-            {certificates.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {certificates.length === 0 ? (
+              <div className="text-center py-8 border border-dashed border-[var(--panel-border)] rounded-[1.5rem] bg-[var(--btn-glass-bg)]">
+                <FileText size={30} className="mx-auto text-[var(--text-muted)] mb-2 opacity-50" />
+                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider">No tienes certificados subidos todavía.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
                 {certificates.map(cert => (
-                  <div key={cert.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] flex flex-col justify-between gap-3 hover:border-blue-500/20 transition-all shadow-[var(--panel-shadow)]">
-                    <div>
-                      <h5 className="font-black text-[var(--text-main)] text-xs uppercase tracking-tight truncate" title={cert.name}>{cert.name}</h5>
-                      <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase mt-1">Subido: {cert.uploadDate} {cert.size && `• ${cert.size}`}</p>
+                  <div key={cert.id} className="flex items-center justify-between gap-3 p-3 bg-[var(--btn-glass-bg)] rounded-2xl border border-[var(--panel-border)]">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="bg-green-500/10 text-green-500 p-2 rounded-xl shrink-0"><CheckCircle2 size={16} /></div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black text-[var(--text-main)] truncate">{cert.name}</p>
+                        <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase">{cert.uploadDate}</p>
+                      </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
-                      <a 
-                        href={cert.fileBase64 || '#'} 
-                        download={cert.name}
-                        onClick={async (e) => {
-                          if (!cert.fileBase64 || cert.fileBase64.length < 50) {
-                            e.preventDefault();
-                            const base64 = await StorageService.getCertificateBase64(cert.id);
-                            if (base64) {
-                              downloadDataUri(base64, cert.name);
-                            } else {
-                              alert("No se pudo cargar el archivo del certificado desde Firebase.");
-                            }
-                          }
-                        }}
-                        title="Descargar Certificado"
-                        className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white transition-all text-[9px] font-black uppercase flex items-center gap-1 px-3"
-                      >
-                        <Download size={12} /> Descargar
-                      </a>
-                      <button 
-                        onClick={() => handleDeleteCertificate(cert.id)}
-                        title="Eliminar Certificado"
-                        className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-all"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button type="button" onClick={() => handleViewWorkerCertificate(cert)} className="text-[9px] font-black uppercase tracking-wider px-3 py-2 rounded-xl bg-blue-500/10 text-blue-500 active:scale-95 transition-transform">Ver</button>
+                      <button type="button" onClick={() => handleDownloadWorkerCertificate(cert)} className="text-[9px] font-black uppercase tracking-wider px-3 py-2 rounded-xl bg-[var(--panel-bg)] text-[var(--text-main)] border border-[var(--panel-border)] active:scale-95 transition-transform">Descargar</button>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center p-8 bg-zinc-900/5 dark:bg-white/5 border border-dashed border-[var(--panel-border)] rounded-2xl">
-                <FileText className="mx-auto text-[var(--text-muted)] mb-2" size={24} />
-                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">No has subido ningún certificado aún.</p>
-              </div>
             )}
+            <div className="mt-4 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[10px] font-bold leading-relaxed">Para subir nuevos certificados entra en el apartado Certificados del panel del trabajador.</div>
           </div>
         </div>
       </div>
     );
   };
 
-  const renderWorkerSettings = () => {
+  const renderWorkerCertificates = () => {
     if (!selectedWorker) return null;
-
-    // Default to true if not set
-    const notifyCheckIn = selectedWorker.notificationPreferences?.notifyCheckIn ?? true;
-    const notifyCertificates = selectedWorker.notificationPreferences?.notifyCertificates ?? true;
-
-    const handleToggleCheckIn = async () => {
-      const updatedPrefs = {
-        ...(selectedWorker.notificationPreferences || {}),
-        notifyCheckIn: !notifyCheckIn
-      };
-      const updatedWorker = {
-        ...selectedWorker,
-        notificationPreferences: updatedPrefs
-      };
-      const updatedList = workers.map(w => w.id === selectedWorker.id ? updatedWorker : w);
-      try {
-        await StorageService.saveWorkers(updatedList);
-        setWorkers(updatedList);
-        setSelectedWorker(updatedWorker);
-      } catch (err) {
-        console.error("Error updating settings:", err);
-        alert("Error al guardar la configuración en Firebase.");
-      }
-    };
-
-    const handleToggleCertificates = async () => {
-      const updatedPrefs = {
-        ...(selectedWorker.notificationPreferences || {}),
-        notifyCertificates: !notifyCertificates
-      };
-      const updatedWorker = {
-        ...selectedWorker,
-        notificationPreferences: updatedPrefs
-      };
-      const updatedList = workers.map(w => w.id === selectedWorker.id ? updatedWorker : w);
-      try {
-        await StorageService.saveWorkers(updatedList);
-        setWorkers(updatedList);
-        setSelectedWorker(updatedWorker);
-      } catch (err) {
-        console.error("Error updating settings:", err);
-        alert("Error al guardar la configuración en Firebase.");
-      }
-    };
+    const certificates = selectedWorker.certificates || [];
 
     return (
-      <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden pb-4 text-[var(--text-main)]">
-        <div className="flex items-center gap-4 mb-6 shrink-0">
-          <button 
-            onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} 
-            className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10 active:scale-95 transition-all"
-          >
-            <ChevronLeft size={20}/>
-          </button>
+      <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-main)] pb-24 flex flex-col transition-colors duration-300">
+        <div className="sticky top-0 z-50 bg-[var(--app-bg)]/95 backdrop-blur-md border-b border-[var(--panel-border)] px-5 py-4 flex items-center gap-4">
+          <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="p-3 bg-[var(--btn-glass-bg)] rounded-2xl text-[var(--text-main)]"><ArrowLeft size={20}/></button>
           <div>
-            <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Ajustes del Sistema</h2>
-            <p className="text-[10px] text-purple-500 font-bold uppercase tracking-widest">Gestión de notificaciones y avisos</p>
+            <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Certificados</h2>
+            <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Sube, consulta y descarga tus documentos</p>
           </div>
         </div>
-
-        <div className="md:flex-1 md:overflow-y-auto space-y-6 pb-6 custom-scrollbar pr-1">
-          {/* Settings Section Card */}
-          <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] p-6 rounded-[2rem] shadow-[var(--panel-shadow)] space-y-6">
-            <div className="flex items-center gap-3 border-b border-[var(--panel-border)] pb-4">
-              <div className="p-2 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/10">
-                <BellRing size={20} />
-              </div>
+        <div className="p-5 space-y-5">
+          <div className="bg-[var(--panel-bg)] rounded-[2rem] p-6 border border-[var(--panel-border)] shadow-sm">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="bg-blue-500/10 text-blue-500 p-4 rounded-2xl shrink-0"><FileText size={28} /></div>
               <div>
-                <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)]">Preferencias de Alertas</h3>
-                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-tight">Activa o desactiva las notificaciones automáticas</p>
+                <h3 className="text-lg font-black uppercase tracking-tight text-[var(--text-main)]">Subir certificado</h3>
+                <p className="text-[11px] font-bold text-[var(--text-muted)] leading-relaxed mt-1">Puedes subir PDF o imagen. Los PDF protegidos con contraseña se bloquean automáticamente para evitar problemas al verlos o descargarlos.</p>
               </div>
             </div>
-
-            <div className="space-y-4">
-              {/* Option 1: Fichajes */}
-              <div className="flex items-center justify-between p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl">
-                <div className="space-y-0.5 flex-1 pr-4">
-                  <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] flex items-center gap-1.5">
-                    <Zap size={14} className="text-[#CCFF00]" /> Notificación de Fichajes
-                  </h4>
-                  <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
-                    Avisos en tiempo real al registrar tu entrada, salida o periodos de descanso.
-                  </p>
-                </div>
-                <button 
-                  onClick={handleToggleCheckIn}
-                  className="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none select-none min-h-[44px] min-w-[56px] flex items-center p-1"
-                  style={{ backgroundColor: notifyCheckIn ? '#CCFF00' : '#27272a' }}
-                >
-                  <span 
-                    className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 absolute"
-                    style={{ 
-                      transform: notifyCheckIn ? 'translateX(26px)' : 'translateX(4px)',
-                      backgroundColor: notifyCheckIn ? '#050505' : '#ffffff'
-                    }}
-                  />
-                </button>
-              </div>
-
-              {/* Option 2: Certificados */}
-              <div className="flex items-center justify-between p-4 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl">
-                <div className="space-y-0.5 flex-1 pr-4">
-                  <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] flex items-center gap-1.5">
-                    <FileText size={14} className="text-[#CCFF00]" /> Recordatorios de Certificados
-                  </h4>
-                  <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
-                    Avisos y alertas previas a la caducidad de certificados médicos o de prevención.
-                  </p>
-                </div>
-                <button 
-                  onClick={handleToggleCertificates}
-                  className="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none select-none min-h-[44px] min-w-[56px] flex items-center p-1"
-                  style={{ backgroundColor: notifyCertificates ? '#CCFF00' : '#27272a' }}
-                >
-                  <span 
-                    className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 absolute"
-                    style={{ 
-                      transform: notifyCertificates ? 'translateX(26px)' : 'translateX(4px)',
-                      backgroundColor: notifyCertificates ? '#050505' : '#ffffff'
-                    }}
-                  />
-                </button>
-              </div>
+            <div className="space-y-3">
+              <input type="text" value={certNameInput} onChange={(e) => setCertNameInput(e.target.value)} placeholder="Nombre del certificado" className="w-full p-4 rounded-2xl bg-[var(--btn-glass-bg)] border border-[var(--panel-border)] text-sm font-bold outline-none focus:border-blue-500 transition-colors text-[var(--text-main)]" />
+              <button onClick={() => certFileInputRef.current?.click()} className="w-full p-4 rounded-2xl bg-blue-500 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-blue-500/20"><UploadCloud size={18} /> Seleccionar archivo</button>
+              <input ref={certFileInputRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden" onChange={handleAddCertificate} />
             </div>
           </div>
-
-          {/* Context Info Banner */}
-          <div className="bg-purple-500/5 border border-purple-500/10 p-5 rounded-3xl flex gap-3.5 items-start">
-            <Info size={18} className="text-purple-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-purple-400">Sincronización en la Nube</h4>
-              <p className="text-[9px] font-medium text-[var(--text-muted)] leading-relaxed">
-                Tus preferencias se guardan de forma segura en tu perfil de operario. La empresa respetará tu elección para el envío de alertas automatizadas.
-              </p>
+          <div className="bg-[var(--panel-bg)] rounded-[2rem] p-6 border border-[var(--panel-border)] shadow-sm">
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)]">Mis certificados</h3>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Disponibles también en tu perfil profesional</p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-black">{certificates.length}</span>
             </div>
+            {certificates.length === 0 ? (
+              <div className="text-center py-10 border border-dashed border-[var(--panel-border)] rounded-[1.5rem] bg-[var(--btn-glass-bg)]">
+                <FileText size={34} className="mx-auto text-[var(--text-muted)] mb-3 opacity-50" />
+                <p className="text-[11px] font-black text-[var(--text-main)] uppercase tracking-wider">Aún no hay certificados</p>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-1">Sube el primero desde el botón superior</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {certificates.map(cert => (
+                  <div key={cert.id} className="p-3 bg-[var(--btn-glass-bg)] rounded-2xl border border-[var(--panel-border)]">
+                    <div className="flex items-center gap-3 min-w-0 mb-3">
+                      <div className="bg-green-500/10 text-green-500 p-2 rounded-xl shrink-0"><CheckCircle2 size={16} /></div>
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-black text-[var(--text-main)] truncate">{cert.name}</p>
+                        <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase">Subido el {cert.uploadDate}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => handleViewWorkerCertificate(cert)} className="text-[10px] font-black uppercase tracking-wider px-3 py-3 rounded-xl bg-blue-500/10 text-blue-500 active:scale-95 transition-transform">Ver</button>
+                      <button type="button" onClick={() => handleDownloadWorkerCertificate(cert)} className="text-[10px] font-black uppercase tracking-wider px-3 py-3 rounded-xl bg-[var(--panel-bg)] text-[var(--text-main)] border border-[var(--panel-border)] active:scale-95 transition-transform">Descargar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+          <div className="bg-[#CCFF00]/10 border border-[#CCFF00]/20 rounded-[2rem] p-5 text-[11px] font-bold text-[var(--text-main)] leading-relaxed">En el perfil profesional solo se pueden consultar los certificados. La subida se hace desde esta pantalla para mantener el flujo limpio.</div>
         </div>
       </div>
     );
@@ -2336,7 +2245,7 @@ export const App: React.FC = () => {
       case Step.WORKER_REPORTS: return renderWorkerReports();
       case Step.WORKER_PAYSLIPS: return renderWorkerPayslips();
       case Step.WORKER_PROFILE: return renderWorkerProfile();
-      case Step.WORKER_SETTINGS: return renderWorkerSettings();
+      case Step.WORKER_CERTIFICATES: return renderWorkerCertificates();
       case Step.WORKER_CHAT: return renderWorkerChat();
       case Step.SELECT_SITE: return (
         <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden">
