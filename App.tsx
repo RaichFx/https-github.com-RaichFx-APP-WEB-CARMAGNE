@@ -228,6 +228,8 @@ export const App: React.FC = () => {
   const [chats, setChats] = useState<ChatMessage[]>([]);
   const [activeChatPartnerId, setActiveChatPartnerId] = useState<string | null>(null);
   const [chatMessageInput, setChatMessageInput] = useState('');
+  const [workerDirectory, setWorkerDirectory] = useState<Worker[]>([]);
+  const [expandedPhoneWorkerId, setExpandedPhoneWorkerId] = useState<string | null>(null);
 
   // iOS 26 Push Notifications state
   const [pushNotifications, setPushNotifications] = useState<any[]>([]);
@@ -355,10 +357,22 @@ export const App: React.FC = () => {
       if (worker && worker.active) {
         setSelectedWorker(worker);
         setWorkers([worker]);
+        setWorkerDirectory(prev => {
+          const byId = new Map<string, Worker>(prev.map(item => [item.id, item]));
+          byId.set(worker.id, sanitizeWorkerForDirectory(worker));
+          return Array.from(byId.values());
+        });
       } else {
         resetApp();
         setError('Cuenta desactivada o pendiente de aprobación.');
       }
+    });
+    const unsubWorkerDirectory = StorageService.subscribeToWorkers((newWorkers) => {
+      const safeDirectory = newWorkers
+        .filter(worker => worker.active)
+        .map(sanitizeWorkerForDirectory)
+        .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+      setWorkerDirectory(safeDirectory);
     });
     const unsubSites = StorageService.subscribeToSites(setSites);
     const unsubLogs = StorageService.subscribeToWorkerLogs(selectedWorker.id, (newLogs) => {
@@ -393,8 +407,15 @@ export const App: React.FC = () => {
         }
       });
     });
+    StorageService.runMonthlyChatCleanup()
+      .then(result => {
+        if (result.deleted && result.deleted > 0) {
+          console.log(`[Chat Cleanup] ${result.deleted} mensajes antiguos eliminados.`);
+        }
+      })
+      .catch(error => console.warn('No se pudo ejecutar la limpieza mensual de chats:', error));
     return () => {
-      unsubWorker(); unsubSites(); unsubLogs(); unsubTools(); unsubReports(); unsubPayslips(); unsubChats();
+      unsubWorker(); unsubWorkerDirectory(); unsubSites(); unsubLogs(); unsubTools(); unsubReports(); unsubPayslips(); unsubChats();
     };
   }, [selectedWorker?.id, isAdmin]);
 
@@ -488,6 +509,38 @@ export const App: React.FC = () => {
   };
   const isPhoneValidSpain = (phone: string): boolean => /^\+34[6789]\d{8}$/.test(phone);
 
+  const sanitizeWorkerForDirectory = (worker: Worker): Worker => ({
+    ...worker,
+    pin: '',
+    pinHash: '',
+    certificates: [],
+  });
+
+  const getWorkerDirectory = () => {
+    const byId = new Map<string, Worker>();
+    [...workerDirectory, ...workers, ...(selectedWorker ? [selectedWorker] : [])]
+      .filter(Boolean)
+      .forEach(worker => byId.set(worker.id, sanitizeWorkerForDirectory(worker)));
+    return Array.from(byId.values());
+  };
+
+  const getWorkerById = (workerId?: string | null) => {
+    if (!workerId) return undefined;
+    return getWorkerDirectory().find(worker => worker.id === workerId);
+  };
+
+  const getWhatsAppPhoneNumber = (phone?: string) => {
+    if (!phone) return '';
+    return processSpanishPhone(phone).replace(/[^\d]/g, '');
+  };
+
+  const maskDni = (dni?: string) => {
+    const cleanDni = (dni || '').trim();
+    if (!cleanDni) return 'No indicado';
+    if (cleanDni.length <= 4) return 'Protegido';
+    return `${cleanDni.slice(0, 3)}••••${cleanDni.slice(-1)}`;
+  };
+
   const workerStatus = useMemo(() => {
     if (!selectedWorker) return null;
     const today = new Date().toLocaleDateString('es-ES');
@@ -567,6 +620,7 @@ export const App: React.FC = () => {
       await signInWithCustomToken(auth, data.token);
       setSelectedWorker(data.worker as Worker);
       setWorkers([data.worker as Worker]);
+      setWorkerDirectory([sanitizeWorkerForDirectory(data.worker as Worker)]);
       setError('');
       setIsPhoneVerified(false);
       setMatchedWorker(null);
@@ -611,7 +665,7 @@ export const App: React.FC = () => {
       return;
     }
 
-    const duplicate = workers.find(w => w.id !== selectedWorker.id && w.phone && processSpanishPhone(w.phone) === fPhone);
+    const duplicate = getWorkerDirectory().find(w => w.id !== selectedWorker.id && w.phone && processSpanishPhone(w.phone) === fPhone);
     if (duplicate) {
       setError('Este número de teléfono ya está registrado por otro empleado.');
       return;
@@ -624,12 +678,16 @@ export const App: React.FC = () => {
       email: editEmail.trim(),
     };
 
-    const updatedList = workers.map(w => w.id === selectedWorker.id ? updatedWorker : w);
     setLoading(true);
     try {
-      await StorageService.saveWorkers(updatedList);
-      setWorkers(updatedList);
+      await StorageService.saveWorkers([updatedWorker]);
+      setWorkers([updatedWorker]);
       setSelectedWorker(updatedWorker);
+      setWorkerDirectory(prev => {
+        const byId = new Map<string, Worker>(prev.map(item => [item.id, item]));
+        byId.set(updatedWorker.id, sanitizeWorkerForDirectory(updatedWorker));
+        return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+      });
       setIsEditingProfile(false);
       setError('');
     } catch (err) {
@@ -717,9 +775,14 @@ export const App: React.FC = () => {
     setLoading(true);
     try {
       const updatedWorker = { ...selectedWorker!, email: forceEmailInput.trim() };
-      const updatedWorkers = workers.map(w => w.id === selectedWorker!.id ? updatedWorker : w);
-      await StorageService.saveWorkers(updatedWorkers);
+      await StorageService.saveWorkers([updatedWorker]);
+      setWorkers([updatedWorker]);
       setSelectedWorker(updatedWorker);
+      setWorkerDirectory(prev => {
+        const byId = new Map<string, Worker>(prev.map(item => [item.id, item]));
+        byId.set(updatedWorker.id, sanitizeWorkerForDirectory(updatedWorker));
+        return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+      });
       setForceEmailInput('');
       setForceEmailError('');
 
@@ -831,6 +894,11 @@ export const App: React.FC = () => {
     firebaseSignOut(auth).catch(() => {});
     setCurrentStep(Step.LOGIN_PHONE); 
     setSelectedWorker(null); 
+    setWorkers([]);
+    setWorkerDirectory([]);
+    setChats([]);
+    setActiveChatPartnerId(null);
+    setExpandedPhoneWorkerId(null);
     setSelectedSite(null); 
     setError(''); 
     setPinInput(''); 
@@ -1190,7 +1258,7 @@ export const App: React.FC = () => {
   const handleSendWorkerMessage = async () => {
     if (!chatMessageInput.trim() || !selectedWorker || !activeChatPartnerId) return;
 
-    const partnerName = activeChatPartnerId === 'ADMIN' ? 'El Jefe' : (workers.find(w => w.id === activeChatPartnerId)?.name || 'Compañero');
+    const partnerName = activeChatPartnerId === 'ADMIN' ? 'El Jefe' : (getWorkerById(activeChatPartnerId)?.name || 'Compañero');
 
     const msg: ChatMessage = {
       id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
@@ -1224,6 +1292,10 @@ export const App: React.FC = () => {
   }, [currentStep, activeChatPartnerId, chats, selectedWorker]);
 
   useEffect(() => {
+    setExpandedPhoneWorkerId(null);
+  }, [activeChatPartnerId]);
+
+  useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
@@ -1241,10 +1313,14 @@ export const App: React.FC = () => {
         try {
           const compressed = await compressImage(reader.result as string, 300, 300, 0.75);
           const updated = { ...selectedWorker, photoUrl: compressed };
-          const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
-          await StorageService.saveWorkers(updatedList);
-          setWorkers(updatedList);
+          await StorageService.saveWorkers([updated]);
+          setWorkers([updated]);
           setSelectedWorker(updated);
+          setWorkerDirectory(prev => {
+            const byId = new Map<string, Worker>(prev.map(item => [item.id, item]));
+            byId.set(updated.id, sanitizeWorkerForDirectory(updated));
+            return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+          });
           alert("Foto de perfil actualizada.");
         } catch (err) {
           console.error("Error compressing image", err);
@@ -1336,10 +1412,14 @@ export const App: React.FC = () => {
             certificates: [...currentCerts, certForWorker]
           };
           
-          const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
-          await StorageService.saveWorkers(updatedList);
-          setWorkers(updatedList);
+          await StorageService.saveWorkers([updated]);
+          setWorkers([updated]);
           setSelectedWorker(updated);
+          setWorkerDirectory(prev => {
+            const byId = new Map<string, Worker>(prev.map(item => [item.id, item]));
+            byId.set(updated.id, sanitizeWorkerForDirectory(updated));
+            return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+          });
           setCertNameInput('');
           if (certFileInputRef.current) certFileInputRef.current.value = '';
           PushService.sendEvent({
@@ -1367,12 +1447,16 @@ export const App: React.FC = () => {
         ...selectedWorker,
         certificates: currentCerts.filter(c => c.id !== certId)
       };
-      const updatedList = workers.map(w => w.id === selectedWorker.id ? updated : w);
       try {
         await StorageService.deleteCertificateDoc(certId);
-        await StorageService.saveWorkers(updatedList);
-        setWorkers(updatedList);
+        await StorageService.saveWorkers([updated]);
+        setWorkers([updated]);
         setSelectedWorker(updated);
+        setWorkerDirectory(prev => {
+          const byId = new Map<string, Worker>(prev.map(item => [item.id, item]));
+          byId.set(updated.id, sanitizeWorkerForDirectory(updated));
+          return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        });
       } catch (err) {
         console.error("Error deleting certificate:", err);
         alert("Error al eliminar el certificado en Firebase.");
@@ -1697,8 +1781,11 @@ export const App: React.FC = () => {
   const renderWorkerChat = () => {
     if (!selectedWorker) return null;
 
-    // Filter active workers except me
-    const otherWorkers = workers.filter(w => w.id !== selectedWorker.id && w.active);
+    // Filter active workers except me from the safe directory (no PINs, no certificates)
+    const directory = getWorkerDirectory();
+    const otherWorkers = directory.filter(w => w.id !== selectedWorker.id && w.active);
+    const activePartner = activeChatPartnerId === 'ADMIN' ? null : getWorkerById(activeChatPartnerId);
+    const activePartnerWhatsAppPhone = getWhatsAppPhoneNumber(activePartner?.phone);
 
     // Filter messages for current active partner and sort chronologically
     const activeMessages = chats.filter(c => 
@@ -1852,7 +1939,7 @@ export const App: React.FC = () => {
                     </button>
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-2 font-sans">
-                        {activeChatPartnerId === 'ADMIN' ? '👑 EL JEFE' : workers.find(w => w.id === activeChatPartnerId)?.name}
+                        {activeChatPartnerId === 'ADMIN' ? '👑 EL JEFE' : activePartner?.name}
                       </h3>
                       <p className="text-[9px] text-[#CCFF00] font-bold uppercase tracking-widest">Chat individual seguro</p>
                     </div>
@@ -1860,6 +1947,84 @@ export const App: React.FC = () => {
 
                   <span className="text-[9px] text-[var(--text-muted)] font-bold tracking-widest uppercase font-mono">Canal Directo</span>
                 </div>
+
+                {activePartner && (
+                  <div className="mt-3 rounded-[1.5rem] border border-[var(--panel-border)] bg-[var(--btn-glass-bg)] p-4 shrink-0">
+                    <div className="flex items-start gap-3">
+                      {activePartner.photoUrl ? (
+                        <img src={activePartner.photoUrl} alt={activePartner.name} className="w-12 h-12 rounded-2xl object-cover border border-white/10 shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-sm text-slate-300 uppercase shrink-0">
+                          {activePartner.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-sm font-black uppercase tracking-tight text-[var(--text-main)] truncate">{activePartner.name}</h4>
+                          <span className="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-black uppercase tracking-widest">
+                            Activo
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mt-1">{activePartner.role || 'Operario'}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-[10px] font-bold">
+                          <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2">
+                            <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">Email</span>
+                            <span className="break-all text-[var(--text-main)]">{activePartner.email || 'No indicado'}</span>
+                          </div>
+                          <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2">
+                            <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">DNI</span>
+                            <span className="text-[var(--text-main)]">{maskDni(activePartner.dni)}</span>
+                          </div>
+                        </div>
+                        {activePartner.phone && (
+                          <div className="mt-3">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedPhoneWorkerId(expandedPhoneWorkerId === activePartner.id ? null : activePartner.id)}
+                              className="w-full flex items-center justify-between gap-2 rounded-xl border border-[#CCFF00]/30 bg-[#CCFF00]/10 px-3 py-2 text-left text-[11px] font-black text-[var(--text-main)] active:scale-[0.99] transition-transform"
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                <Phone size={14} className="text-[#CCFF00]" />
+                                {activePartner.phone}
+                              </span>
+                              <span className="text-[8px] uppercase tracking-widest text-[#CCFF00]">Opciones</span>
+                            </button>
+                            {expandedPhoneWorkerId === activePartner.id && (
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                {activePartnerWhatsAppPhone && (
+                                  <a
+                                    href={`https://wa.me/${activePartnerWhatsAppPhone}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 text-white px-3 py-2 text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform"
+                                  >
+                                    <MessageSquare size={13} /> WhatsApp
+                                  </a>
+                                )}
+                                <a
+                                  href={`tel:${activePartner.phone}`}
+                                  className="flex items-center justify-center gap-2 rounded-xl bg-[var(--panel-bg)] border border-[var(--panel-border)] text-[var(--text-main)] px-3 py-2 text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform"
+                                >
+                                  <Phone size={13} /> Llamar
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => navigator.clipboard?.writeText(activePartner.phone || '')}
+                                  className="flex items-center justify-center gap-2 rounded-xl bg-[var(--panel-bg)] border border-[var(--panel-border)] text-[var(--text-main)] px-3 py-2 text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform"
+                                >
+                                  <ClipboardList size={13} /> Copiar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <p className="mt-3 text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest">
+                          Certificados ocultos en mensajería por privacidad.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Messages Feed */}
                 <div className="flex-1 overflow-y-auto my-3 p-2 space-y-3 custom-scrollbar min-h-[250px] max-h-[350px] md:max-h-none">
