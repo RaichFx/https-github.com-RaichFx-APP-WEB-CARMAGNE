@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StorageService, ELECTRICAL_TOOLS_LIST, ELECTRICAL_BRANDS_LIST, compressImage } from '../services/storageService';
 import { TelegramService } from '../services/telegramService';
+import { PushService, type PushPermissionStatus } from '../services/pushService';
 import { Worker, Site, WorkLog, AppConfig, WorkMode, LogType, AdminUser, ToolRecord, WeeklyReport, Payslip, ChatMessage } from '../types';
 import { 
-  Users, MapPin, Download, Settings, FileText, 
+  Users, MapPin, Download, Settings, FileText, BellRing,
   Trash2, Plus, Save, Lock, Database, ClipboardList, Calendar, X, UserPlus, Phone, Filter, Search, Clock, Shield, Pencil, Eye, EyeOff, Zap, Wrench, ChevronDown, ArrowLeft, BarChart3, LogOut, CalendarDays, CheckCircle2, AlertCircle, AlertTriangle, Map as MapIcon, ExternalLink, Coffee, Package, KeyRound, ChevronRight, ListFilter, RotateCcw, Image as ImageIcon, Upload, Layout, Maximize2, Smartphone, Check, Timer, History, Sun, Moon, MessageSquare, Send, Mail, ZoomIn, ZoomOut, RefreshCw
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -227,6 +228,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
   // iOS 26 Push Notifications state
   const [pushNotifications, setPushNotifications] = useState<any[]>([]);
+  const [pushStatus, setPushStatus] = useState<PushPermissionStatus>(() => PushService.getPermissionStatus());
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMessage, setPushMessage] = useState('');
+  const [pushRegistered, setPushRegistered] = useState(false);
   
   const mountTimeRef = useRef<number>(Date.now());
   const notifiedIdsRef = useRef<Set<string>>(new Set());
@@ -265,6 +270,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       // Audio context may be blocked by browser autoplay rules
     }
   };
+
+  const handleEnableAdminPush = async () => {
+    setPushLoading(true);
+    setPushMessage('');
+
+    try {
+      const result = await PushService.requestPermissionAndRegister({
+        ownerType: 'admin',
+        ownerId: currentUser?.id || 'ADMIN',
+        ownerName: currentUser?.username || 'Admin Principal',
+      });
+
+      setPushStatus(result.status);
+      setPushMessage(result.message);
+
+      if (result.ok) {
+        setPushRegistered(true);
+        triggerPushNotification(
+          'Notificaciones del jefe activadas',
+          'Recibirás avisos de fichajes y certificados.',
+          'system',
+          undefined,
+          '🔔'
+        );
+      }
+    } catch (error: any) {
+      setPushStatus(PushService.getPermissionStatus());
+      setPushMessage(error?.message || 'No se pudieron activar las notificaciones del jefe.');
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setPushRegistered(PushService.isRegisteredLocally({
+      ownerType: 'admin',
+      ownerId: currentUser?.id || 'ADMIN',
+      ownerName: currentUser?.username || 'Admin Principal',
+    }));
+    setPushStatus(PushService.getPermissionStatus());
+  }, [currentUser]);
 
   const handleNotificationClick = (notif: any) => {
     if (notif.type === 'chat' && notif.senderId) {
@@ -1030,6 +1076,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
     try {
       await StorageService.sendMessage(msg);
+      PushService.sendEvent({
+        eventType: 'chat_message',
+        payload: msg,
+      }).catch((pushError) => console.warn('No se pudo enviar push de chat admin:', pushError));
       setAdminChatInput('');
     } catch (err) {
       alert("Error al enviar el mensaje.");
@@ -1595,6 +1645,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         </div>
       </div>
 
+      <div className="bg-[var(--panel-bg)] p-5 rounded-[2rem] border border-[var(--panel-border)] shadow-xl relative overflow-hidden">
+        <div className="absolute -right-12 -top-12 w-36 h-36 bg-[#CCFF00]/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/20 flex items-center justify-center text-[#CCFF00] shrink-0">
+              <BellRing size={22} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)]">Activar notificaciones del jefe</h3>
+              <p className="text-[11px] text-[var(--text-muted)] font-semibold leading-relaxed">
+                {pushMessage || PushService.getStatusMessage(pushStatus)}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleEnableAdminPush}
+            disabled={pushLoading || pushRegistered}
+            className={`w-full sm:w-auto px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+              pushRegistered
+                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                : 'bg-[#CCFF00] text-black hover:bg-[#b8e600] disabled:opacity-60'
+            }`}
+          >
+            {pushLoading ? 'Activando...' : pushRegistered ? 'Activadas' : pushStatus === 'granted' ? 'Registrar' : 'Activar'}
+          </button>
+        </div>
+      </div>
+
       {/* Google Account Linking / Workspace Card */}
       <div className="bg-[var(--panel-bg)] p-8 rounded-[2rem] border border-[var(--panel-border)] shadow-xl relative overflow-hidden">
         {/* Decorative background glow */}
@@ -2106,6 +2184,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     };
 
     await StorageService.addPayslip(newPayslip);
+    PushService.sendEvent({
+      eventType: 'payslip_sent',
+      payload: {
+        workerId: worker.id,
+        workerName: worker.name,
+        monthStr,
+        title,
+        totalPay,
+      },
+    }).catch((pushError) => console.warn('No se pudo enviar push de nómina:', pushError));
     
     let telegramMsg = '';
     if (payslipMode === 'upload') {
