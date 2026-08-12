@@ -2,11 +2,40 @@ import { listFirestoreCollection, verifyFirebaseIdToken } from '../../server/fir
 import { checkRateLimit } from '../../server/rateLimit.js';
 import type { Worker } from '../../types';
 
+const repairTextEncoding = (value: string) =>
+  value
+    .replace(/\u00c3\u00a1/g, 'á').replace(/\u00c3\u00a9/g, 'é').replace(/\u00c3\u00ad/g, 'í').replace(/\u00c3\u00b3/g, 'ó').replace(/\u00c3\u00ba/g, 'ú')
+    .replace(/\u00c3\u0081/g, 'Á').replace(/\u00c3\u0089/g, 'É').replace(/\u00c3\u008d/g, 'Í').replace(/\u00c3\u0093/g, 'Ó').replace(/\u00c3\u009a/g, 'Ú')
+    .replace(/\u00c3\u00b1/g, 'ñ').replace(/\u00c3\u0091/g, 'Ñ')
+    .replace(/\u00c2\u00bf/g, '¿').replace(/\u00c2\u00a1/g, '¡')
+    .replace(/\u00e2\u20ac\u00a2/g, '')
+    .replace(/\uFFFD/g, '');
+
 const cleanText = (value: unknown, maxLength = 160) =>
-  String(value || '')
+  repairTextEncoding(String(value || ''))
     .trim()
     .replace(/[\u0000-\u001F\u007F]/g, '')
     .slice(0, maxLength);
+
+const pickWorkerPhotoUrl = (worker: Worker) => {
+  const record = worker as Worker & {
+    photoURL?: string;
+    photo?: string;
+    avatarUrl?: string;
+    profilePhotoUrl?: string;
+    profileImageUrl?: string;
+    imageUrl?: string;
+  };
+
+  return record.photoUrl ||
+    record.photoURL ||
+    record.photo ||
+    record.avatarUrl ||
+    record.profilePhotoUrl ||
+    record.profileImageUrl ||
+    record.imageUrl ||
+    '';
+};
 
 const getBearerToken = (authorization: unknown) => {
   const header = Array.isArray(authorization) ? authorization[0] : String(authorization || '');
@@ -25,7 +54,7 @@ const publicWorker = (worker: Worker): Worker => ({
   phone: cleanText(worker.phone, 40),
   email: cleanText(worker.email, 160).toLowerCase(),
   defaultMode: worker.defaultMode,
-  photoUrl: cleanText(worker.photoUrl, 2000),
+  photoUrl: cleanText(pickWorkerPhotoUrl(worker), 250000),
   certificates: [],
 });
 
