@@ -682,9 +682,35 @@ export const StorageService = {
     const chats = loadLocal<ChatMessage[]>(KEYS.CHATS, []);
     saveLocal(KEYS.CHATS, [...chats, msg]);
     try {
-      await setDoc(doc(db, "chats", msg.id), safeClone(msg));
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('Sesion Firebase no disponible para enviar el mensaje.');
+      }
+
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/chats/send', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: msg }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'No se pudo enviar el mensaje.');
+      }
+
+      if (data?.message) {
+        const currentChats = loadLocal<ChatMessage[]>(KEYS.CHATS, []);
+        const nextChats = currentChats.map(chat => chat.id === msg.id ? data.message as ChatMessage : chat);
+        saveLocal(KEYS.CHATS, nextChats);
+      }
     } catch (e) {
-      console.error("Firestore error in sendMessage:", e);
+      const currentChats = loadLocal<ChatMessage[]>(KEYS.CHATS, []);
+      saveLocal(KEYS.CHATS, currentChats.filter(chat => chat.id !== msg.id));
+      console.error("Error in sendMessage:", e);
       throw e;
     }
   },
