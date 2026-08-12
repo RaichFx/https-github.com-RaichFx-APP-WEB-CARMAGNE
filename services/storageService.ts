@@ -309,6 +309,34 @@ export const StorageService = {
   },
   subscribeToWorkers: (callback: (workers: Worker[]) => void) => {
     callback(loadLocal(KEYS.WORKERS, INITIAL_WORKERS));
+    const loadWorkersDirectoryFromApi = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/workers/directory', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'No se pudo cargar el directorio de operarios.');
+      }
+
+      if (Array.isArray(data?.workers)) {
+        const workers = data.workers as Worker[];
+        saveLocal(KEYS.WORKERS, workers);
+        callback(workers);
+      }
+    };
+
+    loadWorkersDirectoryFromApi().catch((err) => {
+      console.error("API error in subscribeToWorkers:", err);
+    });
+
     return onSnapshot(collection(db, "workers"), (snapshot) => {
       const workers = snapshot.docs.map(doc => doc.data() as Worker);
       saveLocal(KEYS.WORKERS, workers);
@@ -326,7 +354,10 @@ export const StorageService = {
         return;
       }
       const worker = snapshot.data() as Worker;
-      saveLocal(KEYS.WORKERS, [worker]);
+      const workers = loadLocal<Worker[]>(KEYS.WORKERS, INITIAL_WORKERS);
+      const byId = new Map(workers.map(w => [w.id, w]));
+      byId.set(worker.id, worker);
+      saveLocal(KEYS.WORKERS, Array.from(byId.values()));
       callback(worker);
     }, (err) => {
       console.error("onSnapshot error in subscribeToWorker:", err);
