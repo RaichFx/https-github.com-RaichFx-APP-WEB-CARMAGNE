@@ -72,7 +72,7 @@
   --push-glass-text: #F8FAFC;
   --push-glass-muted: #CBD5E1;
   --push-glass-soft: rgba(255, 255, 255, 0.08);
-  --push-glass-shadow: 0 26px 70px -22px rgba(0, 0, 0, 0.88), 0 0 34px -20px rgba(204, 255, 0, 0.38);
+  --push-glass-shadow: 0 26px 70px -22px rgba(0, 0, 0, 0.88), 0 0 34px -20px rgba(21, 128, 61, 0.28);
 }
 
 /* Font pairing settings */
@@ -392,8 +392,8 @@ button {
 
 .dark-theme .push-toast--system {
   --push-accent: #15803D;
-  --push-accent-soft: rgba(204, 255, 0, 0.16);
-  --push-accent-border: rgba(204, 255, 0, 0.38);
+  --push-accent-soft: rgba(21, 128, 61, 0.18);
+  --push-accent-border: rgba(21, 128, 61, 0.36);
 }
 
 .push-toast__shine {
