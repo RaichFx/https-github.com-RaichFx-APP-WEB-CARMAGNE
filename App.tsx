@@ -2892,34 +2892,37 @@ case Step.WORKER_TOOLS: return (
           <div 
             key={notif.id}
             onClick={() => handleNotificationClick(notif)}
-            className="pointer-events-auto w-full max-w-sm bg-[#050505]/90 backdrop-blur-xl border border-[#CCFF00]/30 text-white rounded-[2rem] p-4 flex gap-3 shadow-[0_10px_30px_rgba(204,255,0,0.15)] cursor-pointer hover:scale-[1.02] transition-all duration-300 transform animate-slideDown relative overflow-hidden"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleNotificationClick(notif); }}
+            className={`push-toast push-toast--${notif.type === 'chat' ? 'chat' : notif.type === 'log' ? 'log' : 'system'} pointer-events-auto w-full max-w-sm rounded-[1.75rem] p-4 flex gap-3 cursor-pointer hover:scale-[1.015] active:scale-[0.99] transition-all duration-300 transform animate-slideDown relative overflow-hidden`}
           >
-             {/* Dynamic neon top bar */}
-             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#CCFF00] to-transparent opacity-80" />
+             {/* Dynamic glass accent bar */}
+             <div className="push-toast__shine absolute top-0 left-8 right-8 h-[2px] rounded-full" />
              
              {/* Left Icon/Initial */}
-             <div className="w-10 h-10 min-w-[40px] rounded-2xl bg-zinc-950 border border-zinc-900 flex items-center justify-center text-lg shadow-inner">
+             <div className="push-toast__icon w-11 h-11 min-w-[44px] rounded-2xl flex items-center justify-center text-lg font-black">
                {notif.icon || (notif.type === 'chat' ? '💬' : '📋')}
              </div>
              
              {/* Body */}
              <div className="flex-1 min-w-0">
                <div className="flex justify-between items-center">
-                 <span className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider font-sans">
+                 <span className="push-toast__label text-[9px] font-black uppercase tracking-[0.18em] font-sans">
                    {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
                  </span>
-                 <span className="text-[9px] text-zinc-500 font-mono">Ahora</span>
+                 <span className="push-toast__time text-[9px] font-bold font-mono">Ahora</span>
                </div>
-               <h4 className="text-xs font-black text-white uppercase tracking-tighter mt-0.5 truncate font-sans">
+               <h4 className="push-toast__title text-[13px] font-black uppercase tracking-tight mt-1 truncate font-sans">
                  {notif.title}
                </h4>
-               <p className="text-[10px] text-zinc-300 font-medium truncate mt-0.5 leading-snug font-sans">
+               <p className="push-toast__body text-[11px] font-semibold truncate mt-0.5 leading-snug font-sans">
                  {notif.body}
                </p>
              </div>
              
              {/* Subtle iOS indicator line */}
-             <div className="absolute bottom-1 w-12 h-[3px] left-1/2 transform -translate-x-1/2 bg-zinc-800 rounded-full" />
+             <div className="push-toast__handle absolute bottom-1.5 w-12 h-[3px] left-1/2 transform -translate-x-1/2 rounded-full" />
           </div>
         ))}
       </div>
