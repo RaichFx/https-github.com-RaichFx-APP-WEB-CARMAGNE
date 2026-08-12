@@ -9,6 +9,7 @@ import autoTable from 'jspdf-autotable';
 import { StorageService, ELECTRICAL_TOOLS_LIST, ELECTRICAL_BRANDS_LIST, compressImage } from './services/storageService';
 import { LocationService } from './services/locationService';
 import { TelegramService } from './services/telegramService';
+import { PushService, type PushPermissionStatus } from './services/pushService';
 import { Worker, Site, WorkLog, LogType, GeoLocationData, WorkMode, AdminUser, ToolRecord, AppConfig, WeeklyReport, Payslip, ChatMessage } from './types';
 import { AdminPanel } from './components/AdminPanel';
 import { InstallTutorial } from './components/InstallTutorial';
@@ -230,6 +231,10 @@ export const App: React.FC = () => {
 
   // iOS 26 Push Notifications state
   const [pushNotifications, setPushNotifications] = useState<any[]>([]);
+  const [pushStatus, setPushStatus] = useState<PushPermissionStatus>(() => PushService.getPermissionStatus());
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMessage, setPushMessage] = useState('');
+  const [pushRegistered, setPushRegistered] = useState(false);
   
   const selectedWorkerRef = useRef<Worker | null>(null);
   const isAdminRef = useRef<boolean>(false);
@@ -238,6 +243,14 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     selectedWorkerRef.current = selectedWorker;
+    if (selectedWorker) {
+      setPushRegistered(PushService.isRegisteredLocally({
+        ownerType: 'worker',
+        ownerId: selectedWorker.id,
+        ownerName: selectedWorker.name,
+      }));
+      setPushStatus(PushService.getPermissionStatus());
+    }
   }, [selectedWorker]);
 
   useEffect(() => {
@@ -276,6 +289,39 @@ export const App: React.FC = () => {
       osc.stop(audioCtx.currentTime + 0.25);
     } catch (e) {
       // Audio context may be blocked by browser autoplay rules
+    }
+  };
+
+  const handleEnableWorkerPush = async () => {
+    if (!selectedWorker) return;
+    setPushLoading(true);
+    setPushMessage('');
+
+    try {
+      const result = await PushService.requestPermissionAndRegister({
+        ownerType: 'worker',
+        ownerId: selectedWorker.id,
+        ownerName: selectedWorker.name,
+      });
+
+      setPushStatus(result.status);
+      setPushMessage(result.message);
+
+      if (result.ok) {
+        setPushRegistered(true);
+        triggerPushNotification(
+          'Notificaciones activadas',
+          'Te avisaremos aunque no estés dentro de la app.',
+          'system',
+          undefined,
+          '🔔'
+        );
+      }
+    } catch (error: any) {
+      setPushStatus(PushService.getPermissionStatus());
+      setPushMessage(error?.message || 'No se pudieron activar las notificaciones.');
+    } finally {
+      setPushLoading(false);
     }
   };
 
@@ -745,7 +791,18 @@ export const App: React.FC = () => {
         workMode: mode 
       };
       
-      await StorageService.addLog(newLog); 
+      await StorageService.addLog(newLog);
+      PushService.sendEvent({
+        eventType: 'worker_log',
+        payload: {
+          workerId: newLog.workerId,
+          workerName: newLog.workerName,
+          logType: newLog.type,
+          siteName: newLog.siteName,
+          timeStr: newLog.timeStr,
+          dateStr: newLog.dateStr,
+        },
+      }).catch((pushError) => console.warn('No se pudo enviar push de fichaje:', pushError));
       
       // Send Telegram Notification
       const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -856,6 +913,34 @@ export const App: React.FC = () => {
               </button>
               <button onClick={resetApp} className="text-[var(--text-muted)] hover:text-[var(--text-main)] p-3 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl active:scale-95 transition-all" title="Cerrar Sesión">
                 <LogOut size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] rounded-[2rem] p-4 shadow-[var(--panel-shadow)] relative overflow-hidden shrink-0">
+            <div className="absolute -right-8 -top-8 w-24 h-24 bg-[#CCFF00]/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div className="relative z-10 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/20 flex items-center justify-center text-[#CCFF00] shrink-0">
+                  <BellRing size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-wider text-[var(--text-main)]">Activar notificaciones</p>
+                  <p className="text-[10px] text-[var(--text-muted)] font-semibold leading-snug">
+                    {pushMessage || PushService.getStatusMessage(pushStatus)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleEnableWorkerPush}
+                disabled={pushLoading || pushRegistered}
+                className={`shrink-0 px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                  pushRegistered
+                    ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                    : 'bg-[#CCFF00] text-black hover:bg-[#b8e600] disabled:opacity-60'
+                }`}
+              >
+                {pushLoading ? 'Activando...' : pushRegistered ? 'Activadas' : pushStatus === 'granted' ? 'Registrar' : 'Activar'}
               </button>
             </div>
           </div>
@@ -1122,6 +1207,10 @@ export const App: React.FC = () => {
 
     try {
       await StorageService.sendMessage(msg);
+      PushService.sendEvent({
+        eventType: 'chat_message',
+        payload: msg,
+      }).catch((pushError) => console.warn('No se pudo enviar push de chat:', pushError));
       setChatMessageInput('');
     } catch (err) {
       alert("Error al enviar el mensaje.");
@@ -1253,6 +1342,14 @@ export const App: React.FC = () => {
           setSelectedWorker(updated);
           setCertNameInput('');
           if (certFileInputRef.current) certFileInputRef.current.value = '';
+          PushService.sendEvent({
+            eventType: 'worker_certificate',
+            payload: {
+              workerId: selectedWorker.id,
+              workerName: selectedWorker.name,
+              certificateName: name,
+            },
+          }).catch((pushError) => console.warn('No se pudo enviar push de certificado:', pushError));
           alert("Certificado subido con éxito.");
         } catch (err: any) {
           console.error("Error upload cert", err);
