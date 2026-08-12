@@ -314,6 +314,22 @@ export const setFirestoreDocument = async (path: string, data: Record<string, an
   return docToJs(body);
 };
 
+export const deleteFirestoreDocument = async (path: string) => {
+  const accessToken = await getGoogleAccessToken();
+  const response = await fetch(`${firestoreBaseUrl()}/${path.replace(/^\/+/, '')}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.status === 404) return;
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body?.error?.message || 'No se pudo borrar Firestore.');
+  }
+};
+
 export const queryFirestoreByField = async <T = any>(
   collectionId: string,
   fieldPath: string,
