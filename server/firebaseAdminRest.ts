@@ -107,6 +107,39 @@ const safeCompare = (actual: string, expected: string) => {
   return timingSafeEqual(actualBuffer, expectedBuffer);
 };
 
+const RESERVED_ID_TOKEN_FIELDS = new Set([
+  'iss',
+  'aud',
+  'auth_time',
+  'user_id',
+  'sub',
+  'iat',
+  'exp',
+  'email',
+  'email_verified',
+  'phone_number',
+  'name',
+  'picture',
+  'firebase',
+]);
+
+const decodeJwtPayload = (token: string): Record<string, any> => {
+  const encodedPayload = token.split('.')[1];
+  if (!encodedPayload) return {};
+
+  const normalizedPayload = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+  const paddedPayload = normalizedPayload.padEnd(
+    normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+    '='
+  );
+
+  try {
+    return JSON.parse(Buffer.from(paddedPayload, 'base64').toString('utf8'));
+  } catch {
+    return {};
+  }
+};
+
 export const getGoogleAccessToken = async (scopes: string | string[] = 'https://www.googleapis.com/auth/datastore') => {
   const scope = Array.isArray(scopes) ? scopes.join(' ') : scopes;
   const cachedAccessToken = cachedAccessTokens.get(scope);
@@ -173,17 +206,28 @@ export const verifyFirebaseIdToken = async (idToken: string): Promise<{
   }
 
   const user = data.users[0];
-  let claims: Record<string, any> = {};
+  let storedClaims: Record<string, any> = {};
   try {
-    claims = user.customAttributes ? JSON.parse(user.customAttributes) : {};
+    storedClaims = user.customAttributes ? JSON.parse(user.customAttributes) : {};
   } catch {
-    claims = {};
+    storedClaims = {};
   }
+
+  // accounts:lookup verifies that the Firebase ID token is valid, but custom claims
+  // created via signInWithCustomToken can live in the current ID token payload instead
+  // of user.customAttributes. Merge both sources so worker/admin authorization works.
+  const tokenPayload = decodeJwtPayload(cleanToken);
+  const tokenClaims = Object.fromEntries(
+    Object.entries(tokenPayload).filter(([key]) => !RESERVED_ID_TOKEN_FIELDS.has(key))
+  );
 
   return {
     uid: user.localId,
     email: user.email,
-    claims,
+    claims: {
+      ...tokenClaims,
+      ...storedClaims,
+    },
   };
 };
 
