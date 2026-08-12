@@ -5,7 +5,7 @@ import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
 // *** CREDENCIALES DE FIREBASE ***
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyCelLg2pqp1-lYi_IUgsv4FAoH4mN0WsAc",
   authDomain: "carmagne-instal-2024.firebaseapp.com",
   projectId: "carmagne-instal-2024",
@@ -16,7 +16,7 @@ const firebaseConfig = {
 };
 
 // Inicializar Firebase
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
