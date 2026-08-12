@@ -1,6 +1,6 @@
 
 import { Worker, Site, WorkLog, AppConfig, LogType, AdminUser, ToolRecord, WeeklyReport, Payslip, ChatMessage } from '../types';
-import { db, storage } from './firebase';
+import { db, storage, auth } from './firebase';
 import { collection, doc, setDoc, updateDoc, onSnapshot, deleteDoc, getDoc, getDocs, writeBatch, query, where } from 'firebase/firestore';
 import { ref as storageRef, uploadString, getBytes, deleteObject } from 'firebase/storage';
 
@@ -15,6 +15,8 @@ const KEYS = {
   PAYSLIPS: 'carmagne_payslips',
   CHATS: 'carmagne_chats',
 };
+
+const CHAT_CLEANUP_LAST_RUN_KEY = 'carmagne_chats_cleanup_last_run';
 
 export const ELECTRICAL_TOOLS_LIST = [
   "Multímetro Digital", "Pinza Amperimétrica", "Pistola de Impacto", "Taladro Percutor",
@@ -716,6 +718,49 @@ export const StorageService = {
     } catch (e) {
       console.error("Error marking messages as read:", e);
     }
+  },
+
+  runMonthlyChatCleanup: async (): Promise<{ ok: boolean; deleted?: number; skipped?: string; cutoffTimestamp?: number }> => {
+    const now = new Date();
+    if (now.getDate() < 5) {
+      return { ok: true, deleted: 0, skipped: 'La limpieza mensual se activa a partir del día 5.' };
+    }
+
+    const localRunKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    try {
+      if (localStorage.getItem(CHAT_CLEANUP_LAST_RUN_KEY) === localRunKey) {
+        return { ok: true, deleted: 0, skipped: 'Limpieza mensual ya comprobada hoy.' };
+      }
+    } catch (e) {}
+
+    const user = auth.currentUser;
+    if (!user) {
+      return { ok: false, deleted: 0, skipped: 'Sesión Firebase no disponible para limpieza mensual.' };
+    }
+
+    const idToken = await user.getIdToken();
+    const response = await fetch('/api/chats/cleanup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.error || 'No se pudo ejecutar la limpieza mensual de mensajes.');
+    }
+
+    try {
+      localStorage.setItem(CHAT_CLEANUP_LAST_RUN_KEY, localRunKey);
+      if (data?.cutoffTimestamp) {
+        const currentChats = loadLocal<ChatMessage[]>(KEYS.CHATS, []);
+        saveLocal(KEYS.CHATS, currentChats.filter(chat => Number(chat.timestamp || 0) >= Number(data.cutoffTimestamp)));
+      }
+    } catch (e) {}
+
+    return data;
   },
 
   saveCertificateDoc: async (cert: StoredFileDoc) => {
