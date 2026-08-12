@@ -12,7 +12,7 @@ type FirestoreDocument<T = any> = {
   data: T;
 };
 
-let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+const cachedAccessTokens = new Map<string, { token: string; expiresAt: number }>();
 
 const base64Url = (value: string | Buffer) =>
   Buffer.from(value)
@@ -107,7 +107,10 @@ const safeCompare = (actual: string, expected: string) => {
   return timingSafeEqual(actualBuffer, expectedBuffer);
 };
 
-const getGoogleAccessToken = async () => {
+export const getGoogleAccessToken = async (scopes: string | string[] = 'https://www.googleapis.com/auth/datastore') => {
+  const scope = Array.isArray(scopes) ? scopes.join(' ') : scopes;
+  const cachedAccessToken = cachedAccessTokens.get(scope);
+
   if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now() + 60000) {
     return cachedAccessToken.token;
   }
@@ -117,7 +120,7 @@ const getGoogleAccessToken = async () => {
   const assertion = signJwt(
     {
       iss: serviceAccount.clientEmail,
-      scope: 'https://www.googleapis.com/auth/datastore',
+      scope,
       aud: 'https://oauth2.googleapis.com/token',
       iat: now,
       exp: now + 3600,
@@ -139,11 +142,49 @@ const getGoogleAccessToken = async () => {
     throw new Error(data?.error_description || data?.error || 'No se pudo autenticar Firebase Admin.');
   }
 
-  cachedAccessToken = {
+  const nextAccessToken = {
     token: data.access_token,
     expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000,
   };
-  return cachedAccessToken.token;
+  cachedAccessTokens.set(scope, nextAccessToken);
+  return nextAccessToken.token;
+};
+
+export const verifyFirebaseIdToken = async (idToken: string): Promise<{
+  uid: string;
+  email?: string;
+  claims: Record<string, any>;
+}> => {
+  const cleanToken = String(idToken || '').trim();
+  if (!cleanToken) {
+    throw new Error('Token de sesión no enviado.');
+  }
+
+  const apiKey = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyCelLg2pqp1-lYi_IUgsv4FAoH4mN0WsAc';
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: cleanToken }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.users?.[0]) {
+    throw new Error(data?.error?.message || 'Sesión Firebase no válida.');
+  }
+
+  const user = data.users[0];
+  let claims: Record<string, any> = {};
+  try {
+    claims = user.customAttributes ? JSON.parse(user.customAttributes) : {};
+  } catch {
+    claims = {};
+  }
+
+  return {
+    uid: user.localId,
+    email: user.email,
+    claims,
+  };
 };
 
 const firestoreBaseUrl = () => {
