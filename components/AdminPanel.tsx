@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StorageService, ELECTRICAL_TOOLS_LIST, ELECTRICAL_BRANDS_LIST, compressImage } from '../services/storageService';
 import { TelegramService } from '../services/telegramService';
@@ -116,7 +116,7 @@ const isPasswordProtectedPdf = async (file: File): Promise<boolean> => {
 const dataUriToBlob = (dataUri: string): { blob: Blob; mimeType: string } => {
   const [header, encodedData] = dataUri.split(',');
   if (!header?.startsWith('data:') || !encodedData) {
-    throw new Error('Formato de archivo no válido.');
+    throw new Error('Formato de archivo no vÃ¡lido.');
   }
 
   const mimeType = header.match(/data:([^;]+)/)?.[1] || 'application/octet-stream';
@@ -289,10 +289,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         setPushRegistered(true);
         triggerPushNotification(
           'Notificaciones del jefe activadas',
-          'Recibirás avisos de fichajes y certificados.',
+          'RecibirÃ¡s avisos de fichajes y certificados.',
           'system',
           undefined,
-          '🔔'
+          'ðŸ””'
         );
       }
     } catch (error: any) {
@@ -466,7 +466,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       newLogs.forEach(log => {
         if (log.timestamp > mountTimeRef.current && !notifiedIdsRef.current.has(log.id)) {
           notifiedIdsRef.current.add(log.id);
-          const actionEmoji = log.type === 'ENTRADA' ? '🚀' : log.type === 'SALIDA' ? '🚪' : '⏱️';
+          const actionEmoji = log.type === 'ENTRADA' ? 'ðŸš€' : log.type === 'SALIDA' ? 'ðŸšª' : 'â±ï¸';
           const cleanType = log.type.replace('_', ' ');
           triggerPushNotification(
             `${actionEmoji} ${log.workerName}`,
@@ -492,11 +492,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           const isFromMe = msg.senderId === 'ADMIN';
           if (isForMe && !isFromMe) {
             triggerPushNotification(
-              `💬 ${msg.senderName}`,
+              `ðŸ’¬ ${msg.senderName}`,
               msg.text,
               'chat',
               msg.senderId,
-              '💬'
+              'ðŸ’¬'
             );
           }
         }
@@ -537,7 +537,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     const oldLogs = logs.filter(l => l.timestamp < cutoffTimestamp);
     if (oldLogs.length === 0) {
       if (showNotification) {
-        alert("No se encontraron registros de fichaje de más de 1 mes de antigüedad para eliminar.");
+        alert("No se encontraron registros de fichaje de mÃ¡s de 1 mes de antigÃ¼edad para eliminar.");
       }
       return;
     }
@@ -561,7 +561,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           senderName: 'EL JEFE',
           receiverId: workerId,
           receiverName: workerName,
-          text: `⚠️ AVISO DE CONTROL: Hola ${workerName}, tus registros de fichaje anteriores al ${cutoffDateStr} (con más de 1 mes de antigüedad) han sido depurados de forma permanente de acuerdo con la Ley de Protección de Datos y optimización de base de datos de CARMAGNE INSTAL SL.`,
+          text: `âš ï¸ AVISO DE CONTROL: Hola ${workerName}, tus registros de fichaje anteriores al ${cutoffDateStr} (con mÃ¡s de 1 mes de antigÃ¼edad) han sido depurados de forma permanente de acuerdo con la Ley de ProtecciÃ³n de Datos y optimizaciÃ³n de base de datos de CARMAGNE INSTAL SL.`,
           timestamp: Date.now(),
           dateStr: new Date().toLocaleDateString('es-ES'),
           timeStr: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
@@ -571,12 +571,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       }
 
       if (showNotification || affectedWorkerIds.length > 0) {
-        alert(`🧹 DEPURACIÓN AUTOMÁTICA COMPLETADA:\n\nSe han eliminado ${oldLogs.length} registros de fichaje anteriores al ${cutoffDateStr} (más de 1 mes de antigüedad).\nSe ha enviado una notificación de aviso a los ${affectedWorkerIds.length} operarios afectados mediante el chat interno.`);
+        alert(`ðŸ§¹ DEPURACIÃ“N AUTOMÃTICA COMPLETADA:\n\nSe han eliminado ${oldLogs.length} registros de fichaje anteriores al ${cutoffDateStr} (mÃ¡s de 1 mes de antigÃ¼edad).\nSe ha enviado una notificaciÃ³n de aviso a los ${affectedWorkerIds.length} operarios afectados mediante el chat interno.`);
       }
     } catch (error) {
       console.error("Error running logs auto cleanup:", error);
       if (showNotification) {
-        alert("Ocurrió un error al depurar los registros antiguos.");
+        alert("OcurriÃ³ un error al depurar los registros antiguos.");
       }
     }
   };
@@ -615,7 +615,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     
     const generalData = [
       ["Operario", report.workerName.toUpperCase()],
-      ["Fecha de Envío", report.dateStr],
+      ["Fecha de EnvÃ­o", report.dateStr],
       ["Periodo", report.startDate && report.endDate ? `${report.startDate} - ${report.endDate}` : "Semanal"],
       ["Estado", report.status === 'APPROVED' ? 'APROBADO' : report.status === 'REJECTED' ? 'RECHAZADO' : 'PENDIENTE']
     ];
@@ -645,8 +645,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       
       const aiData = [
         ["Rango de Fechas Detectado", report.extractedDates || "-"],
-        ["Suma de Horas Extraídas", `${report.extractedHours || 0} horas`],
-        ["Tareas Extraídas", report.extractedTasks || "-"],
+        ["Suma de Horas ExtraÃ­das", `${report.extractedHours || 0} horas`],
+        ["Tareas ExtraÃ­das", report.extractedTasks || "-"],
         ["Total Estimado", report.extractedTotal || "-"]
       ];
       
@@ -662,7 +662,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
     if (report.dailyHours && report.dailyHours.length > 0) {
       doc.setFontSize(11);
-      doc.text("Desglose Diario de Fichajes Extraídos (Gemini AI):", 14, currentY);
+      doc.text("Desglose Diario de Fichajes ExtraÃ­dos (Gemini AI):", 14, currentY);
       currentY += 4;
       
       const dailyRows = report.dailyHours.map(dh => [dh.date, `${dh.hours}h`, dh.tasks || "-"]);
@@ -745,14 +745,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       if (credential?.accessToken) {
         setGoogleUser(result.user);
         setGoogleToken(credential.accessToken);
-        alert(`Sesión de Google iniciada correctamente como: ${result.user.email}`);
+        alert(`SesiÃ³n de Google iniciada correctamente como: ${result.user.email}`);
       } else {
         alert("No se pudo obtener el token de acceso de Google.");
       }
     } catch (err: any) {
-      console.error("Error al iniciar sesión con Google:", err);
+      console.error("Error al iniciar sesiÃ³n con Google:", err);
       if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
-        console.log("Inicio de sesión de Google cancelado por el usuario.");
+        console.log("Inicio de sesiÃ³n de Google cancelado por el usuario.");
         return;
       }
       if (err.code === "auth/unauthorized-domain" || (err.message && err.message.includes("unauthorized-domain"))) {
@@ -760,7 +760,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       } else if (err.code === "auth/operation-not-allowed" || (err.message && err.message.includes("operation-not-allowed"))) {
         setOperationNotAllowed(true);
       } else {
-        alert("Error al iniciar sesión con Google: " + (err.message || err));
+        alert("Error al iniciar sesiÃ³n con Google: " + (err.message || err));
       }
     }
   };
@@ -770,25 +770,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       await firebaseSignOut(auth);
       setGoogleUser(null);
       setGoogleToken(null);
-      alert("Sesión de Google cerrada.");
+      alert("SesiÃ³n de Google cerrada.");
     } catch (err) {
-      console.error("Error al cerrar sesión:", err);
+      console.error("Error al cerrar sesiÃ³n:", err);
     }
   };
 
   const handleSyncGoogleSheets = async () => {
     if (!googleToken) {
-      alert("Inicia sesión con Google primero.");
+      alert("Inicia sesiÃ³n con Google primero.");
       return;
     }
     setIsSyncingSheets(true);
-    setSyncMessage('Iniciando sincronización...');
+    setSyncMessage('Iniciando sincronizaciÃ³n...');
     try {
       const spreadsheetIdMatch = config.googleSheetUrl ? config.googleSheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) : null;
       let spreadsheetId = spreadsheetIdMatch ? spreadsheetIdMatch[1] : null;
 
       if (!spreadsheetId) {
-        setSyncMessage('Creando nueva hoja de cálculo...');
+        setSyncMessage('Creando nueva hoja de cÃ¡lculo...');
         const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
           method: 'POST',
           headers: {
@@ -802,7 +802,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           })
          });
          if (!createRes.ok) {
-                       const errData = await createRes.json().catch(() => ({})); setGoogleApiError({ apiName: "Google Sheets API", message: errData.error?.message || "Error al crear la hoja de cálculo", code: errData.error?.code || createRes.status }); throw new Error(errData.error?.message || 'Error al crear la hoja de cálculo');
+                       const errData = await createRes.json().catch(() => ({})); setGoogleApiError({ apiName: "Google Sheets API", message: errData.error?.message || "Error al crear la hoja de cÃ¡lculo", code: errData.error?.code || createRes.status }); throw new Error(errData.error?.message || 'Error al crear la hoja de cÃ¡lculo');
          }
          const createData = await createRes.json();
          spreadsheetId = createData.spreadsheetId;
@@ -813,7 +813,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
          setConfig(newConfig);
        }
 
-       setSyncMessage('Creando pestañas (Personal, Obras, Fichajes)...');
+       setSyncMessage('Creando pestaÃ±as (Personal, Obras, Fichajes)...');
        try {
          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
            method: 'POST',
@@ -830,7 +830,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
            })
          });
        } catch (e) {
-         // Las pestañas probablemente ya existen
+         // Las pestaÃ±as probablemente ya existen
        }
 
        const writeSheetData = async (sheetName: string, headers: string[], rows: any[][]) => {
@@ -853,29 +853,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
            body: JSON.stringify({ values })
          });
          if (!response.ok) {
-                       const errData = await response.json().catch(() => ({})); setGoogleApiError({ apiName: "Google Sheets API", message: errData.error?.message || `Error escribiendo en la pestaña ${sheetName}`, code: errData.error?.code || response.status }); throw new Error(errData.error?.message || `Error escribiendo en la pestaña ${sheetName}`);
+                       const errData = await response.json().catch(() => ({})); setGoogleApiError({ apiName: "Google Sheets API", message: errData.error?.message || `Error escribiendo en la pestaÃ±a ${sheetName}`, code: errData.error?.code || response.status }); throw new Error(errData.error?.message || `Error escribiendo en la pestaÃ±a ${sheetName}`);
          }
        };
 
        // Sincronizar Personal
-       setSyncMessage('Actualizando pestaña Personal...');
-       const personalHeaders = ['ID', 'Nombre', 'DNI/NIE', 'Teléfono', 'Email', 'Rol', 'Estado'];
+       setSyncMessage('Actualizando pestaÃ±a Personal...');
+       const personalHeaders = ['ID', 'Nombre', 'DNI/NIE', 'TelÃ©fono', 'Email', 'Rol', 'Estado'];
        const personalRows = workers.map(w => [w.id, w.name, w.dni, w.phone, w.email || '', w.role, w.active ? 'ACTIVO' : 'INACTIVO']);
        await writeSheetData('Personal', personalHeaders, personalRows);
 
        // Sincronizar Obras
-       setSyncMessage('Actualizando pestaña Obras...');
-       const obrasHeaders = ['ID', 'Nombre de Obra', 'Dirección', 'Estado', 'Latitud', 'Longitud'];
+       setSyncMessage('Actualizando pestaÃ±a Obras...');
+       const obrasHeaders = ['ID', 'Nombre de Obra', 'DirecciÃ³n', 'Estado', 'Latitud', 'Longitud'];
        const obrasRows = sites.map(s => [s.id, s.name, s.address, s.active ? 'ACTIVO' : 'INACTIVO', s.lat || '', s.lng || '']);
        await writeSheetData('Obras', obrasHeaders, obrasRows);
 
        // Sincronizar Fichajes
-       setSyncMessage('Actualizando pestaña Fichajes...');
+       setSyncMessage('Actualizando pestaÃ±a Fichajes...');
        const fichajesHeaders = ['ID', 'Fecha', 'Hora', 'Operario', 'Obra', 'Tipo de Fichaje', 'Notas', 'Latitud', 'Longitud'];
        const fichajesRows = logs.map(l => [l.id, l.dateStr, l.timeStr, l.workerName, l.siteName, l.type === 'in' ? 'ENTRADA' : 'SALIDA', l.notes || '', l.location?.latitude || '', l.location?.longitude || '']);
        await writeSheetData('Fichajes', fichajesHeaders, fichajesRows);
 
-       setSyncMessage('¡Sincronizado con éxito!');
+       setSyncMessage('Â¡Sincronizado con Ã©xito!');
        setTimeout(() => setSyncMessage(''), 4000);
      } catch (err: any) {
        console.error("Error al sincronizar con Google Sheets:", err);
@@ -889,7 +889,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
        } else {
          alert("Error al sincronizar con Google Sheets: " + errMsg);
        }
-       setSyncMessage('Fallo en la sincronización');
+       setSyncMessage('Fallo en la sincronizaciÃ³n');
      } finally {
        setIsSyncingSheets(false);
      }
@@ -897,13 +897,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
    const handleSendTestGmail = async () => {
      if (!googleToken || !googleUser) {
-       alert("Inicia sesión con Google primero.");
+       alert("Inicia sesiÃ³n con Google primero.");
        return;
      }
      try {
        const to = googleUser.email;
-       const subject = "🧪 CARMAGNE INSTAL 2024 - Prueba de Integración de Gmail";
-       const body = `Hola ${googleUser.displayName},\n\nEste es un correo de prueba automático de la integración de Gmail de la aplicación "CARMAGNE INSTAL 2024".\n\nTu cuenta se ha vinculado correctamente y tienes todos los permisos necesarios para enviar las nóminas oficiales de los operarios y sus certificados.\n\n¡Un saludo!`;
+       const subject = "ðŸ§ª CARMAGNE INSTAL 2024 - Prueba de IntegraciÃ³n de Gmail";
+       const body = `Hola ${googleUser.displayName},\n\nEste es un correo de prueba automÃ¡tico de la integraciÃ³n de Gmail de la aplicaciÃ³n "CARMAGNE INSTAL 2024".\n\nTu cuenta se ha vinculado correctamente y tienes todos los permisos necesarios para enviar las nÃ³minas oficiales de los operarios y sus certificados.\n\nÂ¡Un saludo!`;
 
        const nl = "\n";
        const parts = [
@@ -930,7 +930,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
        });
 
        if (response.ok) {
-         alert(`📧 ¡Éxito! Correo de prueba enviado correctamente a ${to}`);
+         alert(`ðŸ“§ Â¡Ã‰xito! Correo de prueba enviado correctamente a ${to}`);
        } else {
          const errData = await response.json();
          console.error("Error Gmail API: " + JSON.stringify(errData));
@@ -951,7 +951,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
     const selectedCerts = (worker.certificates || []).filter(c => selectedCertIds.includes(c.id));
     if (selectedCerts.length === 0) {
-      alert("No se encontraron certificados válidos.");
+      alert("No se encontraron certificados vÃ¡lidos.");
       return;
     }
 
@@ -983,7 +983,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         });
 
         if (response.ok) {
-          alert(`📧 ¡ÉXITO DE GMAIL!\n\nLos certificados seleccionados de ${worker.name} se han enviado correctamente a ${to} usando tu cuenta de Google.`);
+          alert(`ðŸ“§ Â¡Ã‰XITO DE GMAIL!\n\nLos certificados seleccionados de ${worker.name} se han enviado correctamente a ${to} usando tu cuenta de Google.`);
           setEmailModal(prev => ({ ...prev, isOpen: false, selectedCertIds: [] }));
         } else {
           const errData = await response.json();
@@ -994,17 +994,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       } else {
         // Fallback or request login:
         const useSimulated = window.confirm(
-          "No has iniciado sesión con Google. ¿Deseas simular el envío de certificados de forma directa por nuestro servidor seguro?"
+          "No has iniciado sesiÃ³n con Google. Â¿Deseas simular el envÃ­o de certificados de forma directa por nuestro servidor seguro?"
         );
         if (useSimulated) {
           await new Promise(resolve => setTimeout(resolve, 1500));
-          alert(`📧 ¡ENVÍO SIMULADO COMPLETADO!\n\nLos certificados de ${worker.name} se han enviado por correo electrónico a ${to}.\nArchivos adjuntos: ${selectedCerts.map(c => c.name).join(', ')}`);
+          alert(`ðŸ“§ Â¡ENVÃO SIMULADO COMPLETADO!\n\nLos certificados de ${worker.name} se han enviado por correo electrÃ³nico a ${to}.\nArchivos adjuntos: ${selectedCerts.map(c => c.name).join(', ')}`);
           setEmailModal(prev => ({ ...prev, isOpen: false, selectedCertIds: [] }));
         }
       }
     } catch (err: any) {
       console.error("Error sending email:", err);
-      alert(`Error al enviar el correo electrónico: ${err.message || err}`);
+      alert(`Error al enviar el correo electrÃ³nico: ${err.message || err}`);
     } finally {
       setIsSendingEmail(false);
     }
@@ -1038,7 +1038,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1000000) { alert("El logo es demasiado pesado. Máximo 1MB."); return; }
+      if (file.size > 1000000) { alert("El logo es demasiado pesado. MÃ¡ximo 1MB."); return; }
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
@@ -1052,7 +1052,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const handleFaviconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 500000) { alert("El icono es demasiado pesado. Máximo 500KB."); return; }
+      if (file.size > 500000) { alert("El icono es demasiado pesado. MÃ¡ximo 500KB."); return; }
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
@@ -1089,7 +1089,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       }).catch((pushError) => console.warn('No se pudo enviar push de chat admin:', pushError));
       setAdminChatInput('');
     } catch (err) {
-      alert("Error al enviar el mensaje.");
+      alert(err instanceof Error ? err.message : "Error al enviar el mensaje.");
     }
   };
 
@@ -1102,20 +1102,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         return;
       }
       if (file.size > 5000000) {
-        alert("El archivo PDF es demasiado pesado. Máximo 5MB.");
+        alert("El archivo PDF es demasiado pesado. MÃ¡ximo 5MB.");
         if (payslipFileInputRef.current) payslipFileInputRef.current.value = '';
         return;
       }
       try {
         const protectedPdf = await isPasswordProtectedPdf(file);
         if (protectedPdf) {
-          alert("No se puede subir esta nómina porque el PDF está protegido con contraseña. Sube una versión sin contraseña.");
+          alert("No se puede subir esta nÃ³mina porque el PDF estÃ¡ protegido con contraseÃ±a. Sube una versiÃ³n sin contraseÃ±a.");
           if (payslipFileInputRef.current) payslipFileInputRef.current.value = '';
           return;
         }
       } catch (err) {
         console.error("Error checking payslip PDF password protection", err);
-        alert("No se pudo comprobar si el PDF está protegido. Por seguridad, no se ha subido.");
+        alert("No se pudo comprobar si el PDF estÃ¡ protegido. Por seguridad, no se ha subido.");
         if (payslipFileInputRef.current) payslipFileInputRef.current.value = '';
         return;
       }
@@ -1175,15 +1175,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     }
     if (workerForm.phone) {
       if (!isSpanishPhone(normalizedPhone)) {
-        setWorkerFormError('El teléfono debe ser un número español válido, por ejemplo +34600111222.');
+        setWorkerFormError('El telÃ©fono debe ser un nÃºmero espaÃ±ol vÃ¡lido, por ejemplo +34600111222.');
         return;
       }
       if (!workerForm.email) {
-        setWorkerFormError('El correo electrónico es obligatorio para los operarios con número de teléfono.');
+        setWorkerFormError('El correo electrÃ³nico es obligatorio para los operarios con nÃºmero de telÃ©fono.');
         return;
       }
       if (!/\S+@\S+\.\S+/.test(workerForm.email)) {
-        setWorkerFormError('El formato del correo electrónico no es válido.');
+        setWorkerFormError('El formato del correo electrÃ³nico no es vÃ¡lido.');
         return;
       }
     }
@@ -1206,7 +1206,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       if (selectedWorkerProfile?.id === editingWorker.id) {
         setSelectedWorkerProfile(updated);
       }
-      alert('Operario actualizado con éxito.');
+      alert('Operario actualizado con Ã©xito.');
     } else {
       const newWorker: Worker = {
         id: `W${Date.now()}`,
@@ -1223,9 +1223,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       };
       await StorageService.registerNewWorker(newWorker);
       
-      const telegramMessage = `🆕 <b>Nuevo Operario Registrado (desde Admin)</b>\n👷‍♂️ Nombre: <b>${newWorker.name}</b>\n🆔 DNI: ${newWorker.dni || 'S/DNI'}\n💼 Puesto: ${newWorker.role}\n📱 Teléfono: ${newWorker.phone || 'No registrado'}\n📧 Email: ${newWorker.email || 'No registrado'}`;
+      const telegramMessage = `ðŸ†• <b>Nuevo Operario Registrado (desde Admin)</b>\nðŸ‘·â€â™‚ï¸ Nombre: <b>${newWorker.name}</b>\nðŸ†” DNI: ${newWorker.dni || 'S/DNI'}\nðŸ’¼ Puesto: ${newWorker.role}\nðŸ“± TelÃ©fono: ${newWorker.phone || 'No registrado'}\nðŸ“§ Email: ${newWorker.email || 'No registrado'}`;
       TelegramService.enviarNotificacionTelegram(telegramMessage);
-      alert('Nuevo operario creado con éxito.');
+      alert('Nuevo operario creado con Ã©xito.');
     }
     setIsWorkerFormModalOpen(false);
   };
@@ -1271,7 +1271,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       }
 
       if (isPdf && file.size > 750 * 1024) {
-        alert(`El archivo PDF es demasiado grande (${(file.size / 1024).toFixed(0)} KB). El tamaño máximo para PDFs es de 750 KB para no superar el límite de almacenamiento de Firebase.\n\nSugerencia: Puedes hacer una foto o captura de pantalla al certificado y subir la imagen.`);
+        alert(`El archivo PDF es demasiado grande (${(file.size / 1024).toFixed(0)} KB). El tamaÃ±o mÃ¡ximo para PDFs es de 750 KB para no superar el lÃ­mite de almacenamiento de Firebase.\n\nSugerencia: Puedes hacer una foto o captura de pantalla al certificado y subir la imagen.`);
         if (certFileInputRef.current) certFileInputRef.current.value = '';
         return;
       }
@@ -1280,13 +1280,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         try {
           const protectedPdf = await isPasswordProtectedPdf(file);
           if (protectedPdf) {
-            alert("No se puede subir este certificado porque el PDF está protegido con contraseña. Por favor, sube una versión sin contraseña o una imagen/captura del certificado.");
+            alert("No se puede subir este certificado porque el PDF estÃ¡ protegido con contraseÃ±a. Por favor, sube una versiÃ³n sin contraseÃ±a o una imagen/captura del certificado.");
             if (certFileInputRef.current) certFileInputRef.current.value = '';
             return;
           }
         } catch (err) {
           console.error("Error checking PDF password protection", err);
-          alert("No se pudo comprobar si el PDF está protegido con contraseña. Por seguridad, no se ha subido. Prueba con una versión sin contraseña o una imagen/captura.");
+          alert("No se pudo comprobar si el PDF estÃ¡ protegido con contraseÃ±a. Por seguridad, no se ha subido. Prueba con una versiÃ³n sin contraseÃ±a o una imagen/captura.");
           if (certFileInputRef.current) certFileInputRef.current.value = '';
           return;
         }
@@ -1302,7 +1302,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           }
 
           if (fileData.length > 1050000) {
-            alert("El archivo resultante supera el límite máximo permitido por documento. Por favor, selecciona un archivo más pequeño o una imagen comprimida.");
+            alert("El archivo resultante supera el lÃ­mite mÃ¡ximo permitido por documento. Por favor, selecciona un archivo mÃ¡s pequeÃ±o o una imagen comprimida.");
             if (certFileInputRef.current) certFileInputRef.current.value = '';
             return;
           }
@@ -1343,7 +1343,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           setSelectedWorkerProfile(updated);
           setCertNameInput('');
           if (certFileInputRef.current) certFileInputRef.current.value = '';
-          alert("Certificado subido con éxito.");
+          alert("Certificado subido con Ã©xito.");
         } catch (err: any) {
           console.error("Error upload cert", err);
           alert(`Error al subir el certificado: ${err?.message || 'Fallo de almacenamiento en Firebase'}`);
@@ -1380,7 +1380,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
       if (mimeType !== 'application/pdf' && !mimeType.startsWith('image/')) {
         if (previewWindow) previewWindow.close();
-        alert("Este tipo de archivo no se puede previsualizar. Usa el botón Descargar.");
+        alert("Este tipo de archivo no se puede previsualizar. Usa el botÃ³n Descargar.");
         return;
       }
 
@@ -1389,7 +1389,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         previewWindow.location.href = blobUrl;
       } else {
         const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-        if (!opened) alert("El navegador bloqueó la ventana de vista previa. Permite ventanas emergentes o usa Descargar.");
+        if (!opened) alert("El navegador bloqueÃ³ la ventana de vista previa. Permite ventanas emergentes o usa Descargar.");
       }
       window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
     } catch (err: any) {
@@ -1424,7 +1424,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   };
 
   const handleDeleteCertificate = async (certId: string) => {
-    if (selectedWorkerProfile && confirm("¿Estás seguro de que deseas eliminar este certificado?")) {
+    if (selectedWorkerProfile && confirm("Â¿EstÃ¡s seguro de que deseas eliminar este certificado?")) {
       const currentCerts = selectedWorkerProfile.certificates || [];
       const updated = {
         ...selectedWorkerProfile,
@@ -1486,7 +1486,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       setShowSaveSuccess(true); 
       setTimeout(() => setShowSaveSuccess(false), 3000); 
     }
-    catch (e) { alert("Error al guardar la configuración"); }
+    catch (e) { alert("Error al guardar la configuraciÃ³n"); }
     finally { setIsSaving(false); }
   };
 
@@ -1520,7 +1520,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     const { totalWork, totalBreak } = calculateTotalsFromLogs(filteredReportLogs);
     doc.text(`TRABAJO NETO: ${formatMsToTime(totalWork)} | DESCANSOS: ${formatMsToTime(totalBreak)}`, 14, 30);
     const tableData = filteredReportLogs.map(l => [l.dateStr, l.timeStr, l.siteName, l.type, l.workMode || 'HORAS', l.workReport || '-']);
-    autoTable(doc, { head: [['Fecha', 'Hora', 'Obra', 'Acción', 'Modo', 'Tarea']], body: tableData, startY: 40, styles: { fontSize: 8 } });
+    autoTable(doc, { head: [['Fecha', 'Hora', 'Obra', 'AcciÃ³n', 'Modo', 'Tarea']], body: tableData, startY: 40, styles: { fontSize: 8 } });
     doc.save(`Reporte_${worker.name}_Carmagne.pdf`);
     setReportModal({ ...reportModal, isOpen: false });
   };
@@ -1618,7 +1618,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       { id: 'workers', icon: Users, label: 'Personal' },
       { id: 'hours', icon: History, label: 'Horas' },
       { id: 'reports', icon: ClipboardList, label: 'Partes' },
-      { id: 'payslips', icon: FileText, label: 'Nóminas' },
+      { id: 'payslips', icon: FileText, label: 'NÃ³minas' },
       { id: 'chat', icon: MessageSquare, label: 'Chat' },
       { id: 'sites', icon: MapPin, label: 'Obras' },
       { id: 'logs', icon: ClipboardList, label: 'Registros' },
@@ -1653,10 +1653,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       </div>
 
       <div className="bg-[var(--panel-bg)] p-5 rounded-[2rem] border border-[var(--panel-border)] shadow-xl relative overflow-hidden">
-        <div className="absolute -right-12 -top-12 w-36 h-36 bg-[#CCFF00]/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -right-12 -top-12 w-36 h-36 bg-[#15803D]/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/20 flex items-center justify-center text-[#CCFF00] shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-[#15803D]/10 border border-[#15803D]/20 flex items-center justify-center text-[#15803D] shrink-0">
               <BellRing size={22} />
             </div>
             <div className="min-w-0">
@@ -1672,7 +1672,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             className={`w-full sm:w-auto px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
               pushRegistered
                 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                : 'bg-[#CCFF00] text-black hover:bg-[#b8e600] disabled:opacity-60'
+                : 'bg-[#15803D] text-black hover:bg-[#16A34A] disabled:opacity-60'
             }`}
           >
             {pushLoading ? 'Activando...' : pushRegistered ? 'Activadas' : pushStatus === 'granted' ? 'Registrar' : 'Activar'}
@@ -1683,22 +1683,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       {/* Google Account Linking / Workspace Card */}
       <div className="bg-[var(--panel-bg)] p-8 rounded-[2rem] border border-[var(--panel-border)] shadow-xl relative overflow-hidden">
         {/* Decorative background glow */}
-        <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-[#CCFF00]/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-[#15803D]/5 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -left-16 -top-16 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <div className="flex items-center gap-2">
-              <span className={`px-2.5 py-1 rounded-full text-[8px] font-black tracking-wider uppercase font-sans border ${theme === 'dark' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/20 text-[#CCFF00]' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+              <span className={`px-2.5 py-1 rounded-full text-[8px] font-black tracking-wider uppercase font-sans border ${theme === 'dark' ? 'bg-[#15803D]/10 border-[#15803D]/20 text-[#15803D]' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
                 Google Workspace
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
             </div>
             <h3 className="text-xl font-black text-[var(--text-main)] tracking-wider uppercase font-sans flex items-center gap-2" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-              <Shield className={theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} size={20} /> VINCULACIÓN DE CUENTA DE GOOGLE
+              <Shield className={theme === 'dark' ? 'text-[#15803D]' : 'text-emerald-600'} size={20} /> VINCULACIÃ“N DE CUENTA DE GOOGLE
             </h3>
             <p className="text-[11px] text-[var(--text-muted)] font-medium leading-relaxed font-sans">
-              Vincula tu cuenta de Google para exportar y sincronizar automáticamente toda la base de datos de operarios, fichajes y obras en tiempo real a Google Sheets, además de habilitar el envío oficial de nóminas y certificados vía Gmail.
+              Vincula tu cuenta de Google para exportar y sincronizar automÃ¡ticamente toda la base de datos de operarios, fichajes y obras en tiempo real a Google Sheets, ademÃ¡s de habilitar el envÃ­o oficial de nÃ³minas y certificados vÃ­a Gmail.
             </p>
           </div>
 
@@ -1706,9 +1706,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             {googleUser ? (
               <div className={`flex items-center gap-3 p-3 rounded-2xl border ${theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-white border-zinc-200 shadow-sm'}`}>
                 {googleUser.photoURL ? (
-                  <img src={googleUser.photoURL} alt={googleUser.displayName} className={`w-9 h-9 rounded-xl border ${theme === 'dark' ? 'border-[#CCFF00]/20' : 'border-zinc-200'}`} referrerPolicy="no-referrer" />
+                  <img src={googleUser.photoURL} alt={googleUser.displayName} className={`w-9 h-9 rounded-xl border ${theme === 'dark' ? 'border-[#15803D]/20' : 'border-zinc-200'}`} referrerPolicy="no-referrer" />
                 ) : (
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black border ${theme === 'dark' ? 'bg-blue-500/10 text-[#CCFF00] border-[#CCFF00]/10' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black border ${theme === 'dark' ? 'bg-blue-500/10 text-[#15803D] border-[#15803D]/10' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
                     {googleUser.displayName?.charAt(0) || 'G'}
                   </div>
                 )}
@@ -1723,7 +1723,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             ) : (
               <button
                 onClick={handleGoogleSignInForGmail}
-                className={`w-full md:w-auto font-black py-3.5 px-6 rounded-xl uppercase text-[10px] tracking-wider transition-all duration-300 shadow-lg active:scale-95 flex items-center justify-center gap-2.5 font-sans border ${theme === 'dark' ? 'bg-transparent border-[#CCFF00]/50 hover:bg-[#CCFF00] hover:text-black text-[#CCFF00]' : 'bg-[#CCFF00] border-[#b8e600] text-black hover:bg-[#b8e600]'}`}
+                className={`w-full md:w-auto font-black py-3.5 px-6 rounded-xl uppercase text-[10px] tracking-wider transition-all duration-300 shadow-lg active:scale-95 flex items-center justify-center gap-2.5 font-sans border ${theme === 'dark' ? 'bg-transparent border-[#15803D]/50 hover:bg-[#15803D] hover:text-black text-[#15803D]' : 'bg-[#15803D] border-[#16A34A] text-black hover:bg-[#16A34A]'}`}
               >
                 <KeyRound size={14} /> VINCULAR CUENTA GOOGLE
               </button>
@@ -1737,7 +1737,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             <div className={`p-5 rounded-2xl border space-y-4 ${theme === 'dark' ? 'bg-zinc-950/40 border-zinc-800/60' : 'bg-white border-zinc-200/80 shadow-sm'}`}>
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2">
-                  <FileText className={theme === 'dark' ? 'text-[#CCFF00]' : 'text-emerald-600'} size={16} /> Sincronización Google Sheets
+                  <FileText className={theme === 'dark' ? 'text-[#15803D]' : 'text-emerald-600'} size={16} /> SincronizaciÃ³n Google Sheets
                 </h4>
                 {config.googleSheetUrl ? (
                   <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-lg uppercase">
@@ -1763,7 +1763,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <button
                   disabled={isSyncingSheets}
                   onClick={handleSyncGoogleSheets}
-                  className="flex-1 bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black text-[10px] font-black tracking-widest py-3 px-4 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-[#CCFF00]/5"
+                  className="flex-1 bg-[#15803D] hover:bg-[#16A34A] disabled:opacity-50 text-black text-[10px] font-black tracking-widest py-3 px-4 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-[#15803D]/5"
                 >
                   <RefreshCw size={12} className={isSyncingSheets ? 'animate-spin' : ''} />
                   {isSyncingSheets ? 'SINCRONIZANDO...' : config.googleSheetUrl ? 'SINCRONIZAR DATOS' : 'CREAR HOJA EN DRIVE'}
@@ -1771,7 +1771,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               </div>
 
               {syncMessage && (
-                <p className={`text-[9px] font-black uppercase tracking-widest py-2 px-3 rounded-lg text-center animate-fadeIn animate-pulse ${theme === 'dark' ? 'text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/20' : 'text-emerald-800 bg-emerald-50 border border-emerald-100'}`}>
+                <p className={`text-[9px] font-black uppercase tracking-widest py-2 px-3 rounded-lg text-center animate-fadeIn animate-pulse ${theme === 'dark' ? 'text-[#15803D] bg-[#15803D]/10 border border-[#15803D]/20' : 'text-emerald-800 bg-emerald-50 border border-emerald-100'}`}>
                   {syncMessage}
                 </p>
               )}
@@ -1784,7 +1784,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <Mail className={theme === 'dark' ? 'text-blue-400' : 'text-blue-600'} size={16} /> Estado del Servicio Gmail
                 </h4>
                 <p className="text-[10px] text-[var(--text-muted)] leading-relaxed font-sans">
-                  La integración de Gmail te permite enviar notificaciones oficiales, nóminas mensuales firmadas digitalmente y certificados técnicos del personal directamente desde tu correo corporativo o personal.
+                  La integraciÃ³n de Gmail te permite enviar notificaciones oficiales, nÃ³minas mensuales firmadas digitalmente y certificados tÃ©cnicos del personal directamente desde tu correo corporativo o personal.
                 </p>
               </div>
 
@@ -1808,7 +1808,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-[var(--text-main)] uppercase">Reporte de Horas</h2>
-          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Cálculo de tiempos por jornada</p>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">CÃ¡lculo de tiempos por jornada</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative">
@@ -1858,7 +1858,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           ))
         ) : (
           <div className="text-center py-20 bg-[var(--panel-bg)]/30 rounded-[3rem] border border-dashed border-[var(--panel-border)]">
-            <p className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-widest">No hay registros para este día</p>
+            <p className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-widest">No hay registros para este dÃ­a</p>
           </div>
         )}
       </div>
@@ -1870,7 +1870,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-[var(--text-main)] uppercase">Registros de Actividad</h2>
-          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Historial completo con verificación GPS</p>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Historial completo con verificaciÃ³n GPS</p>
         </div>
         <div className="flex gap-2">
           {isSuperAdmin && (
@@ -1923,7 +1923,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               <th className="p-4 font-black uppercase text-[var(--text-muted)]">Obra</th>
               <th className="p-4 font-black uppercase text-[var(--text-muted)]">Tipo</th>
               <th className="p-4 font-black uppercase text-[var(--text-muted)]">Reporte</th>
-              <th className="p-4 font-black uppercase text-[var(--text-muted)]">Ubicación GPS</th>
+              <th className="p-4 font-black uppercase text-[var(--text-muted)]">UbicaciÃ³n GPS</th>
               {isSuperAdmin && <th className="p-4 font-black uppercase text-[var(--text-muted)] text-right">Acciones</th>}
             </tr>
           </thead>
@@ -1993,7 +1993,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-[var(--text-main)] uppercase">Inventario de Equipos</h2>
-          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Gestión de herramientas por operario</p>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">GestiÃ³n de herramientas por operario</p>
         </div>
         <button onClick={() => handleOpenToolModal()} className="bg-amber-600 p-3 rounded-xl text-white self-end md:self-auto">
           <Plus size={20} />
@@ -2067,7 +2067,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     const updated = { ...report, status: 'APPROVED' as const };
     await StorageService.updateReport(updated);
     setSelectedReport(null);
-    const msg = `✅ <b>Parte Semanal Aprobado</b>\n👷‍♂️ Operario: <b>${report.workerName}</b>\n📅 Período: ${report.dateStr}\n📊 Horas: ${report.extractedHours || 0}h\n💰 Total: ${report.extractedTotal || '-'}`;
+    const msg = `âœ… <b>Parte Semanal Aprobado</b>\nðŸ‘·â€â™‚ï¸ Operario: <b>${report.workerName}</b>\nðŸ“… PerÃ­odo: ${report.dateStr}\nðŸ“Š Horas: ${report.extractedHours || 0}h\nðŸ’° Total: ${report.extractedTotal || '-'}`;
     TelegramService.enviarNotificacionTelegram(msg);
   };
 
@@ -2081,7 +2081,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     setSelectedReport(null);
     setRejectionReasonInput('');
     setShowRejectionInput(false);
-    const msg = `❌ <b>Parte Semanal Rechazado</b>\n👷‍♂️ Operario: <b>${report.workerName}</b>\n📅 Período: ${report.dateStr}\n⚠️ Motivo: ${rejectionReasonInput}`;
+    const msg = `âŒ <b>Parte Semanal Rechazado</b>\nðŸ‘·â€â™‚ï¸ Operario: <b>${report.workerName}</b>\nðŸ“… PerÃ­odo: ${report.dateStr}\nâš ï¸ Motivo: ${rejectionReasonInput}`;
     TelegramService.enviarNotificacionTelegram(msg);
   };
 
@@ -2094,7 +2094,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     if (!worker) return;
 
     const monthStr = payslipForm.monthStr || new Date().toISOString().substring(0, 7);
-    const title = payslipForm.title || `Nómina ${monthStr}`;
+    const title = payslipForm.title || `NÃ³mina ${monthStr}`;
 
     let pdfDataUri = '';
     let baseSalary = 0;
@@ -2105,7 +2105,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
     if (payslipMode === 'upload') {
       if (!uploadedPdfBase64) {
-        alert("Por favor selecciona o arrastra un archivo PDF de nómina.");
+        alert("Por favor selecciona o arrastra un archivo PDF de nÃ³mina.");
         return;
       }
       pdfDataUri = uploadedPdfBase64;
@@ -2130,15 +2130,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(10);
-      pdf.text("SISTEMA DE GESTIÓN Y NÓMINAS PROFESIONAL", 15, 33);
+      pdf.text("SISTEMA DE GESTIÃ“N Y NÃ“MINAS PROFESIONAL", 15, 33);
       
       pdf.setTextColor(15, 23, 42);
       pdf.setFontSize(14);
-      pdf.text("NÓMINA DE TRABAJADOR", 15, 55);
+      pdf.text("NÃ“MINA DE TRABAJADOR", 15, 55);
       
       pdf.setFontSize(10);
-      pdf.text(`Fecha Emisión: ${new Date().toLocaleDateString('es-ES')}`, 15, 62);
-      pdf.text(`Período Liquidación: ${monthStr}`, 15, 68);
+      pdf.text(`Fecha EmisiÃ³n: ${new Date().toLocaleDateString('es-ES')}`, 15, 62);
+      pdf.text(`PerÃ­odo LiquidaciÃ³n: ${monthStr}`, 15, 68);
       
       pdf.setFillColor(248, 250, 252);
       pdf.roundedRect(14, 75, 182, 35, 2, 2, 'F');
@@ -2148,14 +2148,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       pdf.setFont("helvetica", "normal");
       pdf.text(`Nombre completo: ${worker.name}`, 20, 90);
       pdf.text(`DNI / NIE: ${worker.dni || 'No registrado'}`, 20, 97);
-      pdf.text(`Teléfono: ${worker.phone || 'No registrado'}`, 20, 104);
+      pdf.text(`TelÃ©fono: ${worker.phone || 'No registrado'}`, 20, 104);
       
       const tableRows = [
-        ["Concepto Salarial", "Cálculo / Unidad", "Importe Bruto", "Deducciones"],
-        ["Salario Base Mensual", "Mes completo", `${baseSalary.toFixed(2)}€`, ""],
-        ["Horas Extraordinarias", `${extraHours} horas a ${extraHoursPay}€/h`, `${(extraHours * extraHoursPay).toFixed(2)}€`, ""],
-        ["Deducciones / IRPF / SS", "Retención general", "", `${deductions.toFixed(2)}€`],
-        ["LÍQUIDO TOTAL A PERCIBIR", "", `${totalPay.toFixed(2)}€`, ""]
+        ["Concepto Salarial", "CÃ¡lculo / Unidad", "Importe Bruto", "Deducciones"],
+        ["Salario Base Mensual", "Mes completo", `${baseSalary.toFixed(2)}â‚¬`, ""],
+        ["Horas Extraordinarias", `${extraHours} horas a ${extraHoursPay}â‚¬/h`, `${(extraHours * extraHoursPay).toFixed(2)}â‚¬`, ""],
+        ["Deducciones / IRPF / SS", "RetenciÃ³n general", "", `${deductions.toFixed(2)}â‚¬`],
+        ["LÃQUIDO TOTAL A PERCIBIR", "", `${totalPay.toFixed(2)}â‚¬`, ""]
       ];
 
       autoTable(pdf, {
@@ -2200,17 +2200,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         title,
         totalPay,
       },
-    }).catch((pushError) => console.warn('No se pudo enviar push de nómina:', pushError));
+    }).catch((pushError) => console.warn('No se pudo enviar push de nÃ³mina:', pushError));
     
     let telegramMsg = '';
     if (payslipMode === 'upload') {
-      telegramMsg = `👷‍♂️ <b>Nómina enviada (PDF Subido)</b>\n\n👤 Operario: <b>${worker.name}</b>\n📅 Período: <b>${monthStr}</b>\n💰 <b>Total Neto Recibido: ${totalPay.toFixed(2)}€</b>`;
+      telegramMsg = `ðŸ‘·â€â™‚ï¸ <b>NÃ³mina enviada (PDF Subido)</b>\n\nðŸ‘¤ Operario: <b>${worker.name}</b>\nðŸ“… PerÃ­odo: <b>${monthStr}</b>\nðŸ’° <b>Total Neto Recibido: ${totalPay.toFixed(2)}â‚¬</b>`;
     } else {
-      telegramMsg = `👷‍♂️ <b>Nómina enviada con éxito</b>\n\n👤 Operario: <b>${worker.name}</b>\n📅 Período: <b>${monthStr}</b>\n💸 Salario Base: ${baseSalary}€\n⚡ Horas Extra: ${extraHours} (a ${extraHoursPay}€/h)\n📉 Deducciones: ${deductions}€\n💰 <b>Total Neto Recibido: ${totalPay.toFixed(2)}€</b>`;
+      telegramMsg = `ðŸ‘·â€â™‚ï¸ <b>NÃ³mina enviada con Ã©xito</b>\n\nðŸ‘¤ Operario: <b>${worker.name}</b>\nðŸ“… PerÃ­odo: <b>${monthStr}</b>\nðŸ’¸ Salario Base: ${baseSalary}â‚¬\nâš¡ Horas Extra: ${extraHours} (a ${extraHoursPay}â‚¬/h)\nðŸ“‰ Deducciones: ${deductions}â‚¬\nðŸ’° <b>Total Neto Recibido: ${totalPay.toFixed(2)}â‚¬</b>`;
     }
     TelegramService.enviarNotificacionTelegram(telegramMsg);
 
-    alert(`Nómina enviada con éxito a ${worker.name}`);
+    alert(`NÃ³mina enviada con Ã©xito a ${worker.name}`);
     
     setPayslipForm({
       workerId: '',
@@ -2267,7 +2267,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       });
     };
 
-    // Computar la lista filtrada de partes semanalas dinámicamente
+    // Computar la lista filtrada de partes semanalas dinÃ¡micamente
     const filteredReportsList = weeklyReports.filter(report => {
       const matchesWorker = !reportFilterWorker || report.workerId === reportFilterWorker;
       const matchesStatus = !reportFilterStatus || report.status === reportFilterStatus;
@@ -2299,7 +2299,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         return;
       }
 
-      const warningText = `⚠️ CONTROL CRÍTICO DE ELIMINACIÓN:\n\n¿Estás completamente seguro de que deseas eliminar permanentemente los ${count} partes de trabajo seleccionados de la base de datos?\n\nEsta acción eliminará tanto los archivos como los análisis de Gemini de manera irreversible.`;
+      const warningText = `âš ï¸ CONTROL CRÃTICO DE ELIMINACIÃ“N:\n\nÂ¿EstÃ¡s completamente seguro de que deseas eliminar permanentemente los ${count} partes de trabajo seleccionados de la base de datos?\n\nEsta acciÃ³n eliminarÃ¡ tanto los archivos como los anÃ¡lisis de Gemini de manera irreversible.`;
       
       if (window.confirm(warningText)) {
         try {
@@ -2307,10 +2307,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           for (const report of filteredReportsList) {
             await StorageService.deleteReport(report.id);
           }
-          alert(`🗑️ Éxito: Se han eliminado ${count} partes de trabajo correctamente.`);
+          alert(`ðŸ—‘ï¸ Ã‰xito: Se han eliminado ${count} partes de trabajo correctamente.`);
         } catch (e) {
           console.error("Error al eliminar partes filtrados:", e);
-          alert("Ocurrió un error al intentar eliminar los partes filtrados.");
+          alert("OcurriÃ³ un error al intentar eliminar los partes filtrados.");
         } finally {
           setIsSaving(false);
         }
@@ -2322,7 +2322,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--panel-border)] pb-4">
           <div>
             <h2 className="text-2xl font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Partes Semanales</h2>
-            <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Revisión y gestión de partes de trabajo subidos por los operarios</p>
+            <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">RevisiÃ³n y gestiÃ³n de partes de trabajo subidos por los operarios</p>
           </div>
           
           <div className="flex items-center gap-2">
@@ -2378,7 +2378,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Fecha de Envío Desde</label>
+              <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Fecha de EnvÃ­o Desde</label>
               <input 
                 type="date" 
                 value={reportFilterStartDate}
@@ -2388,7 +2388,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Fecha de Envío Hasta</label>
+              <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Fecha de EnvÃ­o Hasta</label>
               <input 
                 type="date" 
                 value={reportFilterEndDate}
@@ -2479,7 +2479,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   )}
                 </div>
 
-                {/* Acciones de descarga y aprobación */}
+                {/* Acciones de descarga y aprobaciÃ³n */}
                 <div className="space-y-2 mt-4 pt-4 border-t border-[var(--panel-border)]">
                   <div className="flex gap-2">
                     <button 
@@ -2537,7 +2537,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               {/* Controles de Zoom */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center bg-black/40 px-4 py-2.5 rounded-xl border border-[var(--panel-border)] text-xs">
-                  <span className="text-[var(--text-muted)] uppercase font-bold text-[9px] tracking-wider flex items-center gap-1.5"><Clock size={12} /> Control de Visualización:</span>
+                  <span className="text-[var(--text-muted)] uppercase font-bold text-[9px] tracking-wider flex items-center gap-1.5"><Clock size={12} /> Control de VisualizaciÃ³n:</span>
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setZoomLevel(prev => Math.max(1, prev - 0.5))}
@@ -2547,7 +2547,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     >
                       <ZoomOut size={14} />
                     </button>
-                    <span className="font-mono text-[#CCFF00] font-black min-w-[42px] text-center">{Math.round(zoomLevel * 100)}%</span>
+                    <span className="font-mono text-[#15803D] font-black min-w-[42px] text-center">{Math.round(zoomLevel * 100)}%</span>
                     <button 
                       onClick={() => setZoomLevel(prev => Math.min(4, prev + 0.5))}
                       disabled={zoomLevel >= 4}
@@ -2559,7 +2559,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     <button 
                       onClick={() => { setZoomLevel(1); setPanOffset({ x: 0, y: 0 }); }}
                       className="p-1 rounded bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white font-bold text-[9px] uppercase px-2.5 transition-colors"
-                      title="Restaurar zoom y posición original"
+                      title="Restaurar zoom y posiciÃ³n original"
                     >
                       Reset
                     </button>
@@ -2587,7 +2587,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     }} 
                   />
                   {zoomLevel > 1 && (
-                    <div className="absolute bottom-2 right-2 bg-black/75 text-[#CCFF00] font-bold text-[8px] tracking-wider uppercase px-2 py-1 rounded-md border border-emerald-500/20 pointer-events-none">
+                    <div className="absolute bottom-2 right-2 bg-black/75 text-[#15803D] font-bold text-[8px] tracking-wider uppercase px-2 py-1 rounded-md border border-emerald-500/20 pointer-events-none">
                       Arrastra la imagen para explorar detalles
                     </div>
                   )}
@@ -2597,7 +2597,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleDownloadSingleReportPDF(selectedReport)}
-                    className="w-full bg-[#CCFF00] hover:bg-yellow-400 text-black py-3 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-1.5 transition-all shadow-[0_0_15px_rgba(204,255,0,0.15)]"
+                    className="w-full bg-[#15803D] hover:bg-emerald-500 text-black py-3 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-1.5 transition-all shadow-[0_0_15px_rgba(21,128,61,0.15)]"
                   >
                     <FileText size={16} /> Descargar Ficha PDF Completa
                   </button>
@@ -2610,7 +2610,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <span className="text-sm font-bold text-[var(--text-main)] uppercase">{selectedReport.workerName}</span>
                 </div>
                 <div>
-                  <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Fecha de Envío</span>
+                  <span className="text-[9px] text-[var(--text-muted)] font-bold block uppercase tracking-wider">Fecha de EnvÃ­o</span>
                   <span className="text-sm font-bold text-[var(--text-main)]">{selectedReport.dateStr}</span>
                 </div>
                 {selectedReport.extractedDates && (
@@ -2634,10 +2634,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{selectedReport.extractedTotal || '-'}</span>
                 </div>
                 
-                {/* Desglose de horas por día transcrito por la IA */}
+                {/* Desglose de horas por dÃ­a transcrito por la IA */}
                 {selectedReport.dailyHours && selectedReport.dailyHours.length > 0 && (
                   <div className="col-span-2 border-t border-[var(--panel-border)] pt-3 mt-1">
-                    <span className="text-[9px] text-[#CCFF00] font-bold block uppercase tracking-wider mb-2">Desglose de Horas por Día (IA)</span>
+                    <span className="text-[9px] text-[#15803D] font-bold block uppercase tracking-wider mb-2">Desglose de Horas por DÃ­a (IA)</span>
                     <div className="space-y-1.5 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
                       {selectedReport.dailyHours.map((dh, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-[var(--panel-border)] text-xs">
@@ -2702,18 +2702,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       <div className="space-y-8 animate-fadeIn pb-32">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Gestión de Nóminas</h2>
-            <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Generador digital y envío de nóminas a operarios</p>
+            <h2 className="text-2xl font-bebas text-emerald-600 dark:text-emerald-400 uppercase">GestiÃ³n de NÃ³minas</h2>
+            <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Generador digital y envÃ­o de nÃ³minas a operarios</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 mirror-panel p-6 space-y-6">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Enviar Nueva Nómina</h3>
+              <h3 className="text-lg font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Enviar Nueva NÃ³mina</h3>
             </div>
 
-            {/* Selector de tipo de envío de nómina */}
+            {/* Selector de tipo de envÃ­o de nÃ³mina */}
             <div className="grid grid-cols-2 bg-[var(--input-bg)] p-1 rounded-xl border border-[var(--panel-border)] text-center text-xs font-bold uppercase">
               <button
                 type="button"
@@ -2749,24 +2749,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Mes de Liquidación *</label>
+                <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Mes de LiquidaciÃ³n *</label>
                 <input type="month" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] [color-scheme:dark]" value={payslipForm.monthStr} onChange={(e) => setPayslipForm({ ...payslipForm, monthStr: e.target.value })} />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Título / Concepto (Opcional)</label>
-                <input type="text" placeholder="Ej: Nómina Junio 2026" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)]" value={payslipForm.title} onChange={(e) => setPayslipForm({ ...payslipForm, title: e.target.value })} />
+                <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">TÃ­tulo / Concepto (Opcional)</label>
+                <input type="text" placeholder="Ej: NÃ³mina Junio 2026" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)]" value={payslipForm.title} onChange={(e) => setPayslipForm({ ...payslipForm, title: e.target.value })} />
               </div>
 
               {payslipMode === 'auto' ? (
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Salario Base (€)</label>
+                      <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Salario Base (â‚¬)</label>
                       <input type="number" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)]" value={payslipForm.baseSalary} onChange={(e) => setPayslipForm({ ...payslipForm, baseSalary: Number(e.target.value) })} />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Deducciones (€)</label>
+                      <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Deducciones (â‚¬)</label>
                       <input type="number" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)]" value={payslipForm.deductions} onChange={(e) => setPayslipForm({ ...payslipForm, deductions: Number(e.target.value) })} />
                     </div>
                   </div>
@@ -2777,20 +2777,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       <input type="number" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)]" value={payslipForm.extraHours} onChange={(e) => setPayslipForm({ ...payslipForm, extraHours: Number(e.target.value) })} />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Precio Hora Extra (€)</label>
+                      <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Precio Hora Extra (â‚¬)</label>
                       <input type="number" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)]" value={payslipForm.extraHoursPay} onChange={(e) => setPayslipForm({ ...payslipForm, extraHoursPay: Number(e.target.value) })} />
                     </div>
                   </div>
 
                   <div className="p-4 bg-[var(--island-bg)] rounded-2xl border border-[var(--panel-border)] space-y-1">
-                    <span className="text-[9px] font-black text-[var(--text-muted)] uppercase block tracking-wider">Cálculo Líquido Estimado</span>
-                    <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{calculatedTotal.toFixed(2)}€</span>
+                    <span className="text-[9px] font-black text-[var(--text-muted)] uppercase block tracking-wider">CÃ¡lculo LÃ­quido Estimado</span>
+                    <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{calculatedTotal.toFixed(2)}â‚¬</span>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Sueldo Neto (€) *</label>
+                    <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Sueldo Neto (â‚¬) *</label>
                     <input
                       type="number"
                       className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)]"
@@ -2801,7 +2801,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Archivo PDF de la Nómina *</label>
+                    <label className="text-[9px] font-black text-[var(--text-muted)] uppercase ml-1">Archivo PDF de la NÃ³mina *</label>
                     <input
                       type="file"
                       ref={payslipFileInputRef}
@@ -2822,7 +2822,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                         </div>
                       ) : (
                         <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-[var(--text-main)]">Seleccionar PDF de nómina</p>
+                          <p className="text-xs font-bold text-[var(--text-main)]">Seleccionar PDF de nÃ³mina</p>
                           <p className="text-[10px] text-[var(--text-muted)]">Sube el documento desde tu ordenador</p>
                         </div>
                       )}
@@ -2832,20 +2832,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               )}
 
               <button onClick={handleGenerateAndSendPayslip} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold uppercase text-xs shadow-lg shadow-blue-500/15 hover:shadow-blue-500/30 active:scale-95 transition-all">
-                {payslipMode === 'upload' ? 'Subir y Enviar Nómina' : 'Generar y Enviar Nómina'}
+                {payslipMode === 'upload' ? 'Subir y Enviar NÃ³mina' : 'Generar y Enviar NÃ³mina'}
               </button>
             </div>
           </div>
 
           <div className="lg:col-span-2 space-y-4">
-            <h3 className="text-lg font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Nóminas Enviadas</h3>
+            <h3 className="text-lg font-bebas text-emerald-600 dark:text-emerald-400 uppercase">NÃ³minas Enviadas</h3>
             
             <div className="overflow-x-auto bg-[var(--panel-bg)] rounded-3xl border border-[var(--panel-border)]">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[var(--input-bg)] border-b border-[var(--panel-border)]">
                   <tr>
                     <th className="p-4 font-black uppercase text-[var(--text-muted)]">Operario</th>
-                    <th className="p-4 font-black uppercase text-[var(--text-muted)]">Período</th>
+                    <th className="p-4 font-black uppercase text-[var(--text-muted)]">PerÃ­odo</th>
                     <th className="p-4 font-black uppercase text-[var(--text-muted)]">Salario Neto</th>
                     <th className="p-4 font-black uppercase text-[var(--text-muted)]">Estado</th>
                     <th className="p-4 font-black uppercase text-[var(--text-muted)] text-right">PDF</th>
@@ -2857,7 +2857,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       <tr key={ps.id} className="hover:bg-[var(--btn-glass-bg)]/50 transition">
                         <td className="p-4 font-bold text-[var(--text-main)] uppercase">{ps.workerName}</td>
                         <td className="p-4 font-medium text-[var(--text-muted)]">{ps.monthStr}</td>
-                        <td className="p-4 font-black text-emerald-600 dark:text-emerald-400">{ps.totalPay.toFixed(2)}€</td>
+                        <td className="p-4 font-black text-emerald-600 dark:text-emerald-400">{ps.totalPay.toFixed(2)}â‚¬</td>
                         <td className="p-4">
                           <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
                             ps.status === 'SIGNED' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
@@ -2872,7 +2872,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                               onClick={async () => {
                                 const pdfData = await StorageService.getPayslipPdfBase64(ps);
                                 if (!pdfData) {
-                                  alert("No se pudo cargar el PDF de la nómina.");
+                                  alert("No se pudo cargar el PDF de la nÃ³mina.");
                                   return;
                                 }
                                 downloadDataUri(pdfData, `Nomina_${ps.workerName.replace(/\s+/g, '_')}_${ps.monthStr}.pdf`);
@@ -2888,7 +2888,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   ) : (
                     <tr>
                       <td colSpan={5} className="text-center py-12 text-[var(--text-muted)] uppercase font-bold text-[10px]">
-                        No hay nóminas enviadas aún
+                        No hay nÃ³minas enviadas aÃºn
                       </td>
                     </tr>
                   )}
@@ -2929,7 +2929,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       <div className="flex flex-col md:h-[calc(100vh-10rem)] animate-fadeIn text-[var(--text-main)] pb-24 md:pb-0">
         <div>
           <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Bandeja de Mensajes</h2>
-          <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest mb-4">Comunícate individualmente con todo tu personal</p>
+          <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest mb-4">ComunÃ­cate individualmente con todo tu personal</p>
         </div>
 
         {/* Two-column layout */}
@@ -2980,7 +2980,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       </div>
 
                       {unread > 0 && (
-                        <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)] shrink-0 ml-2">
+                        <span className="bg-[#15803D] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(21,128,61,0.5)] shrink-0 ml-2">
                           {unread}
                         </span>
                       )}
@@ -3024,7 +3024,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   {activeMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center py-10 opacity-60">
                       <MessageSquare size={32} className="text-[var(--text-muted)] mb-2" />
-                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Canal Vacío</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Canal VacÃ­o</p>
                       <p className="text-[9px] font-medium text-[var(--text-muted)] mt-1">Escribe tu primer mensaje a este operario para guiarle o resolver dudas.</p>
                     </div>
                   ) : (
@@ -3042,7 +3042,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                               <span>{m.timeStr}</span>
                               {isMe && (
                                 <span className={m.read ? 'text-blue-300 font-bold' : 'text-slate-300'}>
-                                  {m.read ? '✓✓' : '✓'}
+                                  {m.read ? 'âœ“âœ“' : 'âœ“'}
                                 </span>
                               )}
                             </div>
@@ -3079,7 +3079,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 </div>
                 <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)]">Conversaciones</h3>
                 <p className="text-[10px] text-[var(--text-muted)] mt-1 max-w-[240px] mx-auto leading-relaxed">
-                  Elige a un operario en el menú izquierdo para ver su historial de mensajes y mandarle aclaraciones inmediatas.
+                  Elige a un operario en el menÃº izquierdo para ver su historial de mensajes y mandarle aclaraciones inmediatas.
                 </p>
               </div>
             )}
@@ -3093,8 +3093,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     <div className="max-w-2xl space-y-6 animate-fadeIn pb-32">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Configuración General</h2>
-          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Personalización de CARMAGNE INSTAL SL</p>
+          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">ConfiguraciÃ³n General</h2>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">PersonalizaciÃ³n de CARMAGNE INSTAL SL</p>
         </div>
       </div>
 
@@ -3115,7 +3115,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             </div>
             <div className="flex-1 space-y-3">
               <p className="text-[10px] text-[var(--text-muted)] font-bold leading-relaxed">
-                <span className="text-blue-500 font-black uppercase">Guía:</span> Se recomienda un logo en formato PNG o SVG con fondo transparente. Aparecerá en el login y en el panel superior.
+                <span className="text-blue-500 font-black uppercase">GuÃ­a:</span> Se recomienda un logo en formato PNG o SVG con fondo transparente. AparecerÃ¡ en el login y en el panel superior.
               </p>
               <div className="flex gap-2">
                 <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
@@ -3148,7 +3148,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
             </div>
             <div className="flex-1 space-y-3">
               <p className="text-[10px] text-[var(--text-muted)] font-bold leading-relaxed">
-                <span className="text-emerald-500 font-black uppercase">Guía:</span> Tamaño recomendado <span className="text-white">512x512 px</span>. Este icono se mostrará al instalar la aplicación en el móvil y en la pestaña del navegador.
+                <span className="text-emerald-500 font-black uppercase">GuÃ­a:</span> TamaÃ±o recomendado <span className="text-white">512x512 px</span>. Este icono se mostrarÃ¡ al instalar la aplicaciÃ³n en el mÃ³vil y en la pestaÃ±a del navegador.
               </p>
               <div className="flex gap-2">
                 <input ref={faviconInputRef} type="file" accept="image/*" onChange={handleFaviconUpload} className="hidden" />
@@ -3172,11 +3172,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           </div>
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">URL de Sincronización (Google Sheets)</label>
+              <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">URL de SincronizaciÃ³n (Google Sheets)</label>
               <input type="text" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl p-4 text-xs text-blue-400 outline-none focus:border-blue-500" value={config.googleSheetUrl} onChange={(e)=>setConfig({...config, googleSheetUrl: e.target.value})} placeholder="https://script.google.com/..."/>
             </div>
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Contraseña Administrador Principal</label>
+              <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">ContraseÃ±a Administrador Principal</label>
               <div className="relative">
                 <input type="password" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl p-4 text-xs text-indigo-400 outline-none focus:border-indigo-500" value={config.adminPassword} onChange={(e)=>setConfig({...config, adminPassword: e.target.value})} autoComplete="new-password" />
                 <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700" size={16}/>
@@ -3187,7 +3187,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
         <button onClick={handleSaveConfig} disabled={isSaving} className={`w-full ${isSaving ? 'bg-slate-800 cursor-wait' : 'bg-blue-600 hover:bg-blue-500 active:scale-[0.98]'} text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl transition-all flex items-center justify-center gap-3`}>
           {isSaving ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <Save size={18} />}
-          {isSaving ? 'Guardando Cambios...' : 'Guardar Toda la Configuración'}
+          {isSaving ? 'Guardando Cambios...' : 'Guardar Toda la ConfiguraciÃ³n'}
         </button>
       </div>
     </div>
@@ -3199,7 +3199,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
           <div className="bg-emerald-600 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl border border-emerald-500/30">
             <Check size={18} strokeWidth={3} />
-            <span className="text-xs font-black uppercase tracking-widest">Configuración Guardada</span>
+            <span className="text-xs font-black uppercase tracking-widest">ConfiguraciÃ³n Guardada</span>
           </div>
         </div>
       )}
@@ -3228,7 +3228,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <span>{item.label}</span>
                 </div>
                 {unreadCount > 0 && (
-                  <span className="bg-[#CCFF00] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(204,255,0,0.5)]">
+                  <span className="bg-[#15803D] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(21,128,61,0.5)]">
                     {unreadCount}
                   </span>
                 )}
@@ -3278,7 +3278,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-wide">Personal de Carmagne</h2>
-                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Gestión de operarios, perfiles profesionales y certificados</p>
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">GestiÃ³n de operarios, perfiles profesionales y certificados</p>
                 </div>
                 <button 
                   onClick={() => handleOpenWorkerForm(null)} 
@@ -3288,7 +3288,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 </button>
               </div>
 
-              {/* Barra de búsqueda */}
+              {/* Barra de bÃºsqueda */}
               <div className="relative">
                 <input
                   type="text"
@@ -3344,7 +3344,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                         </div>
                       </div>
 
-                      {/* Info de Fichajes rápidos */}
+                      {/* Info de Fichajes rÃ¡pidos */}
                       <div className="pt-3 border-t border-[var(--panel-border)] flex items-center justify-between text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wide">
                         <span>Fichajes Totales: {logs.filter(l => l.workerId === w.id).length}</span>
                         <span>PIN: <span className="font-mono text-[var(--text-main)]">{w.pin || '0000'}</span></span>
@@ -3372,7 +3372,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                         <button 
                           onClick={async (e) => {
                             e.stopPropagation();
-                            if (confirm(`¿Estás seguro de que deseas eliminar permanentemente a ${w.name}?`)) {
+                            if (confirm(`Â¿EstÃ¡s seguro de que deseas eliminar permanentemente a ${w.name}?`)) {
                               await StorageService.deleteWorker(w.id);
                             }
                           }} 
@@ -3416,7 +3416,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         <div className="md:hidden fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pointer-events-none">
           {isMobileMenuOpen && (
             <button
-              aria-label="Cerrar menú"
+              aria-label="Cerrar menÃº"
               onClick={() => setIsMobileMenuOpen(false)}
               className="fixed inset-0 bg-black/20 backdrop-blur-[2px] pointer-events-auto"
             />
@@ -3449,7 +3449,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       </span>
                       <span className="text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
                       {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2 bg-[#CCFF00] text-black text-[8px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(204,255,0,0.5)]">
+                        <span className="absolute top-2 right-2 bg-[#15803D] text-black text-[8px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(21,128,61,0.5)]">
                           {unreadCount}
                         </span>
                       )}
@@ -3468,13 +3468,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <div className="relative w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/25 shrink-0">
                   <ActiveMobileIcon size={20} />
                   {activeSidebarItem.id === 'chat' && adminTotalUnreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#CCFF00] text-black text-[8px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center border border-black">
+                    <span className="absolute -top-1 -right-1 bg-[#15803D] text-black text-[8px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center border border-black">
                       {adminTotalUnreadCount}
                     </span>
                   )}
                 </div>
                 <div className="text-left min-w-0">
-                  <p className="text-[8px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">Menú admin</p>
+                  <p className="text-[8px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">MenÃº admin</p>
                   <p className="text-sm font-black uppercase tracking-tight text-[var(--text-main)] truncate">{activeSidebarItem.label}</p>
                 </div>
               </div>
@@ -3487,7 +3487,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       {isToolModalOpen && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
           <div className="bg-[var(--modal-bg)] w-full max-w-sm rounded-[2.5rem] border border-[var(--modal-border)] p-8 shadow-2xl relative">
-            <div className="flex justify-between items-center mb-6"><div><h3 className="text-lg font-black text-[var(--modal-text-main)] uppercase tracking-tighter">{editingTool ? 'Editar Equipo' : 'Nuevo Equipo'}</h3><p className="text-amber-500 text-[10px] font-bold uppercase">Gestión Inventario</p></div><button onClick={() => setIsToolModalOpen(false)} className="text-[var(--modal-text-muted)] p-2"><X size={20}/></button></div>
+            <div className="flex justify-between items-center mb-6"><div><h3 className="text-lg font-black text-[var(--modal-text-main)] uppercase tracking-tighter">{editingTool ? 'Editar Equipo' : 'Nuevo Equipo'}</h3><p className="text-amber-500 text-[10px] font-bold uppercase">GestiÃ³n Inventario</p></div><button onClick={() => setIsToolModalOpen(false)} className="text-[var(--modal-text-muted)] p-2"><X size={20}/></button></div>
             <div className="space-y-4">
               <input type="text" placeholder="Nombre de Herramienta" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-4 text-sm text-[var(--text-main)] outline-none focus:border-amber-500" value={toolForm.toolName} onChange={(e)=>setToolForm({...toolForm, toolName: e.target.value})}/>
               <input type="text" placeholder="Marca" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-4 text-sm text-[var(--text-main)] outline-none focus:border-amber-500" value={toolForm.brand} onChange={(e)=>setToolForm({...toolForm, brand: e.target.value})}/>
@@ -3500,7 +3500,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         </div>
       )}
 
-      {isSiteModalOpen && (<div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn"><div className="bg-[var(--modal-bg)] w-full max-w-sm rounded-[2.5rem] border border-[var(--modal-border)] p-8 shadow-2xl relative overflow-hidden"><div className="flex justify-between items-center mb-6"><div><h3 className="text-lg font-black text-[var(--modal-text-main)] uppercase tracking-tighter">{editingSite ? 'Editar Obra' : 'Nueva Obra'}</h3><p className="text-emerald-500 text-[10px] font-bold uppercase tracking-widest">Ubicación</p></div><button onClick={() => setIsSiteModalOpen(false)} className="text-[var(--modal-text-muted)] hover:text-[var(--modal-text-main)] p-2"><X size={20} /></button></div><div className="space-y-4"><input type="text" placeholder="Obra" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl p-4 text-sm text-[var(--text-main)]" value={siteForm.name} onChange={(e) => setSiteForm({ ...siteForm, name: e.target.value })}/><textarea placeholder="Dirección" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl p-4 text-sm text-[var(--text-main)] h-20 resize-none" value={siteForm.address} onChange={(e) => setSiteForm({ ...siteForm, address: e.target.value })}/><button onClick={handleSaveSite} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-xs mt-2">{editingSite ? 'Guardar' : 'Crear'}</button></div></div></div>)}
+      {isSiteModalOpen && (<div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn"><div className="bg-[var(--modal-bg)] w-full max-w-sm rounded-[2.5rem] border border-[var(--modal-border)] p-8 shadow-2xl relative overflow-hidden"><div className="flex justify-between items-center mb-6"><div><h3 className="text-lg font-black text-[var(--modal-text-main)] uppercase tracking-tighter">{editingSite ? 'Editar Obra' : 'Nueva Obra'}</h3><p className="text-emerald-500 text-[10px] font-bold uppercase tracking-widest">UbicaciÃ³n</p></div><button onClick={() => setIsSiteModalOpen(false)} className="text-[var(--modal-text-muted)] hover:text-[var(--modal-text-main)] p-2"><X size={20} /></button></div><div className="space-y-4"><input type="text" placeholder="Obra" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl p-4 text-sm text-[var(--text-main)]" value={siteForm.name} onChange={(e) => setSiteForm({ ...siteForm, name: e.target.value })}/><textarea placeholder="DirecciÃ³n" className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl p-4 text-sm text-[var(--text-main)] h-20 resize-none" value={siteForm.address} onChange={(e) => setSiteForm({ ...siteForm, address: e.target.value })}/><button onClick={handleSaveSite} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-xs mt-2">{editingSite ? 'Guardar' : 'Crear'}</button></div></div></div>)}
 
       {reportModal.isOpen && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
@@ -3516,11 +3516,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         </div>
       )}
       
-      <ConfirmationModal isOpen={!!logToDelete} title="Borrar Registro" message="¿Estás seguro de que quieres eliminar este registro? Esta acción no se puede deshacer." confirmText="Borrar" isDestructive={true} onConfirm={handleDeleteLog} onCancel={() => setLogToDelete(null)} />
+      <ConfirmationModal isOpen={!!logToDelete} title="Borrar Registro" message="Â¿EstÃ¡s seguro de que quieres eliminar este registro? Esta acciÃ³n no se puede deshacer." confirmText="Borrar" isDestructive={true} onConfirm={handleDeleteLog} onCancel={() => setLogToDelete(null)} />
       
-      <ConfirmationModal isOpen={isClearLogsConfirmOpen} title="Vaciar Todo el Historial" message="¡ATENCIÓN! Vas a eliminar TODOS los registros de actividad del sistema. Esta acción es definitiva." confirmText="VACIAR TODO" isDestructive={true} onConfirm={handleClearAllLogs} onCancel={() => setIsClearLogsConfirmOpen(false)} />
+      <ConfirmationModal isOpen={isClearLogsConfirmOpen} title="Vaciar Todo el Historial" message="Â¡ATENCIÃ“N! Vas a eliminar TODOS los registros de actividad del sistema. Esta acciÃ³n es definitiva." confirmText="VACIAR TODO" isDestructive={true} onConfirm={handleClearAllLogs} onCancel={() => setIsClearLogsConfirmOpen(false)} />
 
-      <ConfirmationModal isOpen={isLogoutConfirmOpen} title="¿Cerrar Sesión?" message="Vas a salir del panel de administración." confirmText="Salir" cancelText="Permanecer" isDestructive={true} onConfirm={() => { setIsLogoutConfirmOpen(false); onBack(); }} onCancel={() => setIsLogoutConfirmOpen(false)} />
+      <ConfirmationModal isOpen={isLogoutConfirmOpen} title="Â¿Cerrar SesiÃ³n?" message="Vas a salir del panel de administraciÃ³n." confirmText="Salir" cancelText="Permanecer" isDestructive={true} onConfirm={() => { setIsLogoutConfirmOpen(false); onBack(); }} onCancel={() => setIsLogoutConfirmOpen(false)} />
 
       {/* MODAL: PERFIL COMPLETO DE TRABAJADOR */}
       {isWorkerProfileModalOpen && selectedWorkerProfile && (() => {
@@ -3539,7 +3539,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           return logDate.getMonth() === now.getMonth() && logDate.getFullYear() === now.getFullYear();
         });
         
-        // Calcular horas del mes actual agrupado por día
+        // Calcular horas del mes actual agrupado por dÃ­a
         const currentMonthGrouped: Record<string, WorkLog[]> = {};
         currentMonthLogs.forEach(log => {
           if (!currentMonthGrouped[log.dateStr]) currentMonthGrouped[log.dateStr] = [];
@@ -3568,7 +3568,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 </button>
 
                 <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start text-center sm:text-left">
-                  {/* Foto con trigger de cambio rápido */}
+                  {/* Foto con trigger de cambio rÃ¡pido */}
                   <div className="relative group cursor-pointer" onClick={() => workerPhotoInputRef.current?.click()}>
                     {selectedWorkerProfile.photoUrl ? (
                       <img 
@@ -3630,11 +3630,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 </div>
               </div>
 
-              {/* Selector de Pestañas */}
+              {/* Selector de PestaÃ±as */}
               <div className="flex border-b border-[var(--panel-border)] bg-[var(--input-bg)] px-4">
                 {(['details', 'hours', 'certs', 'absences'] as const).map(tab => {
                   const labels = {
-                    details: 'Ficha Técnica',
+                    details: 'Ficha TÃ©cnica',
                     hours: 'Horas y Obras',
                     certs: 'Certificados',
                     absences: 'Faltas / Inasistencias'
@@ -3660,19 +3660,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       <p className="text-sm font-black text-[var(--modal-text-main)] uppercase mt-1">{selectedWorkerProfile.dni || 'S/DNI'}</p>
                     </div>
                     <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)]">
-                      <p className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">Teléfono móvil</p>
+                      <p className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">TelÃ©fono mÃ³vil</p>
                       <p className="text-sm font-black text-[var(--modal-text-main)] uppercase mt-1">{selectedWorkerProfile.phone || 'No registrado'}</p>
                     </div>
                     <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)]">
-                      <p className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">Correo Electrónico</p>
+                      <p className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">Correo ElectrÃ³nico</p>
                       <p className="text-sm font-black text-[var(--modal-text-main)] mt-1 break-all">{selectedWorkerProfile.email || 'No registrado'}</p>
                     </div>
                     <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)]">
-                      <p className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">Código PIN de Fichaje</p>
+                      <p className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">CÃ³digo PIN de Fichaje</p>
                       <p className="text-sm font-mono font-black text-[var(--modal-text-main)] mt-1">{selectedWorkerProfile.pin || '0000'}</p>
                     </div>
                     <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)]">
-                      <p className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">Código QR asignado</p>
+                      <p className="text-[9px] font-bold text-[var(--modal-text-muted)] uppercase tracking-widest">CÃ³digo QR asignado</p>
                       <p className="text-sm font-mono font-black text-blue-400 mt-1 truncate">{selectedWorkerProfile.qrCode || 'S/QR'}</p>
                     </div>
                     <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)]">
@@ -3717,13 +3717,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                           ))}
                         </div>
                       ) : (
-                        <p className="text-[10px] font-bold text-[var(--modal-text-muted)] uppercase">Ninguna obra registrada aún.</p>
+                        <p className="text-[10px] font-bold text-[var(--modal-text-muted)] uppercase">Ninguna obra registrada aÃºn.</p>
                       )}
                     </div>
 
-                    {/* Últimos fichajes */}
+                    {/* Ãšltimos fichajes */}
                     <div className="space-y-2">
-                      <h4 className="text-xs font-black text-[var(--modal-text-main)] uppercase tracking-widest">Últimos 5 registros de actividad</h4>
+                      <h4 className="text-xs font-black text-[var(--modal-text-main)] uppercase tracking-widest">Ãšltimos 5 registros de actividad</h4>
                       {pWorkerLogs.length > 0 ? (
                         <div className="space-y-1.5">
                           {pWorkerLogs.slice(0, 5).map(log => (
@@ -3751,17 +3751,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
                 {selectedProfileTab === 'certs' && (
                   <div className="space-y-6 animate-fadeIn">
-                    {/* Formulario rápido para subir certificado */}
+                    {/* Formulario rÃ¡pido para subir certificado */}
                     <div className="bg-[var(--panel-bg)] p-5 rounded-3xl border border-[var(--panel-border)] space-y-4">
                       <div>
-                        <h4 className="text-xs font-black text-[var(--modal-text-main)] uppercase tracking-widest">Añadir Certificado o Documento</h4>
-                        <p className="text-[8px] font-bold text-[var(--modal-text-muted)] uppercase mt-0.5">Sube sus certificados de prevención, aptitud médica, carnet de conducir, etc.</p>
+                        <h4 className="text-xs font-black text-[var(--modal-text-main)] uppercase tracking-widest">AÃ±adir Certificado o Documento</h4>
+                        <p className="text-[8px] font-bold text-[var(--modal-text-muted)] uppercase mt-0.5">Sube sus certificados de prevenciÃ³n, aptitud mÃ©dica, carnet de conducir, etc.</p>
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-3">
                         <input 
                           type="text" 
-                          placeholder="Nombre descriptivo (Ej: Prevención 20h)" 
+                          placeholder="Nombre descriptivo (Ej: PrevenciÃ³n 20h)" 
                           value={certNameInput}
                           onChange={(e) => setCertNameInput(e.target.value)}
                           className="flex-1 bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl px-4 py-2.5 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500"
@@ -3781,7 +3781,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                         />
                       </div>
                       <p className="text-[8px] font-bold uppercase tracking-wider text-amber-500">
-                        PDFs protegidos con contraseña no se aceptan. Sube una versión sin contraseña o una imagen/captura.
+                        PDFs protegidos con contraseÃ±a no se aceptan. Sube una versiÃ³n sin contraseÃ±a o una imagen/captura.
                       </p>
                     </div>
 
@@ -3797,9 +3797,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                               selectedCertIds: selectedWorkerProfile.certificates!.map(c => c.id),
                               to: '',
                               subject: `Acreditaciones Laborales - ${selectedWorkerProfile.name} - CARMAGNE INSTAL SL`,
-                              body: `Estimado Cliente,\n\nAdjunto le hacemos llegar las acreditaciones, certificados y documentación médica del operario ${selectedWorkerProfile.name} correspondientes a los requisitos de acceso solicitados.\n\nAtentamente,\nControl de Administración\nCARMAGNE INSTAL SL.`
+                              body: `Estimado Cliente,\n\nAdjunto le hacemos llegar las acreditaciones, certificados y documentaciÃ³n mÃ©dica del operario ${selectedWorkerProfile.name} correspondientes a los requisitos de acceso solicitados.\n\nAtentamente,\nControl de AdministraciÃ³n\nCARMAGNE INSTAL SL.`
                             })}
-                            className="bg-[#CCFF00] hover:bg-yellow-400 text-black font-black text-[9px] uppercase px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-[0_0_10px_rgba(204,255,0,0.2)] hover:shadow-[0_0_15px_rgba(204,255,0,0.4)] transition-all active:scale-95"
+                            className="bg-[#15803D] hover:bg-emerald-500 text-black font-black text-[9px] uppercase px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-[0_0_10px_rgba(21,128,61,0.2)] hover:shadow-[0_0_15px_rgba(21,128,61,0.4)] transition-all active:scale-95"
                           >
                             <Mail size={12} /> Enviar por Email (Gmail)
                           </button>
@@ -3811,7 +3811,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                             <div key={cert.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] flex flex-col justify-between gap-3 hover:border-blue-500/20 transition-all">
                               <div>
                                 <h5 className="font-black text-[var(--modal-text-main)] text-xs uppercase tracking-tight truncate" title={cert.name}>{cert.name}</h5>
-                                <p className="text-[8px] text-[var(--modal-text-muted)] font-bold uppercase mt-1">Subido: {cert.uploadDate} {cert.size && `• ${cert.size}`}</p>
+                                <p className="text-[8px] text-[var(--modal-text-muted)] font-bold uppercase mt-1">Subido: {cert.uploadDate} {cert.size && `â€¢ ${cert.size}`}</p>
                               </div>
                               <div className="flex gap-2 justify-end">
                                 <button
@@ -3857,8 +3857,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 {selectedProfileTab === 'absences' && (
                   <div className="space-y-4 animate-fadeIn">
                     <div>
-                      <h4 className="text-xs font-black text-[var(--modal-text-main)] uppercase tracking-widest">Días no trabajados (Inasistencias)</h4>
-                      <p className="text-[8px] font-bold text-[var(--modal-text-muted)] uppercase mt-0.5">Días laborables (Lunes a Sábado) del mes actual en los que NO se ha registrado ningún fichaje</p>
+                      <h4 className="text-xs font-black text-[var(--modal-text-main)] uppercase tracking-widest">DÃ­as no trabajados (Inasistencias)</h4>
+                      <p className="text-[8px] font-bold text-[var(--modal-text-muted)] uppercase mt-0.5">DÃ­as laborables (Lunes a SÃ¡bado) del mes actual en los que NO se ha registrado ningÃºn fichaje</p>
                     </div>
 
                     <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl flex items-center gap-3">
@@ -3866,7 +3866,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       <div className="text-xs">
                         <p className="font-black text-rose-500 uppercase tracking-tight">Resumen mensual de ausencias</p>
                         <p className="text-[9px] text-[var(--modal-text-muted)] uppercase font-bold mt-0.5">
-                          Este mes ({MONTH_NAMES[new Date().getMonth()]}) se registran <span className="text-[var(--modal-text-main)] font-black">{absences.length} días</span> laborables sin fichaje de entrada.
+                          Este mes ({MONTH_NAMES[new Date().getMonth()]}) se registran <span className="text-[var(--modal-text-main)] font-black">{absences.length} dÃ­as</span> laborables sin fichaje de entrada.
                         </p>
                       </div>
                     </div>
@@ -3884,7 +3884,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     ) : (
                       <div className="text-center p-8 bg-emerald-500/5 border border-dashed border-emerald-500/20 rounded-2xl">
                         <CheckCircle2 className="mx-auto text-emerald-500 mb-2" size={24} />
-                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Asistencia Perfecta. ¡No tiene ausencias registradas este mes!</p>
+                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Asistencia Perfecta. Â¡No tiene ausencias registradas este mes!</p>
                       </div>
                     )}
                   </div>
@@ -3966,7 +3966,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">Nombre Completo *</label>
                 <input 
                   type="text" 
-                  placeholder="Ej: Juan Pérez" 
+                  placeholder="Ej: Juan PÃ©rez" 
                   className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] outline-none focus:border-blue-500" 
                   value={workerForm.name} 
                   onChange={(e) => setWorkerForm({ ...workerForm, name: e.target.value })}
@@ -3985,7 +3985,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               </div>
 
               <div>
-                <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">Teléfono Móvil (+34)</label>
+                <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">TelÃ©fono MÃ³vil (+34)</label>
                 <input 
                   type="tel" 
                   placeholder="Ej: 600123456" 
@@ -3996,7 +3996,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               </div>
 
               <div>
-                <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">Correo Electrónico *</label>
+                <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">Correo ElectrÃ³nico *</label>
                 <input 
                   type="email" 
                   placeholder="Ej: operario@carmagne.com" 
@@ -4007,7 +4007,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
               </div>
 
               <div>
-                <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">PIN de Acceso (4 Dígitos)</label>
+                <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">PIN de Acceso (4 DÃ­gitos)</label>
                 <input 
                   type="text" 
                   placeholder="Ej: 1234" 
@@ -4026,11 +4026,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   onChange={(e) => setWorkerForm({ ...workerForm, role: e.target.value })}
                 >
                   <option value="Electricista">Electricista</option>
-                  <option value="Oficial de 1ª">Oficial de 1ª</option>
-                  <option value="Oficial de 2ª">Oficial de 2ª</option>
+                  <option value="Oficial de 1Âª">Oficial de 1Âª</option>
+                  <option value="Oficial de 2Âª">Oficial de 2Âª</option>
                   <option value="Encargado de Obra">Encargado de Obra</option>
-                  <option value="Peón">Peón</option>
-                  <option value="Administración">Administración</option>
+                  <option value="PeÃ³n">PeÃ³n</option>
+                  <option value="AdministraciÃ³n">AdministraciÃ³n</option>
                 </select>
               </div>
 
@@ -4076,7 +4076,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           <div className="bg-[#050505] w-full max-w-lg rounded-3xl border border-[var(--modal-border)] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar space-y-6">
             <div className="flex justify-between items-center border-b border-[var(--panel-border)] pb-4">
               <div>
-                <h3 className="text-xl font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Enviar Documentación</h3>
+                <h3 className="text-xl font-bebas text-emerald-600 dark:text-emerald-400 uppercase">Enviar DocumentaciÃ³n</h3>
                 <p className="text-[var(--text-muted)] text-[10px] font-bold uppercase text-[var(--text-muted)]">Operario: {emailModal.worker.name}</p>
               </div>
               <button 
@@ -4120,15 +4120,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 />
               </div>
 
-              {/* Lista de certificados con Checkbox para multiselección */}
+              {/* Lista de certificados con Checkbox para multiselecciÃ³n */}
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-[#CCFF00] uppercase tracking-wider block ml-1">Selecciona los Documentos a Adjuntar:</label>
+                <label className="text-[9px] font-black text-[#15803D] uppercase tracking-wider block ml-1">Selecciona los Documentos a Adjuntar:</label>
                 <div className="grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto custom-scrollbar bg-black/40 p-4 rounded-xl border border-[var(--panel-border)]">
                   {emailModal.worker.certificates && emailModal.worker.certificates.length > 0 ? (
                     emailModal.worker.certificates.map(cert => {
                       const isChecked = emailModal.selectedCertIds.includes(cert.id);
                       return (
-                        <label key={cert.id} className="flex items-center gap-3 text-xs text-[var(--text-main)] cursor-pointer hover:text-[#CCFF00] transition-colors p-1.5 rounded-lg hover:bg-white/5">
+                        <label key={cert.id} className="flex items-center gap-3 text-xs text-[var(--text-main)] cursor-pointer hover:text-[#15803D] transition-colors p-1.5 rounded-lg hover:bg-white/5">
                           <input 
                             type="checkbox" 
                             checked={isChecked}
@@ -4141,7 +4141,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                                   : prev.selectedCertIds.filter(id => id !== cert.id)
                               }));
                             }}
-                            className="accent-[#CCFF00] h-4 w-4 cursor-pointer"
+                            className="accent-[#15803D] h-4 w-4 cursor-pointer"
                           />
                           <div className="flex flex-col min-w-0">
                             <span className="font-bold truncate">{cert.name}</span>
@@ -4156,7 +4156,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 </div>
               </div>
 
-              {/* Conexión Gmail / Google */}
+              {/* ConexiÃ³n Gmail / Google */}
               <div className="bg-black/40 p-4 rounded-2xl border border-[var(--panel-border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
                 <div className="space-y-1">
                   <p className="font-bold text-[var(--text-main)] uppercase text-[10px] tracking-wider flex items-center gap-1.5 text-emerald-400">
@@ -4165,7 +4165,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase leading-relaxed">
                     {googleUser 
                       ? `Conectado: ${googleUser.email}` 
-                      : 'Conéctate para enviar correos reales mediante la API oficial.'}
+                      : 'ConÃ©ctate para enviar correos reales mediante la API oficial.'}
                   </p>
                 </div>
                 {googleUser ? (
@@ -4173,12 +4173,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     onClick={handleGoogleSignOut}
                     className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase border border-rose-500/20 transition-colors"
                   >
-                    Cerrar Sesión
+                    Cerrar SesiÃ³n
                   </button>
                 ) : (
                   <button 
                     onClick={handleGoogleSignInForGmail}
-                    className="bg-[#CCFF00] text-black hover:bg-yellow-400 px-3.5 py-2 rounded-xl font-black text-[9px] uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(204,255,0,0.2)] hover:shadow-[0_0_15px_rgba(204,255,0,0.4)] transition-all"
+                    className="bg-[#15803D] text-black hover:bg-emerald-500 px-3.5 py-2 rounded-xl font-black text-[9px] uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(21,128,61,0.2)] hover:shadow-[0_0_15px_rgba(21,128,61,0.4)] transition-all"
                   >
                     <KeyRound size={12} /> Conectar Google
                   </button>
@@ -4205,7 +4205,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   </>
                 ) : (
                   <>
-                    <Send size={14} /> {googleUser ? 'Enviar Correo (Gmail)' : 'Probar Envío'}
+                    <Send size={14} /> {googleUser ? 'Enviar Correo (Gmail)' : 'Probar EnvÃ­o'}
                   </>
                 )}
               </button>
@@ -4233,7 +4233,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
             <div className="space-y-4 text-xs font-sans text-[var(--text-muted)]">
               <p className="leading-relaxed">
-                Para permitir el inicio de sesión con Google desde este entorno de vista previa, debes añadir este dominio a la lista de dominios autorizados de tu proyecto Firebase.
+                Para permitir el inicio de sesiÃ³n con Google desde este entorno de vista previa, debes aÃ±adir este dominio a la lista de dominios autorizados de tu proyecto Firebase.
               </p>
 
               <div className={`p-4 rounded-xl border space-y-1 ${theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
@@ -4243,7 +4243,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(unauthorizedDomain);
-                      alert("¡Dominio copiado al portapapeles!");
+                      alert("Â¡Dominio copiado al portapapeles!");
                     }}
                     className={`shrink-0 text-[9px] font-black uppercase px-3 py-1.5 rounded-lg tracking-wider ${theme === 'dark' ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-800'}`}
                   >
@@ -4257,16 +4257,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <ol className="list-decimal pl-4 space-y-2.5 leading-relaxed">
                   <li>Ve a tu <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Firebase Console <ExternalLink size={10} /></a>.</li>
                   <li>Selecciona tu proyecto <strong>CARMAGNE INSTAL 2024</strong>.</li>
-                  <li>Ve a la sección <strong>Authentication</strong> en el menú izquierdo.</li>
-                  <li>Entra en la pestaña <strong>Settings</strong> (Configuración) y haz clic en <strong>Authorized domains</strong> (Dominios autorizados).</li>
-                  <li>Haz clic en <strong>Add domain</strong> (Añadir dominio) y pega el dominio copiado arriba.</li>
+                  <li>Ve a la secciÃ³n <strong>Authentication</strong> en el menÃº izquierdo.</li>
+                  <li>Entra en la pestaÃ±a <strong>Settings</strong> (ConfiguraciÃ³n) y haz clic en <strong>Authorized domains</strong> (Dominios autorizados).</li>
+                  <li>Haz clic en <strong>Add domain</strong> (AÃ±adir dominio) y pega el dominio copiado arriba.</li>
                 </ol>
               </div>
 
               <div className="pt-4 flex justify-end">
                 <button 
                   onClick={() => setUnauthorizedDomain(null)}
-                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
+                  className="bg-[#15803D] hover:bg-[#16A34A] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
                 >
                   Entendido
                 </button>
@@ -4295,7 +4295,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
             <div className="space-y-4 text-xs font-sans text-[var(--text-muted)]">
               <p className="leading-relaxed">
-                El método de inicio de sesión con Google (Google Sign-In) no está habilitado actualmente en la configuración de autenticación de tu proyecto Firebase.
+                El mÃ©todo de inicio de sesiÃ³n con Google (Google Sign-In) no estÃ¡ habilitado actualmente en la configuraciÃ³n de autenticaciÃ³n de tu proyecto Firebase.
               </p>
 
               <div className="space-y-2">
@@ -4303,19 +4303,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 <ol className="list-decimal pl-4 space-y-2.5 leading-relaxed">
                   <li>Ve a tu <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Firebase Console <ExternalLink size={10} /></a>.</li>
                   <li>Selecciona tu proyecto <strong>CARMAGNE INSTAL 2024</strong>.</li>
-                  <li>En el panel izquierdo, haz clic en la sección de <strong>Authentication</strong>.</li>
-                  <li>Entra en la pestaña de <strong>Sign-in method</strong> (Método de inicio de sesión).</li>
-                  <li>Haz clic en el botón <strong>Add new provider</strong> (Añadir nuevo proveedor).</li>
+                  <li>En el panel izquierdo, haz clic en la secciÃ³n de <strong>Authentication</strong>.</li>
+                  <li>Entra en la pestaÃ±a de <strong>Sign-in method</strong> (MÃ©todo de inicio de sesiÃ³n).</li>
+                  <li>Haz clic en el botÃ³n <strong>Add new provider</strong> (AÃ±adir nuevo proveedor).</li>
                   <li>Selecciona <strong>Google</strong> de la lista de proveedores adicionales.</li>
-                  <li>Activa el interruptor para habilitarlo, introduce un nombre público si te lo solicita y pon tu correo de asistencia técnica.</li>
-                  <li>Haz clic en <strong>Save</strong> (Guardar) para confirmar la activación.</li>
+                  <li>Activa el interruptor para habilitarlo, introduce un nombre pÃºblico si te lo solicita y pon tu correo de asistencia tÃ©cnica.</li>
+                  <li>Haz clic en <strong>Save</strong> (Guardar) para confirmar la activaciÃ³n.</li>
                 </ol>
               </div>
 
               <div className="pt-4 flex justify-end">
                 <button 
                   onClick={() => setOperationNotAllowed(false)}
-                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
+                  className="bg-[#15803D] hover:bg-[#16A34A] text-black font-black uppercase text-[10px] tracking-widest py-3 px-6 rounded-xl shadow-lg transition-all"
                 >
                   Entendido
                 </button>
@@ -4355,30 +4355,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
               <div className="space-y-4 text-xs font-sans text-[var(--text-muted)]">
                 <p className="leading-relaxed">
-                  Para que la integración con <strong>{googleApiError.apiName}</strong> funcione, debes habilitar este servicio de Google en el panel de desarrolladores de tu proyecto Google Cloud (asociado a tu Firebase).
+                  Para que la integraciÃ³n con <strong>{googleApiError.apiName}</strong> funcione, debes habilitar este servicio de Google en el panel de desarrolladores de tu proyecto Google Cloud (asociado a tu Firebase).
                 </p>
 
                 <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-3 rounded-xl flex items-start gap-2">
-                  <span className="text-base">⏳</span>
+                  <span className="text-base">â³</span>
                   <p className="leading-normal">
-                    <strong>Nota sobre propagación:</strong> Si acabas de habilitar la API hace unos instantes, Google puede tardar **de 3 a 5 minutos** en propagar el cambio en sus servidores globales. Por favor, espera un momento y vuelve a intentarlo.
+                    <strong>Nota sobre propagaciÃ³n:</strong> Si acabas de habilitar la API hace unos instantes, Google puede tardar **de 3 a 5 minutos** en propagar el cambio en sus servidores globales. Por favor, espera un momento y vuelve a intentarlo.
                   </p>
                 </div>
 
                 <div className={`p-4 rounded-xl border space-y-1 ${theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-rose-50 border-rose-100'}`}>
                   <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Detalle del Error:</p>
                   <p className="font-mono text-[10px] text-[var(--text-main)] break-all leading-relaxed">{googleApiError.message}</p>
-                  {googleApiError.code && <p className="text-[9px] text-zinc-500">Código de estado HTTP: {googleApiError.code}</p>}
+                  {googleApiError.code && <p className="text-[9px] text-zinc-500">CÃ³digo de estado HTTP: {googleApiError.code}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <h4 className="font-black text-[var(--text-main)] uppercase text-[10px] tracking-wider">Pasos para habilitarlo:</h4>
                   <ol className="list-decimal pl-4 space-y-2.5 leading-relaxed">
-                    <li>Inicia sesión con tu cuenta de administrador de Google en <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Google Cloud Console <ExternalLink size={10} /></a>.</li>
+                    <li>Inicia sesiÃ³n con tu cuenta de administrador de Google en <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">Google Cloud Console <ExternalLink size={10} /></a>.</li>
                     <li>Selecciona tu proyecto <strong>CARMAGNE INSTAL 2024</strong> en la barra superior.</li>
-                    <li>En el buscador superior, escribe <strong>"{googleApiError.apiName}"</strong> y selecciónalo.</li>
-                    <li>Haz clic en el botón azul de <strong>HABILITAR</strong> (Enable).</li>
-                    <li><em>Nota: Si la cuenta de Google con la que inicias sesión aquí no es la propietaria del proyecto, asegúrate de invitarla como Editor/Propietario desde Firebase Console {'>'} Project Settings {'>'} Users and Permissions.</em></li>
+                    <li>En el buscador superior, escribe <strong>"{googleApiError.apiName}"</strong> y selecciÃ³nalo.</li>
+                    <li>Haz clic en el botÃ³n azul de <strong>HABILITAR</strong> (Enable).</li>
+                    <li><em>Nota: Si la cuenta de Google con la que inicias sesiÃ³n aquÃ­ no es la propietaria del proyecto, asegÃºrate de invitarla como Editor/Propietario desde Firebase Console {'>'} Project Settings {'>'} Users and Permissions.</em></li>
                   </ol>
                 </div>
 
@@ -4393,7 +4393,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                     href={directUrl || `https://console.cloud.google.com/apis/library/${googleApiError.apiName === 'Gmail API' ? 'gmail.googleapis.com' : 'sheets.googleapis.com'}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5 text-center justify-center"
+                    className="bg-[#15803D] hover:bg-[#16A34A] text-black font-black uppercase text-[10px] tracking-widest py-3 px-5 rounded-xl shadow-lg transition-all inline-flex items-center gap-1.5 text-center justify-center"
                   >
                     {directUrl ? "Habilitar API Directamente" : "Ir a la Consola"} <ExternalLink size={12} />
                   </a>
@@ -4420,7 +4420,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
              
              {/* Left Icon/Initial */}
              <div className="push-toast__icon w-11 h-11 min-w-[44px] rounded-2xl flex items-center justify-center text-lg font-black">
-               {notif.icon || (notif.type === 'chat' ? '💬' : '📋')}
+               {notif.icon || (notif.type === 'chat' ? 'ðŸ’¬' : 'ðŸ“‹')}
              </div>
              
              {/* Body */}
