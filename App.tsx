@@ -314,10 +314,10 @@ export const App: React.FC = () => {
         setPushRegistered(true);
         triggerPushNotification(
           'Notificaciones activadas',
-          'Te avisaremos aunque no estÃ©s dentro de la app.',
+          'Te avisaremos aunque no estés dentro de la app.',
           'system',
           undefined,
-          'ðŸ””'
+          '🔔'
         );
       }
     } catch (error: any) {
@@ -365,7 +365,7 @@ export const App: React.FC = () => {
         });
       } else {
         resetApp();
-        setError('Cuenta desactivada o pendiente de aprobaciÃ³n.');
+        setError('Cuenta desactivada o pendiente de aprobación.');
       }
     });
     const unsubWorkerDirectory = StorageService.subscribeToWorkers((newWorkers) => {
@@ -375,7 +375,7 @@ export const App: React.FC = () => {
         .sort((a, b) => a.name.localeCompare(b.name, 'es'));
       setWorkerDirectory(safeDirectory);
     });
-    loadWorkerDirectoryFromApi().catch(error => console.warn('No se pudo cargar el directorio de compaÃ±eros:', error));
+    loadWorkerDirectoryFromApi().catch(error => console.warn('No se pudo cargar el directorio de compañeros:', error));
     const unsubSites = StorageService.subscribeToSites(setSites);
     const unsubLogs = StorageService.subscribeToWorkerLogs(selectedWorker.id, (newLogs) => {
       setWorkerLogs(newLogs);
@@ -399,11 +399,11 @@ export const App: React.FC = () => {
           const isFromMe = (activeWorker && msg.senderId === activeWorker.id) || (isAdminView && msg.senderId === 'ADMIN');
           if (isForMe && !isFromMe) {
             triggerPushNotification(
-              msg.senderName === 'El Jefe' ? 'ðŸ‘‘ EL JEFE' : `ðŸ’¬ ${msg.senderName}`,
+              msg.senderName === 'El Jefe' ? '👑 EL JEFE' : `💬 ${msg.senderName}`,
               msg.text,
               'chat',
               msg.senderId,
-              msg.senderId === 'ADMIN' ? 'ðŸ‘‘' : 'ðŸ’¬'
+              msg.senderId === 'ADMIN' ? '👑' : '💬'
             );
           }
         }
@@ -496,7 +496,7 @@ export const App: React.FC = () => {
     doc.text(`Trabajo Neto: ${formatMsToTime(historyTotals.totalWork)} | Descanso: ${formatMsToTime(historyTotals.totalBreak)} | Total: ${formatMsToTime(historyTotals.totalWork + historyTotals.totalBreak)}`, 20, 42);
     const tableData = filteredHistory.map(l => [l.dateStr, l.timeStr, l.type, l.siteName, l.workMode || 'HORAS', l.workReport || '-']);
     autoTable(doc, {
-      startY: 55, head: [['Fecha', 'Hora', 'AcciÃ³n', 'Obra', 'Modo', 'Reporte']], body: tableData,
+      startY: 55, head: [['Fecha', 'Hora', 'Acción', 'Obra', 'Modo', 'Reporte']], body: tableData,
       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' }, styles: { fontSize: 8 }
     });
     doc.save(`Historial_${selectedWorker.name.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
@@ -571,11 +571,50 @@ export const App: React.FC = () => {
     return processSpanishPhone(phone).replace(/[^\d]/g, '');
   };
 
-  const maskDni = (dni?: string) => {
-    const cleanDni = (dni || '').trim();
-    if (!cleanDni) return 'No indicado';
-    if (cleanDni.length <= 4) return 'Protegido';
-    return `${cleanDni.slice(0, 3)}â€¢â€¢â€¢â€¢${cleanDni.slice(-1)}`;
+  const repairDisplayText = (value?: string | null) => {
+    if (!value) return '';
+    return String(value)
+      .replace(/\u00c3\u00a1/g, 'á').replace(/\u00c3\u00a9/g, 'é').replace(/\u00c3\u00ad/g, 'í').replace(/\u00c3\u00b3/g, 'ó').replace(/\u00c3\u00ba/g, 'ú')
+      .replace(/\u00c3\u0081/g, 'Á').replace(/\u00c3\u0089/g, 'É').replace(/\u00c3\u008d/g, 'Í').replace(/\u00c3\u0093/g, 'Ó').replace(/\u00c3\u009a/g, 'Ú')
+      .replace(/\u00c3\u00b1/g, 'ñ').replace(/\u00c3\u0091/g, 'Ñ')
+      .replace(/\u00c2\u00bf/g, '¿').replace(/\u00c2\u00a1/g, '¡')
+      .replace(/\u00e2\u20ac\u00a2/g, '')
+      .replace(/\uFFFD/g, '')
+      .trim();
+  };
+
+  const getWorkerPhotoUrl = (worker?: Partial<Worker> | null) => {
+    const record = worker as Partial<Worker> & {
+      photoURL?: string;
+      photo?: string;
+      avatarUrl?: string;
+      profilePhotoUrl?: string;
+      profileImageUrl?: string;
+      imageUrl?: string;
+    } | null | undefined;
+
+    return repairDisplayText(
+      record?.photoUrl ||
+      record?.photoURL ||
+      record?.photo ||
+      record?.avatarUrl ||
+      record?.profilePhotoUrl ||
+      record?.profileImageUrl ||
+      record?.imageUrl ||
+      ''
+    );
+  };
+
+  const getWorkerInitial = (worker?: Partial<Worker> | null) => {
+    const name = repairDisplayText(worker?.name);
+    return (name.charAt(0) || '?').toUpperCase();
+  };
+
+  const formatDni = (dni?: string) => {
+    const cleanDni = repairDisplayText(dni)
+      .toUpperCase()
+      .replace(/[^0-9A-Z]/g, '');
+    return cleanDni || 'No indicado';
   };
 
   const workerStatus = useMemo(() => {
@@ -616,7 +655,7 @@ export const App: React.FC = () => {
 
   const handlePhoneLogin = async () => {
     const formattedPhone = processSpanishPhone(loginPhone);
-    if(!isPhoneValidSpain(formattedPhone)) { setError("Solo se permiten nÃºmeros de EspaÃ±a (+34)"); return; }
+    if(!isPhoneValidSpain(formattedPhone)) { setError("Solo se permiten números de España (+34)"); return; }
 
     if (!isPhoneVerified) {
       setMatchedWorker(null);
@@ -627,7 +666,7 @@ export const App: React.FC = () => {
     }
 
     if (!loginPassword.trim()) {
-      setError('Introduce tu contraseÃ±a.');
+      setError('Introduce tu contraseña.');
       return;
     }
 
@@ -641,7 +680,7 @@ export const App: React.FC = () => {
       const data = await response.json().catch(() => ({}));
 
       if (response.status === 404) {
-        if (confirm("Este nÃºmero no estÃ¡ registrado. Â¿Quieres crear una cuenta nueva?")) {
+        if (confirm("Este número no está registrado. ¿Quieres crear una cuenta nueva?")) {
           setRegPhone(formattedPhone);
           setError('');
           setCurrentStep(Step.REGISTER);
@@ -650,7 +689,7 @@ export const App: React.FC = () => {
       }
 
       if (!response.ok || !data.token || !data.worker) {
-        setError(data.error || 'No se pudo iniciar sesiÃ³n.');
+        setError(data.error || 'No se pudo iniciar sesión.');
         return;
       }
 
@@ -658,7 +697,7 @@ export const App: React.FC = () => {
       setSelectedWorker(data.worker as Worker);
       setWorkers([data.worker as Worker]);
       setWorkerDirectory([sanitizeWorkerForDirectory(data.worker as Worker)]);
-      loadWorkerDirectoryFromApi().catch(error => console.warn('No se pudo cargar el directorio de compaÃ±eros:', error));
+      loadWorkerDirectoryFromApi().catch(error => console.warn('No se pudo cargar el directorio de compañeros:', error));
       setError('');
       setIsPhoneVerified(false);
       setMatchedWorker(null);
@@ -666,7 +705,7 @@ export const App: React.FC = () => {
       setCurrentStep(Step.WORKER_DASHBOARD);
     } catch (err) {
       console.error("Error en login seguro de trabajador:", err);
-      setError('Error al iniciar sesiÃ³n.');
+      setError('Error al iniciar sesión.');
     } finally {
       setLoading(false);
     }
@@ -695,17 +734,17 @@ export const App: React.FC = () => {
       return;
     }
     if (!isPhoneValidSpain(fPhone)) {
-      setError('Solo nÃºmeros de EspaÃ±a (+34)');
+      setError('Solo números de España (+34)');
       return;
     }
     if (!/\S+@\S+\.\S+/.test(editEmail)) {
-      setError('El formato del correo electrÃ³nico no es vÃ¡lido.');
+      setError('El formato del correo electrónico no es válido.');
       return;
     }
 
     const duplicate = getWorkerDirectory().find(w => w.id !== selectedWorker.id && w.phone && processSpanishPhone(w.phone) === fPhone);
     if (duplicate) {
-      setError('Este nÃºmero de telÃ©fono ya estÃ¡ registrado por otro empleado.');
+      setError('Este número de teléfono ya está registrado por otro empleado.');
       return;
     }
 
@@ -751,8 +790,8 @@ export const App: React.FC = () => {
     };
     await StorageService.addTool(tool);
 
-    // NotificaciÃ³n Telegram: Nueva Herramienta
-    const telegramMessage = `ðŸ› ï¸ <b>Nueva Herramienta Registrada</b>\nðŸ‘·â€â™‚ï¸ Operario: <b>${selectedWorker.name}</b>\nðŸ”§ Equipo: <b>${tool.toolName}</b>\nðŸ·ï¸ Marca: ${tool.brand}\nðŸ“¦ Modelo: ${tool.model || 'S/M'}`;
+    // Notificación Telegram: Nueva Herramienta
+    const telegramMessage = `🛠️ <b>Nueva Herramienta Registrada</b>\n👷‍♂️ Operario: <b>${selectedWorker.name}</b>\n🔧 Equipo: <b>${tool.toolName}</b>\n🏷️ Marca: ${tool.brand}\n📦 Modelo: ${tool.model || 'S/M'}`;
     TelegramService.enviarNotificacionTelegram(telegramMessage);
 
     setNewToolForm({ name: '', brand: '', model: '' });
@@ -761,11 +800,11 @@ export const App: React.FC = () => {
 
   const handleRegistration = async () => {
     const fPhone = processSpanishPhone(regPhone);
-    if (!regName || !regDni || !fPhone || !regEmail) { setError('Todos los campos son obligatorios, incluyendo el Correo ElectrÃ³nico.'); return; }
-    if (!isPhoneValidSpain(fPhone)) { setError('Solo nÃºmeros de EspaÃ±a (+34)'); return; }
-    if (!/\S+@\S+\.\S+/.test(regEmail)) { setError('El formato del correo electrÃ³nico no es vÃ¡lido.'); return; }
-    if (!regPin.trim()) { setError('La contraseÃ±a es obligatoria.'); return; }
-    if (regPin !== regPinConfirm) { setError('Las contraseÃ±as no coinciden.'); return; }
+    if (!regName || !regDni || !fPhone || !regEmail) { setError('Todos los campos son obligatorios, incluyendo el Correo Electrónico.'); return; }
+    if (!isPhoneValidSpain(fPhone)) { setError('Solo números de España (+34)'); return; }
+    if (!/\S+@\S+\.\S+/.test(regEmail)) { setError('El formato del correo electrónico no es válido.'); return; }
+    if (!regPin.trim()) { setError('La contraseña es obligatoria.'); return; }
+    if (regPin !== regPinConfirm) { setError('Las contraseñas no coinciden.'); return; }
     setLoading(true);
     try { 
       const response = await fetch('/api/auth/register-worker', {
@@ -785,11 +824,11 @@ export const App: React.FC = () => {
         return;
       }
 
-      // NotificaciÃ³n Telegram: Nuevo Operario
-      const telegramMessage = `ðŸ†• <b>Nuevo Operario Pendiente de AprobaciÃ³n</b>\nðŸ‘·â€â™‚ï¸ Nombre: <b>${regName.trim()}</b>\nðŸ†” DNI: ${regDni.trim()}\nðŸ“± TelÃ©fono: ${fPhone}\nðŸ“§ Email: ${regEmail.trim()}`;
+      // Notificación Telegram: Nuevo Operario
+      const telegramMessage = `🆕 <b>Nuevo Operario Pendiente de Aprobación</b>\n👷‍♂️ Nombre: <b>${regName.trim()}</b>\n🆔 DNI: ${regDni.trim()}\n📱 Teléfono: ${fPhone}\n📧 Email: ${regEmail.trim()}`;
       TelegramService.enviarNotificacionTelegram(telegramMessage);
 
-      alert("Registro enviado. Tu cuenta queda pendiente de aprobaciÃ³n por el administrador.");
+      alert("Registro enviado. Tu cuenta queda pendiente de aprobación por el administrador.");
       setRegName('');
       setRegDni('');
       setRegEmail('');
@@ -803,11 +842,11 @@ export const App: React.FC = () => {
 
   const handleSaveForceEmail = async () => {
     if (!forceEmailInput.trim()) {
-      setForceEmailError('Por favor, introduce tu correo electrÃ³nico.');
+      setForceEmailError('Por favor, introduce tu correo electrónico.');
       return;
     }
     if (!/\S+@\S+\.\S+/.test(forceEmailInput)) {
-      setForceEmailError('El formato del correo electrÃ³nico no es vÃ¡lido.');
+      setForceEmailError('El formato del correo electrónico no es válido.');
       return;
     }
     setLoading(true);
@@ -824,10 +863,10 @@ export const App: React.FC = () => {
       setForceEmailInput('');
       setForceEmailError('');
 
-      const telegramMessage = `ðŸ“§ <b>Correo ElectrÃ³nico Registrado</b>\nðŸ‘·â€â™‚ï¸ Operario: <b>${updatedWorker.name}</b>\nðŸ“§ Email: ${updatedWorker.email}`;
+      const telegramMessage = `📧 <b>Correo Electrónico Registrado</b>\n👷‍♂️ Operario: <b>${updatedWorker.name}</b>\n📧 Email: ${updatedWorker.email}`;
       TelegramService.enviarNotificacionTelegram(telegramMessage);
     } catch (err) {
-      setForceEmailError('Error al guardar el correo electrÃ³nico.');
+      setForceEmailError('Error al guardar el correo electrónico.');
     } finally {
       setLoading(false);
     }
@@ -858,7 +897,7 @@ export const App: React.FC = () => {
     try {
       loc = await LocationService.getCurrentPosition();
     } catch (err) {
-      console.warn("UbicaciÃ³n no disponible para el fichaje:", err);
+      console.warn("Ubicación no disponible para el fichaje:", err);
     }
 
     try {
@@ -871,7 +910,7 @@ export const App: React.FC = () => {
       }
 
       const now = new Date();
-      const actualLoc = loc || { latitude: 0, longitude: 0, accuracy: 0, address: 'UbicaciÃ³n no disponible' };
+      const actualLoc = loc || { latitude: 0, longitude: 0, accuracy: 0, address: 'Ubicación no disponible' };
       
       const newLog: WorkLog = { 
         id: `LOG-${Date.now()}`, 
@@ -907,14 +946,14 @@ export const App: React.FC = () => {
       
       // Send Telegram Notification
       const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-      const actionEmoji = type === LogType.ENTRADA ? 'ðŸš€' : type === LogType.SALIDA ? 'ðŸ ' : type === LogType.INICIO_DESCANSO ? 'â˜•' : 'âš™ï¸';
+      const actionEmoji = type === LogType.ENTRADA ? '🚀' : type === LogType.SALIDA ? '🏠' : type === LogType.INICIO_DESCANSO ? '☕' : '⚙️';
       
-      let locationText = 'ðŸ“ UbicaciÃ³n: No disponible';
+      let locationText = '📍 Ubicación: No disponible';
       if (loc) {
-        locationText = `ðŸ“ UbicaciÃ³n: <a href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}">Ver en Google Maps</a>`;
+        locationText = `📍 Ubicación: <a href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}">Ver en Google Maps</a>`;
       }
 
-      const telegramMessage = `ðŸ‘·â€â™‚ï¸ <b>${selectedWorker!.name}</b> ha marcado <b>${type}</b> a las <b>${timeStr}</b> ${actionEmoji}\nðŸ¢ Obra: ${newLog.siteName}${report ? `\nðŸ“ Reporte: ${report}` : ''}\n${locationText}`;
+      const telegramMessage = `👷‍♂️ <b>${selectedWorker!.name}</b> ha marcado <b>${type}</b> a las <b>${timeStr}</b> ${actionEmoji}\n🏢 Obra: ${newLog.siteName}${report ? `\n📝 Reporte: ${report}` : ''}\n${locationText}`;
       
       TelegramService.enviarNotificacionTelegram(telegramMessage);
 
@@ -969,7 +1008,7 @@ export const App: React.FC = () => {
       setAdminPasswordInput('');
     } catch (err) {
       console.error("Error en login seguro de admin:", err);
-      setAdminError('No se pudo iniciar sesiÃ³n de administrador.');
+      setAdminError('No se pudo iniciar sesión de administrador.');
     } finally {
       setLoading(false);
     }
@@ -1017,7 +1056,7 @@ export const App: React.FC = () => {
               >
                 {theme === 'dark' ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-blue-400" />}
               </button>
-              <button onClick={resetApp} className="text-[var(--text-muted)] hover:text-[var(--text-main)] p-3 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl active:scale-95 transition-all" title="Cerrar SesiÃ³n">
+              <button onClick={resetApp} className="text-[var(--text-muted)] hover:text-[var(--text-main)] p-3 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] rounded-2xl active:scale-95 transition-all" title="Cerrar Sesión">
                 <LogOut size={18} />
               </button>
             </div>
@@ -1071,7 +1110,7 @@ export const App: React.FC = () => {
             {/* Navigation: Payslips */}
             <button onClick={() => setCurrentStep(Step.WORKER_PAYSLIPS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-fuchsia-500/30 transition-all duration-300">
               <div className="text-fuchsia-500 bg-fuchsia-500/10 p-3 rounded-2xl border border-fuchsia-500/10"><FileText size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">NÃ³minas</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Nóminas</span>
             </button>
             {/* Navigation: Profile */}
             <button onClick={() => setCurrentStep(Step.WORKER_PROFILE)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
@@ -1233,8 +1272,8 @@ export const App: React.FC = () => {
     }
     setSubmittingReport(true);
     try {
-      // Formato para el perÃ­odo si se han seleccionado fechas
-      let selectedRange = "Sin perÃ­odo especificado";
+      // Formato para el período si se han seleccionado fechas
+      let selectedRange = "Sin período especificado";
       if (reportStartDate && reportEndDate) {
         const startFormatted = new Date(reportStartDate).toLocaleDateString('es-ES');
         const endFormatted = new Date(reportEndDate).toLocaleDateString('es-ES');
@@ -1264,27 +1303,27 @@ export const App: React.FC = () => {
 
       await StorageService.addReport(newReport);
 
-      let msg = `ðŸ‘·â€â™‚ï¸ <b>Nuevo Parte Semanal Subido</b>\nðŸ‘¤ Operario: <b>${selectedWorker!.name}</b>\nðŸ“… PerÃ­odo: ${selectedRange}\nðŸ“… EnvÃ­o: ${newReport.dateStr}`;
+      let msg = `👷‍♂️ <b>Nuevo Parte Semanal Subido</b>\n👤 Operario: <b>${selectedWorker!.name}</b>\n📅 Período: ${selectedRange}\n📅 Envío: ${newReport.dateStr}`;
       if (reportComments.trim()) {
-        msg += `\nðŸ“ Comentarios: ${reportComments.trim()}`;
+        msg += `\n📝 Comentarios: ${reportComments.trim()}`;
       }
       TelegramService.enviarNotificacionTelegram(msg);
 
-      alert("Parte semanal subido correctamente para revisiÃ³n.");
+      alert("Parte semanal subido correctamente para revisión.");
       setReportPhoto(null);
       setReportStartDate('');
       setReportEndDate('');
       setReportComments('');
       setCurrentStep(Step.WORKER_DASHBOARD);
     } catch (err) {
-      alert("Error al subir el parte semanal. IntÃ©ntalo de nuevo.");
+      alert("Error al subir el parte semanal. Inténtalo de nuevo.");
     } finally {
       setSubmittingReport(false);
     }
   };
 
   const handleDeleteReport = async (reportId: string) => {
-    if (confirm("Â¿EstÃ¡s seguro de que deseas eliminar este parte de trabajo?")) {
+    if (confirm("¿Estás seguro de que deseas eliminar este parte de trabajo?")) {
       try {
         await StorageService.deleteReport(reportId);
       } catch (err) {
@@ -1296,7 +1335,7 @@ export const App: React.FC = () => {
   const handleSendWorkerMessage = async () => {
     if (!chatMessageInput.trim() || !selectedWorker || !activeChatPartnerId) return;
 
-    const partnerName = activeChatPartnerId === 'ADMIN' ? 'El Jefe' : (getWorkerById(activeChatPartnerId)?.name || 'CompaÃ±ero');
+    const partnerName = activeChatPartnerId === 'ADMIN' ? 'El Jefe' : (getWorkerById(activeChatPartnerId)?.name || 'Compañero');
 
     const msg: ChatMessage = {
       id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
@@ -1383,7 +1422,7 @@ export const App: React.FC = () => {
       }
 
       if (isPdf && file.size > 750 * 1024) {
-        alert(`El archivo PDF es demasiado grande (${(file.size / 1024).toFixed(0)} KB). El tamaÃ±o mÃ¡ximo permitido para archivos PDF es de 750 KB para no superar el lÃ­mite de almacenamiento de Firebase.\n\nSugerencia: Puedes hacer una foto o captura de pantalla al certificado y subir la imagen.`);
+        alert(`El archivo PDF es demasiado grande (${(file.size / 1024).toFixed(0)} KB). El tamaño máximo permitido para archivos PDF es de 750 KB para no superar el límite de almacenamiento de Firebase.\n\nSugerencia: Puedes hacer una foto o captura de pantalla al certificado y subir la imagen.`);
         if (certFileInputRef.current) certFileInputRef.current.value = '';
         return;
       }
@@ -1392,13 +1431,13 @@ export const App: React.FC = () => {
         try {
           const protectedPdf = await isPasswordProtectedPdf(file);
           if (protectedPdf) {
-            alert("No se puede subir este certificado porque el PDF estÃ¡ protegido con contraseÃ±a. Sube una versiÃ³n sin contraseÃ±a o una imagen/captura.");
+            alert("No se puede subir este certificado porque el PDF está protegido con contraseña. Sube una versión sin contraseña o una imagen/captura.");
             if (certFileInputRef.current) certFileInputRef.current.value = '';
             return;
           }
         } catch (err) {
           console.error("Error checking PDF password protection", err);
-          alert("No se pudo comprobar si el PDF estÃ¡ protegido. Por seguridad, no se ha subido.");
+          alert("No se pudo comprobar si el PDF está protegido. Por seguridad, no se ha subido.");
           if (certFileInputRef.current) certFileInputRef.current.value = '';
           return;
         }
@@ -1414,7 +1453,7 @@ export const App: React.FC = () => {
           }
 
           if (fileData.length > 1050000) {
-            alert("El archivo resultante supera el lÃ­mite mÃ¡ximo permitido por documento. Por favor, selecciona un archivo mÃ¡s pequeÃ±o o una imagen comprimida.");
+            alert("El archivo resultante supera el límite máximo permitido por documento. Por favor, selecciona un archivo más pequeño o una imagen comprimida.");
             if (certFileInputRef.current) certFileInputRef.current.value = '';
             return;
           }
@@ -1468,7 +1507,7 @@ export const App: React.FC = () => {
               certificateName: name,
             },
           }).catch((pushError) => console.warn('No se pudo enviar push de certificado:', pushError));
-          alert("Certificado subido con Ã©xito.");
+          alert("Certificado subido con éxito.");
         } catch (err: any) {
           console.error("Error upload cert", err);
           alert(`Error al subir el certificado: ${err?.message || 'Fallo de almacenamiento en Firebase'}`);
@@ -1479,7 +1518,7 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteCertificate = async (certId: string) => {
-    if (selectedWorker && confirm("Â¿EstÃ¡s seguro de que deseas eliminar este certificado?")) {
+    if (selectedWorker && confirm("¿Estás seguro de que deseas eliminar este certificado?")) {
       const currentCerts = selectedWorker.certificates || [];
       const updated = {
         ...selectedWorker,
@@ -1632,12 +1671,12 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Ficha tÃ©cnica del operario */}
+          {/* Ficha técnica del operario */}
           {isEditingProfile ? (
             <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[#15803D]/20 p-6 rounded-[2rem] shadow-[var(--panel-shadow)] space-y-4">
               <div className="border-b border-[var(--panel-border)] pb-3">
-                <span className="text-[9px] font-black uppercase tracking-widest text-[#15803D] bg-[#15803D]/10 px-2.5 py-1 rounded-md border border-[#15803D]/20">Modo de EdiciÃ³n</span>
-                <p className="text-xs text-[var(--text-muted)] font-medium mt-2">Modifica tus datos de contacto y acceso. El nÃºmero de telÃ©fono modificado serÃ¡ tu nuevo identificador para iniciar sesiÃ³n.</p>
+                <span className="text-[9px] font-black uppercase tracking-widest text-[#15803D] bg-[#15803D]/10 px-2.5 py-1 rounded-md border border-[#15803D]/20">Modo de Edición</span>
+                <p className="text-xs text-[var(--text-muted)] font-medium mt-2">Modifica tus datos de contacto y acceso. El número de teléfono modificado será tu nuevo identificador para iniciar sesión.</p>
               </div>
 
               <div className="space-y-3">
@@ -1653,7 +1692,7 @@ export const App: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] ml-1">Correo ElectrÃ³nico</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] ml-1">Correo Electrónico</label>
                   <input 
                     type="email" 
                     value={editEmail} 
@@ -1664,7 +1703,7 @@ export const App: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] ml-1">NÃºmero de TelÃ©fono (Para entrar en la App)</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] ml-1">Número de Teléfono (Para entrar en la App)</label>
                   <input 
                     type="tel" 
                     value={editPhone} 
@@ -1690,15 +1729,15 @@ export const App: React.FC = () => {
                 <p className="text-sm font-black text-[var(--text-main)] uppercase mt-1">{selectedWorker.dni || 'S/DNI'}</p>
               </div>
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
-                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Correo ElectrÃ³nico</p>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Correo Electrónico</p>
                 <p className="text-sm font-black text-[var(--text-main)] mt-1 break-all">{selectedWorker.email || 'No registrado'}</p>
               </div>
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
                 <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Acceso seguro</p>
-                <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin ? 'PIN legacy configurado' : 'ContraseÃ±a protegida'}</p>
+                <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin ? 'PIN legacy configurado' : 'Contraseña protegida'}</p>
               </div>
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
-                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">CÃ³digo QR asignado</p>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código QR asignado</p>
                 <p className="text-sm font-mono font-black text-blue-400 mt-1 truncate">{selectedWorker.qrCode || 'S/QR'}</p>
               </div>
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
@@ -1720,7 +1759,7 @@ export const App: React.FC = () => {
             {certificates.length === 0 ? (
               <div className="text-center py-8 border border-dashed border-[var(--panel-border)] rounded-[1.5rem] bg-[var(--btn-glass-bg)]">
                 <FileText size={30} className="mx-auto text-[var(--text-muted)] mb-2 opacity-50" />
-                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider">No tienes certificados subidos todavÃ­a.</p>
+                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider">No tienes certificados subidos todavía.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -1767,7 +1806,7 @@ export const App: React.FC = () => {
               <div className="bg-blue-500/10 text-blue-500 p-4 rounded-2xl shrink-0"><FileText size={28} /></div>
               <div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-[var(--text-main)]">Subir certificado</h3>
-                <p className="text-[11px] font-bold text-[var(--text-muted)] leading-relaxed mt-1">Puedes subir PDF o imagen. Los PDF protegidos con contraseÃ±a se bloquean automÃ¡ticamente para evitar problemas al verlos o descargarlos.</p>
+                <p className="text-[11px] font-bold text-[var(--text-muted)] leading-relaxed mt-1">Puedes subir PDF o imagen. Los PDF protegidos con contraseña se bloquean automáticamente para evitar problemas al verlos o descargarlos.</p>
               </div>
             </div>
             <div className="space-y-3">
@@ -1780,15 +1819,15 @@ export const App: React.FC = () => {
             <div className="flex items-center justify-between gap-4 mb-5">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)]">Mis certificados</h3>
-                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Disponibles tambiÃ©n en tu perfil profesional</p>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-0.5">Disponibles también en tu perfil profesional</p>
               </div>
               <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-black">{certificates.length}</span>
             </div>
             {certificates.length === 0 ? (
               <div className="text-center py-10 border border-dashed border-[var(--panel-border)] rounded-[1.5rem] bg-[var(--btn-glass-bg)]">
                 <FileText size={34} className="mx-auto text-[var(--text-muted)] mb-3 opacity-50" />
-                <p className="text-[11px] font-black text-[var(--text-main)] uppercase tracking-wider">AÃºn no hay certificados</p>
-                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-1">Sube el primero desde el botÃ³n superior</p>
+                <p className="text-[11px] font-black text-[var(--text-main)] uppercase tracking-wider">Aún no hay certificados</p>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mt-1">Sube el primero desde el botón superior</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -1866,8 +1905,8 @@ export const App: React.FC = () => {
             <ChevronLeft size={20}/>
           </button>
           <div>
-            <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight font-sans">MensajerÃ­a Interna</h2>
-            <p className="text-[10px] text-[#15803D] font-bold uppercase tracking-widest">Contacto directo entre compaÃ±eros y jefe</p>
+            <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight font-sans">Mensajería Interna</h2>
+            <p className="text-[10px] text-[#15803D] font-bold uppercase tracking-widest">Contacto directo entre compañeros y jefe</p>
           </div>
         </div>
 
@@ -1891,13 +1930,13 @@ export const App: React.FC = () => {
             >
               <div className="flex items-center gap-3 overflow-hidden">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-white font-black shadow-md border border-yellow-400/20 shrink-0">
-                  ðŸ‘‘
+                  J
                 </div>
                 <div className="overflow-hidden">
                   <h4 className="text-xs font-black uppercase tracking-wide">EL JEFE</h4>
                   <p className="text-[9px] text-[var(--text-muted)] font-medium">Administrador Principal</p>
                   {lastBossMsg && (
-                    <p className="text-[9px] text-slate-400 truncate mt-0.5 max-w-[140px]">{lastBossMsg.text}</p>
+                    <p className="text-[9px] text-slate-400 truncate mt-0.5 max-w-[140px]">{repairDisplayText(lastBossMsg.text)}</p>
                   )}
                 </div>
               </div>
@@ -1911,7 +1950,7 @@ export const App: React.FC = () => {
 
             {/* Other Workers list */}
             <div className="space-y-2 mt-1">
-              <span className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase block mb-1">CompaÃ±eros ({sortedOtherWorkers.length})</span>
+              <span className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase block mb-1">Compañeros ({sortedOtherWorkers.length})</span>
               {sortedOtherWorkers.length === 0 ? (
                 <p className="text-[10px] text-[var(--text-muted)] italic text-center py-4">No hay otros operarios disponibles.</p>
               ) : (
@@ -1920,6 +1959,11 @@ export const App: React.FC = () => {
                   const isExpanded = expandedDirectoryWorkerId === w.id;
                   const whatsappPhone = getWhatsAppPhoneNumber(w.phone);
                   const unread = partnerUnreadCount(w.id);
+                  const workerPhotoUrl = getWorkerPhotoUrl(w);
+                  const workerName = repairDisplayText(w.name) || 'Operario';
+                  const workerRole = repairDisplayText(w.role) || 'Operario';
+                  const workerEmail = repairDisplayText(w.email) || 'No indicado';
+                  const workerPhone = repairDisplayText(w.phone) || 'No indicado';
                   const lastMsg = chats
                     .filter(c => (c.senderId === w.id && c.receiverId === selectedWorker.id) || (c.senderId === selectedWorker.id && c.receiverId === w.id))
                     .sort((a, b) => b.timestamp - a.timestamp)[0];
@@ -1941,18 +1985,18 @@ export const App: React.FC = () => {
                         className="w-full flex items-center justify-between p-3 text-left"
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
-                          {w.photoUrl ? (
-                            <img src={w.photoUrl} alt={w.name} className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0" />
+                          {workerPhotoUrl ? (
+                            <img src={workerPhotoUrl} alt={workerName} className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0" />
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-black text-xs text-slate-300 uppercase shrink-0">
-                              {w.name.charAt(0)}
+                              {getWorkerInitial(w)}
                             </div>
                           )}
                           <div className="overflow-hidden">
-                            <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] truncate max-w-[140px]">{w.name}</h4>
-                            <p className="text-[9px] text-[var(--text-muted)] font-medium">{w.role || 'Operario'}</p>
+                            <h4 className="text-xs font-black uppercase tracking-wide text-[var(--text-main)] truncate max-w-[140px]">{workerName}</h4>
+                            <p className="text-[9px] text-[var(--text-muted)] font-medium">{workerRole}</p>
                             {lastMsg && (
-                              <p className="text-[9px] text-slate-400 truncate mt-0.5 max-w-[140px]">{lastMsg.text}</p>
+                              <p className="text-[9px] text-slate-400 truncate mt-0.5 max-w-[140px]">{repairDisplayText(lastMsg.text)}</p>
                             )}
                           </div>
                         </div>
@@ -1972,16 +2016,16 @@ export const App: React.FC = () => {
                           <div className="grid grid-cols-1 gap-2 text-[10px] font-bold">
                             <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
                               <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">Email</span>
-                              <span className="break-all text-[var(--text-main)]">{w.email || 'No indicado'}</span>
+                              <span className="break-all text-[var(--text-main)]">{workerEmail}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
                                 <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">DNI</span>
-                                <span className="text-[var(--text-main)]">{maskDni(w.dni)}</span>
+                                <span className="text-[var(--text-main)]">{formatDni(w.dni)}</span>
                               </div>
                               <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
-                                <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">TelÃ©fono</span>
-                                <span className="text-[var(--text-main)]">{w.phone || 'No indicado'}</span>
+                                <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">Teléfono</span>
+                                <span className="text-[var(--text-main)]">{workerPhone}</span>
                               </div>
                             </div>
                           </div>
@@ -2017,7 +2061,7 @@ export const App: React.FC = () => {
                             )}
                           </div>
                           <p className="mt-3 text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest leading-relaxed">
-                            Los certificados no se muestran en mensajerÃ­a por privacidad.
+                            Los certificados no se muestran en mensajería por privacidad.
                           </p>
                         </div>
                       )}
@@ -2045,7 +2089,7 @@ export const App: React.FC = () => {
                     </button>
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-2 font-sans">
-                        {activeChatPartnerId === 'ADMIN' ? 'ðŸ‘‘ EL JEFE' : activePartner?.name}
+                        {activeChatPartnerId === 'ADMIN' ? 'EL JEFE' : repairDisplayText(activePartner?.name)}
                       </h3>
                       <p className="text-[9px] text-[#15803D] font-bold uppercase tracking-widest">Chat individual seguro</p>
                     </div>
@@ -2079,7 +2123,7 @@ export const App: React.FC = () => {
                           </div>
                           <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 py-2">
                             <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">DNI</span>
-                            <span className="text-[var(--text-main)]">{maskDni(activePartner.dni)}</span>
+                            <span className="text-[var(--text-main)]">{formatDni(activePartner.dni)}</span>
                           </div>
                         </div>
                         {activePartner.phone && (
@@ -2125,7 +2169,7 @@ export const App: React.FC = () => {
                           </div>
                         )}
                         <p className="mt-3 text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest">
-                          Certificados ocultos en mensajerÃ­a por privacidad.
+                          Certificados ocultos en mensajería por privacidad.
                         </p>
                       </div>
                     </div>
@@ -2138,7 +2182,7 @@ export const App: React.FC = () => {
                     <div className="flex flex-col items-center justify-center h-full text-center py-10 opacity-60">
                       <MessageSquare size={32} className="text-[var(--text-muted)] mb-2" />
                       <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">No hay mensajes anteriores</p>
-                      <p className="text-[9px] font-medium text-[var(--text-muted)] mt-1">Escribe un mensaje abajo para iniciar la conversaciÃ³n.</p>
+                      <p className="text-[9px] font-medium text-[var(--text-muted)] mt-1">Escribe un mensaje abajo para iniciar la conversación.</p>
                     </div>
                   ) : (
                     activeMessages.map(m => {
@@ -2155,7 +2199,7 @@ export const App: React.FC = () => {
                               <span>{m.timeStr}</span>
                               {isMe && (
                                 <span className={m.read ? 'text-blue-500 font-bold' : 'text-slate-400'}>
-                                  {m.read ? 'âœ“âœ“' : 'âœ“'}
+                                  {m.read ? '✓✓' : '✓'}
                                 </span>
                               )}
                             </div>
@@ -2192,7 +2236,7 @@ export const App: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-main)]">Selecciona un Canal</h3>
                 <p className="text-[10px] text-[var(--text-muted)] mt-1 max-w-[240px] mx-auto leading-relaxed">
-                  Elige a un compaÃ±ero o al jefe en la lista de la izquierda para ver el historial y enviarle un mensaje directo.
+                  Elige a un compañero o al jefe en la lista de la izquierda para ver el historial y enviarle un mensaje directo.
                 </p>
               </div>
             )}
@@ -2240,10 +2284,10 @@ export const App: React.FC = () => {
               )}
             </div>
 
-            {/* PerÃ­odo del Parte de Trabajo (OPCIONAL) */}
+            {/* Período del Parte de Trabajo (OPCIONAL) */}
             <div className="space-y-2 bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] p-4 rounded-2xl w-full">
               <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-0.5">
-                PerÃ­odo que cubre el parte <span className="text-emerald-500 font-normal">(Opcional)</span>
+                Período que cubre el parte <span className="text-emerald-500 font-normal">(Opcional)</span>
               </label>
               <div className="flex flex-col sm:flex-row gap-3 w-full">
                 <div className="flex-1 w-full min-w-0">
@@ -2332,7 +2376,7 @@ export const App: React.FC = () => {
                       {report.isAiParsed && (
                         <div className="p-3 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--panel-border)] grid grid-cols-2 gap-2 text-[10px]">
                           <div>
-                            <span className="text-[var(--text-muted)] block font-bold uppercase text-[8px]">Horas ExtraÃ­das:</span>
+                            <span className="text-[var(--text-muted)] block font-bold uppercase text-[8px]">Horas Extraídas:</span>
                             <span className="font-black text-[var(--text-main)] text-xs">{report.extractedHours || 0}h</span>
                           </div>
                           <div>
@@ -2429,9 +2473,9 @@ export const App: React.FC = () => {
     const handleSignPayslip = async (ps: Payslip) => {
       const updated = { ...ps, status: 'SIGNED' as const };
       await StorageService.updatePayslip(updated);
-      const msg = `âœï¸ <b>NÃ³mina Firmada Digitalmente</b>\nðŸ‘¤ Operario: <b>${selectedWorker!.name}</b>\nðŸ“… PerÃ­odo: <b>${ps.monthStr}</b>\nðŸ’° Importe: ${ps.totalPay.toFixed(2)}â‚¬`;
+      const msg = `✍️ <b>Nómina Firmada Digitalmente</b>\n👤 Operario: <b>${selectedWorker!.name}</b>\n📅 Período: <b>${ps.monthStr}</b>\n💰 Importe: ${ps.totalPay.toFixed(2)}€`;
       TelegramService.enviarNotificacionTelegram(msg);
-      alert("NÃ³mina firmada digitalmente con Ã©xito.");
+      alert("Nómina firmada digitalmente con éxito.");
     };
 
     return (
@@ -2440,7 +2484,7 @@ export const App: React.FC = () => {
           <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10">
             <ChevronLeft size={20}/>
           </button>
-          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Mis NÃ³minas</h2>
+          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Mis Nóminas</h2>
         </div>
 
         <div className="mb-4 shrink-0">
@@ -2467,15 +2511,15 @@ export const App: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3 bg-[var(--btn-glass-bg)] p-3 rounded-2xl border border-[var(--panel-border)] text-xs">
                   <div>
                     <span className="text-[9px] text-[var(--text-muted)] block">Salario Base:</span>
-                    <span className="font-bold text-[var(--text-main)]">{ps.baseSalary}â‚¬</span>
+                    <span className="font-bold text-[var(--text-main)]">{ps.baseSalary}€</span>
                   </div>
                   <div>
                     <span className="text-[9px] text-[var(--text-muted)] block">Horas Extra:</span>
                     <span className="font-bold text-[var(--text-main)]">{ps.extraHours}h</span>
                   </div>
                   <div className="col-span-2 border-t border-[var(--panel-border)] pt-2 mt-1 flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">LÃ­quido Neto:</span>
-                    <span className="text-lg font-black text-emerald-500">{ps.totalPay.toFixed(2)}â‚¬</span>
+                    <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Líquido Neto:</span>
+                    <span className="text-lg font-black text-emerald-500">{ps.totalPay.toFixed(2)}€</span>
                   </div>
                 </div>
 
@@ -2486,7 +2530,7 @@ export const App: React.FC = () => {
                       onClick={async () => {
                         const pdfData = await StorageService.getPayslipPdfBase64(ps);
                         if (!pdfData) {
-                          alert("No se pudo cargar el PDF de la nÃ³mina.");
+                          alert("No se pudo cargar el PDF de la nómina.");
                           return;
                         }
                         downloadDataUri(pdfData, `Nomina_${selectedWorker?.name.replace(/\s+/g, '_')}_${ps.monthStr}.pdf`);
@@ -2499,7 +2543,7 @@ export const App: React.FC = () => {
 
                   {ps.status !== 'SIGNED' && (
                     <button onClick={() => handleSignPayslip(ps)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-500/10">
-                      âœï¸ Firmar NÃ³mina
+                      ✍️ Firmar Nómina
                     </button>
                   )}
                 </div>
@@ -2507,7 +2551,7 @@ export const App: React.FC = () => {
             ))
           ) : (
             <div className="text-center py-12 bg-[var(--panel-bg)]/40 rounded-3xl border border-dashed border-[var(--panel-border)]">
-              <p className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-widest">No hay nÃ³minas para este mes</p>
+              <p className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-widest">No hay nóminas para este mes</p>
             </div>
           )}
         </div>
@@ -2530,7 +2574,7 @@ export const App: React.FC = () => {
           <div className="bg-[var(--panel-bg)] backdrop-blur-2xl p-6 rounded-[2.5rem] border border-[var(--panel-border)] w-full mt-6 shadow-[var(--panel-shadow)]">
             {!isPhoneVerified ? (
               <>
-                <p className="text-xs text-[var(--text-muted)] font-bold text-center mb-4 uppercase tracking-widest">Introduce tu nÃºmero de telÃ©fono</p>
+                <p className="text-xs text-[var(--text-muted)] font-bold text-center mb-4 uppercase tracking-widest">Introduce tu número de teléfono</p>
                 <input 
                   type="tel" 
                   value={loginPhone} 
@@ -2549,8 +2593,8 @@ export const App: React.FC = () => {
             ) : (
               <>
                 <div className="text-center mb-4">
-                  <span className="text-[10px] text-[#15803D] font-black uppercase tracking-[0.2em] bg-[#15803D]/10 px-3 py-1 rounded-full border border-[#15803D]/20">VerificaciÃ³n segura</span>
-                  <p className="text-lg font-black text-[var(--text-main)] uppercase tracking-tight mt-2">Introduce tu contraseÃ±a</p>
+                  <span className="text-[10px] text-[#15803D] font-black uppercase tracking-[0.2em] bg-[#15803D]/10 px-3 py-1 rounded-full border border-[#15803D]/20">Verificación segura</span>
+                  <p className="text-lg font-black text-[var(--text-main)] uppercase tracking-tight mt-2">Introduce tu contraseña</p>
                   <p className="text-xs text-[var(--text-muted)] font-medium mt-0.5">{processSpanishPhone(loginPhone)}</p>
                 </div>
                 
@@ -2561,7 +2605,7 @@ export const App: React.FC = () => {
                     onChange={(e) => setLoginPassword(e.target.value)} 
                     onKeyDown={(e) => { if (e.key === 'Enter') handlePhoneLogin(); }}
                     className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 pr-12 text-center text-xl font-black focus:border-[#15803D] outline-none tracking-widest" 
-                    placeholder="ContraseÃ±a"
+                    placeholder="Contraseña"
                     autoFocus
                   />
                   <button 
@@ -2589,7 +2633,7 @@ export const App: React.FC = () => {
                   }} 
                   className="w-full text-[var(--text-muted)] hover:text-rose-400 font-bold text-[10px] uppercase tracking-wider mt-4 text-center block transition-all"
                 >
-                  AtrÃ¡s / Cambiar de nÃºmero
+                  Atrás / Cambiar de número
                 </button>
               </>
             )}
@@ -2647,7 +2691,7 @@ export const App: React.FC = () => {
                        <p className="text-[9px] text-[var(--text-muted)] truncate uppercase font-bold mt-1">{site.address}</p>
                      </div>
                      {isActiveSite && (
-                       <span className="bg-blue-600 text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg">SesiÃ³n Activa</span>
+                       <span className="bg-blue-600 text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg">Sesión Activa</span>
                      )}
                    </div>
                  </button>
@@ -2663,7 +2707,7 @@ export const App: React.FC = () => {
                <ChevronLeft size={20}/>
              </button>
              <div>
-               <h2 className="text-xl font-black text-[var(--text-main)]">AcciÃ³n en Obra</h2>
+               <h2 className="text-xl font-black text-[var(--text-main)]">Acción en Obra</h2>
                <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">{selectedSite?.name || workerStatus?.site}</p>
              </div>
            </div>
@@ -2697,7 +2741,7 @@ export const App: React.FC = () => {
               </div>
               <div className="space-y-3">
                  <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Resumen de Tareas</label>
-                 <textarea value={exitReportText} onChange={(e) => setExitReportText(e.target.value)} placeholder="Â¿QuÃ© has hecho hoy?" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-[2rem] p-5 text-sm text-[var(--input-text)] focus:border-blue-500 outline-none h-40 resize-none font-medium leading-relaxed" />
+                 <textarea value={exitReportText} onChange={(e) => setExitReportText(e.target.value)} placeholder="¿Qué has hecho hoy?" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-[2rem] p-5 text-sm text-[var(--input-text)] focus:border-blue-500 outline-none h-40 resize-none font-medium leading-relaxed" />
               </div>
               <div className="bg-[var(--btn-glass-bg)] p-4 rounded-2xl border border-[var(--btn-glass-border)] flex items-center justify-between">
                  <div className="flex items-center gap-2"><Clock size={16} className="text-[var(--text-muted)]" /><span className="text-[10px] font-black text-[var(--text-muted)] uppercase">Tiempo hoy</span></div>
@@ -2742,16 +2786,16 @@ export const App: React.FC = () => {
                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                <input type="text" placeholder="Buscar obra..." className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-2xl py-3 pl-11 pr-4 text-xs text-[var(--text-main)] outline-none focus:border-blue-500" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)}/>
              </div>
-             <div className="flex gap-2">{(['ALL', 'DAY', 'WEEK', 'MONTH'] as const).map(p => (<button key={p} onClick={() => setHistoryPeriod(p)} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${historyPeriod === p ? 'bg-blue-600 border-blue-500 text-white' : 'bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>{p === 'ALL' ? 'Todo' : p === 'DAY' ? 'DÃ­a' : p === 'WEEK' ? 'Semana' : 'Mes'}</button>))}</div>
+             <div className="flex gap-2">{(['ALL', 'DAY', 'WEEK', 'MONTH'] as const).map(p => (<button key={p} onClick={() => setHistoryPeriod(p)} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${historyPeriod === p ? 'bg-blue-600 border-blue-500 text-white' : 'bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>{p === 'ALL' ? 'Todo' : p === 'DAY' ? 'Día' : p === 'WEEK' ? 'Semana' : 'Mes'}</button>))}</div>
              {historyPeriod === 'MONTH' && (<div className="animate-slideDown relative"><select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none appearance-none">{MONTH_NAMES.map((name, idx) => (<option key={name} value={idx} className="bg-[var(--panel-bg)] text-[var(--text-main)]">{name}</option>))}</select><ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" size={16} /></div>)}
-             {(historyPeriod === 'WEEK' || historyPeriod === 'DAY') && (<div className="animate-slideDown flex flex-col gap-1"><span className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest ml-1">{historyPeriod === 'DAY' ? 'Elegir dÃ­a:' : 'Elegir dÃ­a de la semana:'}</span><div className="relative"><CalendarDays size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 pl-11 pr-4 text-xs font-bold outline-none [color-scheme:dark]"/></div></div>)}
+             {(historyPeriod === 'WEEK' || historyPeriod === 'DAY') && (<div className="animate-slideDown flex flex-col gap-1"><span className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest ml-1">{historyPeriod === 'DAY' ? 'Elegir día:' : 'Elegir día de la semana:'}</span><div className="relative"><CalendarDays size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 pl-11 pr-4 text-xs font-bold outline-none [color-scheme:dark]"/></div></div>)}
            </div>
            <div className="md:flex-1 md:overflow-y-auto space-y-3 pb-4 custom-scrollbar">
               {filteredHistory.map(log => (
                 <div key={log.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-sm">
                   <div className="flex justify-between items-start mb-2">
                     <span className={`text-[10px] font-black uppercase tracking-widest ${log.type === LogType.ENTRADA ? 'text-emerald-500' : log.type === LogType.SALIDA ? 'text-rose-500' : 'text-blue-500'}`}>{log.type}</span>
-                    <span className="text-[9px] text-[var(--text-muted)] font-bold">{log.dateStr} â€¢ {log.timeStr}</span>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold">{log.dateStr} • {log.timeStr}</span>
                   </div>
                   <p className="text-xs font-black text-[var(--text-main)] uppercase tracking-tight truncate">{log.siteName}</p>
                 </div>
@@ -2776,7 +2820,7 @@ case Step.WORKER_TOOLS: return (
             {workerTools.map(tool => (
               <div key={tool.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] flex items-center gap-4">
                 <div className="w-12 h-12 bg-amber-600/10 rounded-xl flex items-center justify-center text-amber-500 border border-amber-500/10 shrink-0"><Wrench size={24} /></div>
-                <div className="flex-1 min-w-0"><h4 className="font-black text-[var(--text-main)] uppercase text-sm truncate">{tool.toolName}</h4><p className="text-[10px] text-[var(--text-muted)] font-bold uppercase truncate">{tool.brand} â€¢ {tool.model || 'S/M'}</p></div>
+                <div className="flex-1 min-w-0"><h4 className="font-black text-[var(--text-main)] uppercase text-sm truncate">{tool.toolName}</h4><p className="text-[10px] text-[var(--text-muted)] font-bold uppercase truncate">{tool.brand} • {tool.model || 'S/M'}</p></div>
                 <button onClick={() => StorageService.deleteTool(tool.id)} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition"><Trash2 size={18} /></button>
               </div>
             ))}
@@ -2784,7 +2828,7 @@ case Step.WORKER_TOOLS: return (
           {isToolModalOpen && (
             <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
               <div className="bg-[var(--modal-bg)] w-full max-w-sm rounded-[2.5rem] border border-[var(--modal-border)] p-8 shadow-2xl relative">
-                <div className="flex justify-between items-center mb-6"><div><h3 className="text-lg font-black text-[var(--modal-text-main)] uppercase tracking-tighter">AÃ±adir Herramienta</h3><p className="text-amber-500 text-[10px] font-bold uppercase tracking-widest">Nueva Ficha</p></div><button onClick={() => setIsToolModalOpen(false)} className="text-[var(--modal-text-muted)] p-2"><X size={20}/></button></div>
+                <div className="flex justify-between items-center mb-6"><div><h3 className="text-lg font-black text-[var(--modal-text-main)] uppercase tracking-tighter">Añadir Herramienta</h3><p className="text-amber-500 text-[10px] font-bold uppercase tracking-widest">Nueva Ficha</p></div><button onClick={() => setIsToolModalOpen(false)} className="text-[var(--modal-text-muted)] p-2"><X size={20}/></button></div>
                 <div className="space-y-4">
                   <div className="space-y-1.5"><label className="text-[9px] font-black text-[var(--modal-text-muted)] uppercase ml-1">Nombre *</label><input list="worker-tools-list" type="text" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)] outline-none" value={newToolForm.name} onChange={(e)=>setNewToolForm({...newToolForm, name: e.target.value})} /></div>
                   <div className="space-y-1.5"><label className="text-[9px] font-black text-[var(--modal-text-muted)] uppercase ml-1">Marca *</label><input list="worker-brands-list" type="text" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-sm text-[var(--input-text)] outline-none" value={newToolForm.brand} onChange={(e)=>setNewToolForm({...newToolForm, brand: e.target.value})} /></div>
@@ -2806,7 +2850,7 @@ case Step.WORKER_TOOLS: return (
            </div>
            <div className="px-4">
              <h2 className="text-2xl md:text-3xl font-black text-[var(--text-main)] uppercase tracking-tighter leading-tight">
-               Â¡OperaciÃ³n con Ã‰xito!
+               ¡Operación con Éxito!
              </h2>
              <p className="text-[var(--text-muted)] text-xs md:text-sm mt-2 font-medium">
                Tu fichaje ha sido registrado en el sistema.
@@ -2834,17 +2878,17 @@ case Step.WORKER_TOOLS: return (
                <label className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase ml-1">Datos Personales</label>
                <input type="text" placeholder="Nombre completo" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" value={regName} onChange={(e)=>setRegName(e.target.value)}/>
                <input type="text" placeholder="DNI / NIE" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" value={regDni} onChange={(e)=>setRegDni(e.target.value)}/>
-               <input type="tel" placeholder="TelÃ©fono" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] font-bold opacity-80" value={regPhone} readOnly />
-               <input type="email" placeholder="Correo electrÃ³nico" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" value={regEmail} onChange={(e)=>setRegEmail(e.target.value)}/>
+               <input type="tel" placeholder="Teléfono" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] font-bold opacity-80" value={regPhone} readOnly />
+               <input type="email" placeholder="Correo electrónico" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" value={regEmail} onChange={(e)=>setRegEmail(e.target.value)}/>
              </div>
 
              <div className="space-y-2 pt-2 border-t border-[var(--panel-border)]">
-               <label className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase ml-1">Seguridad (ContraseÃ±a de Acceso)</label>
+               <label className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase ml-1">Seguridad (Contraseña de Acceso)</label>
                
                <div className="relative">
                  <input 
                    type={showRegPin ? "text" : "password"} 
-                   placeholder="Elige contraseÃ±a" 
+                   placeholder="Elige contraseña" 
                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" 
                    value={regPin} 
                    onChange={(e)=>setRegPin(e.target.value)}
@@ -2861,7 +2905,7 @@ case Step.WORKER_TOOLS: return (
                <div className="relative">
                  <input 
                    type={showRegPinConfirm ? "text" : "password"} 
-                   placeholder="Confirma tu contraseÃ±a" 
+                   placeholder="Confirma tu contraseña" 
                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" 
                    value={regPinConfirm} 
                    onChange={(e)=>setRegPinConfirm(e.target.value)}
@@ -2909,7 +2953,7 @@ case Step.WORKER_TOOLS: return (
              <div className="flex justify-between items-center mb-6"><div className="flex items-center gap-3"><div className="p-2 bg-blue-600/10 rounded-xl text-blue-500"><Shield size={24}/></div><h2 className="text-xl font-black text-[var(--modal-text-main)] uppercase tracking-tighter">Admin Login</h2></div><button onClick={() => setShowAdminLogin(false)} className="text-[var(--modal-text-muted)] hover:text-[var(--modal-text-main)]"><X size={20}/></button></div>
              <div className="space-y-4">
                 <input type="text" placeholder="Usuario" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-[var(--input-text)] outline-none focus:border-blue-500" value={adminUsernameInput} onChange={(e) => setAdminUsernameInput(e.target.value)}/>
-                <input type="password" placeholder="ContraseÃ±a" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-[var(--input-text)] outline-none focus:border-blue-500" value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)}/>
+                <input type="password" placeholder="Contraseña" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-[var(--input-text)] outline-none focus:border-blue-500" value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)}/>
                 {adminError && <p className="text-rose-500 text-[10px] font-bold uppercase text-center">{adminError}</p>}
                 <button onClick={verifyAdminPassword} className="w-full bg-blue-600 py-4 rounded-xl font-black text-white uppercase text-xs tracking-widest shadow-lg">Acceder al Panel</button>
              </div>
@@ -2920,7 +2964,7 @@ case Step.WORKER_TOOLS: return (
       <ConfirmationModal 
         isOpen={confirmState.isOpen} 
         title={`Confirmar ${confirmState.action}`} 
-        message={confirmState.action === LogType.SALIDA ? 'Â¿EstÃ¡s seguro de que deseas enviar el reporte y finalizar tu jornada?' : `Â¿Deseas registrar tu ${confirmState.action}?`} 
+        message={confirmState.action === LogType.SALIDA ? '¿Estás seguro de que deseas enviar el reporte y finalizar tu jornada?' : `¿Deseas registrar tu ${confirmState.action}?`} 
         onConfirm={() => executeLogSubmission(confirmState.action!, exitReportText, exitWorkMode)} 
         onCancel={() => setConfirmState({ isOpen: false, action: null })} 
       />
@@ -2941,13 +2985,13 @@ case Step.WORKER_TOOLS: return (
               </h2>
               
               <p className="text-zinc-400 text-xs font-medium mb-6 leading-relaxed max-w-xs mx-auto font-sans">
-                Hola <span className="text-[#15803D] font-black">{selectedWorker.name}</span>. Para garantizar la entrega de nÃ³minas y partes oficiales, es obligatorio registrar tu correo electrÃ³nico.
+                Hola <span className="text-[#15803D] font-black">{selectedWorker.name}</span>. Para garantizar la entrega de nóminas y partes oficiales, es obligatorio registrar tu correo electrónico.
               </p>
 
               <div className="w-full space-y-4">
                 <div className="text-left">
                   <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block ml-1 mb-1.5 font-sans">
-                    DirecciÃ³n de Correo *
+                    Dirección de Correo *
                   </label>
                   <input 
                     type="email" 
@@ -2983,7 +3027,7 @@ case Step.WORKER_TOOLS: return (
                     onClick={resetApp} 
                     className="text-zinc-500 hover:text-zinc-300 text-[10px] font-bold uppercase tracking-widest transition-colors font-sans"
                   >
-                    Cerrar SesiÃ³n / Cancelar
+                    Cerrar Sesión / Cancelar
                   </button>
                 </div>
               </div>
@@ -3008,7 +3052,7 @@ case Step.WORKER_TOOLS: return (
              
              {/* Left Icon/Initial */}
              <div className="push-toast__icon w-11 h-11 min-w-[44px] rounded-2xl flex items-center justify-center text-lg font-black">
-               {notif.icon || (notif.type === 'chat' ? 'ðŸ’¬' : 'ðŸ“‹')}
+               {notif.icon || (notif.type === 'chat' ? '💬' : '📋')}
              </div>
              
              {/* Body */}
