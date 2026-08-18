@@ -525,10 +525,35 @@ export const App: React.FC = () => {
 
   const getRequiredLocationErrorMessage = (err: any) => {
     const code = Number(err?.code);
-    if (code === 1) return 'Ubicación obligatoria: pulsa Reintentar ubicación y acepta el permiso. Si no aparece la solicitud, activa la ubicación desde ajustes del navegador o de la app.';
+    if (code === 1) return 'Ubicación obligatoria: pulsa Reintentar ubicación y acepta el permiso cuando aparezca. Si no aparece, la ubicación está bloqueada en ajustes del navegador o de la app.';
     if (code === 2) return 'No se pudo obtener tu ubicación. Activa el GPS/datos del dispositivo y pulsa Reintentar ubicación.';
     if (code === 3) return 'No se pudo obtener tu ubicación a tiempo. Acércate a una zona con mejor señal y pulsa Reintentar ubicación.';
     return err?.message || 'No se pudo obtener tu ubicación. Sin ubicación no se puede fichar.';
+  };
+
+  const getLocationPermissionState = async (): Promise<'granted' | 'prompt' | 'denied' | 'unknown'> => {
+    try {
+      const permissions = (navigator as any).permissions;
+      if (!permissions?.query) return 'unknown';
+      const status = await permissions.query({ name: 'geolocation' } as any);
+      return status?.state || 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  };
+
+  const handleLocationRetry = async () => {
+    if (!locationRetry || loading) return;
+
+    setError('Solicitando ubicación... acepta el permiso cuando aparezca.');
+    const permissionState = await getLocationPermissionState();
+
+    if (permissionState === 'denied') {
+      setError('La ubicación está bloqueada para esta app. Actívala en ajustes del navegador/app y después vuelve a pulsar el fichaje. Sin ubicación no se puede fichar.');
+      return;
+    }
+
+    await executeLogSubmission(locationRetry.type, locationRetry.report, locationRetry.mode);
   };
 
   const sanitizeWorkerForDirectory = (worker: Worker): Worker => ({
@@ -3219,11 +3244,11 @@ case Step.WORKER_TOOLS: return (
               {locationRetry && (
                 <button
                   type="button"
-                  onClick={() => executeLogSubmission(locationRetry.type, locationRetry.report, locationRetry.mode)}
+                  onClick={handleLocationRetry}
                   disabled={loading}
                   className="mt-3 inline-flex items-center justify-center gap-2 bg-white text-rose-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 disabled:opacity-60"
                 >
-                  {loading ? 'Solicitando...' : 'Reintentar ubicación'}
+                  {loading ? 'Solicitando ubicación...' : 'Reintentar ubicación'}
                 </button>
               )}
             </div>
