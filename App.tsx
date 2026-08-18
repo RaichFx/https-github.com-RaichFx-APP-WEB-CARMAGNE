@@ -522,6 +522,14 @@ export const App: React.FC = () => {
   };
   const isPhoneValidSpain = (phone: string): boolean => /^\+34[6789]\d{8}$/.test(phone);
 
+  const getRequiredLocationErrorMessage = (err: any) => {
+    const code = Number(err?.code);
+    if (code === 1) return 'Ubicación obligatoria: debes aceptar el permiso de ubicación para poder fichar.';
+    if (code === 2) return 'No se pudo obtener tu ubicación. Activa el GPS/datos del dispositivo e inténtalo de nuevo.';
+    if (code === 3) return 'No se pudo obtener tu ubicación a tiempo. Acércate a una zona con mejor señal e inténtalo de nuevo.';
+    return err?.message || 'No se pudo obtener tu ubicación. Sin ubicación no se puede fichar.';
+  };
+
   const sanitizeWorkerForDirectory = (worker: Worker): Worker => ({
     ...worker,
     pin: '',
@@ -1013,24 +1021,29 @@ export const App: React.FC = () => {
 
   const executeLogSubmission = async (type: LogType, report?: string, mode?: WorkMode) => {
     setLoading(true);
-    let loc: GeoLocationData | null = null;
+    setError('');
+    let loc: GeoLocationData;
     try {
       loc = await LocationService.getCurrentPosition();
     } catch (err) {
-      console.warn("Ubicación no disponible para el fichaje:", err);
+      console.warn("Ubicación obligatoria no disponible para el fichaje:", err);
+      setError(getRequiredLocationErrorMessage(err));
+      setConfirmState({ isOpen: false, action: null });
+      setLoading(false);
+      return;
     }
 
     try {
       let distance = 0; let warning = false;
       const targetSite = selectedSite || sites.find(s => s.name === workerStatus?.site);
       
-      if (loc && targetSite?.coordinates) {
+      if (targetSite?.coordinates) {
         distance = LocationService.calculateDistance(loc.latitude, loc.longitude, targetSite.coordinates.latitude, targetSite.coordinates.longitude);
         if (distance > MAX_DISTANCE_METERS) warning = true;
       }
 
       const now = new Date();
-      const actualLoc = loc || { latitude: 0, longitude: 0, accuracy: 0, address: 'Ubicación no disponible' };
+      const actualLoc = loc;
       
       const newLog: WorkLog = { 
         id: `LOG-${Date.now()}`, 
@@ -1068,10 +1081,7 @@ export const App: React.FC = () => {
       const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
       const actionEmoji = type === LogType.ENTRADA ? '🚀' : type === LogType.SALIDA ? '🏠' : type === LogType.INICIO_DESCANSO ? '☕' : '⚙️';
       
-      let locationText = '📍 Ubicación: No disponible';
-      if (loc) {
-        locationText = `📍 Ubicación: <a href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}">Ver en Google Maps</a>`;
-      }
+      const locationText = `📍 Ubicación: <a href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}">Ver en Google Maps</a>`;
 
       const telegramMessage = `👷‍♂️ <b>${selectedWorker!.name}</b> ha marcado <b>${type}</b> a las <b>${timeStr}</b> ${actionEmoji}\n🏢 Obra: ${newLog.siteName}${report ? `\n📝 Reporte: ${report}` : ''}\n${locationText}`;
       
