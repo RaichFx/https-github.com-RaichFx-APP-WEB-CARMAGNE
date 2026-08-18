@@ -165,6 +165,7 @@ export const App: React.FC = () => {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [locationRetry, setLocationRetry] = useState<{ type: LogType; report?: string; mode?: WorkMode } | null>(null);
   const [confirmState, setConfirmState] = useState<{isOpen: boolean; action: LogType | null;}>({ isOpen: false, action: null });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [appConfig, setAppConfig] = useState<AppConfig>(StorageService.getConfig());
@@ -524,9 +525,9 @@ export const App: React.FC = () => {
 
   const getRequiredLocationErrorMessage = (err: any) => {
     const code = Number(err?.code);
-    if (code === 1) return 'Ubicación obligatoria: debes aceptar el permiso de ubicación para poder fichar.';
-    if (code === 2) return 'No se pudo obtener tu ubicación. Activa el GPS/datos del dispositivo e inténtalo de nuevo.';
-    if (code === 3) return 'No se pudo obtener tu ubicación a tiempo. Acércate a una zona con mejor señal e inténtalo de nuevo.';
+    if (code === 1) return 'Ubicación obligatoria: pulsa Reintentar ubicación y acepta el permiso. Si no aparece la solicitud, activa la ubicación desde ajustes del navegador o de la app.';
+    if (code === 2) return 'No se pudo obtener tu ubicación. Activa el GPS/datos del dispositivo y pulsa Reintentar ubicación.';
+    if (code === 3) return 'No se pudo obtener tu ubicación a tiempo. Acércate a una zona con mejor señal y pulsa Reintentar ubicación.';
     return err?.message || 'No se pudo obtener tu ubicación. Sin ubicación no se puede fichar.';
   };
 
@@ -1012,6 +1013,8 @@ export const App: React.FC = () => {
   };
 
   const handleActionSelect = (type: LogType) => {
+    setLocationRetry(null);
+    setError('');
     if (type === LogType.SALIDA) {
       if (workerStatus?.type === 'DESCANSO') { setError("Primero debes finalizar el descanso antes de dar salida."); return; }
       setCurrentStep(Step.REPORT_EXIT); return;
@@ -1022,12 +1025,14 @@ export const App: React.FC = () => {
   const executeLogSubmission = async (type: LogType, report?: string, mode?: WorkMode) => {
     setLoading(true);
     setError('');
+    setLocationRetry(null);
     let loc: GeoLocationData;
     try {
       loc = await LocationService.getCurrentPosition();
     } catch (err) {
       console.warn("Ubicación obligatoria no disponible para el fichaje:", err);
       setError(getRequiredLocationErrorMessage(err));
+      setLocationRetry({ type, report, mode });
       setConfirmState({ isOpen: false, action: null });
       setLoading(false);
       return;
@@ -1122,6 +1127,7 @@ export const App: React.FC = () => {
     setProfileNewPassword('');
     setProfileNewPasswordConfirm('');
     setProfilePasswordMessage('');
+    setLocationRetry(null);
   };
 
   const verifyAdminPassword = async () => {
@@ -3203,7 +3209,28 @@ case Step.WORKER_TOOLS: return (
           </div>
         </div>
       )}
-      {error && (<div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-rose-600 px-6 py-3 rounded-full text-xs font-black uppercase z-[200] shadow-2xl flex items-center gap-3"><ShieldAlert size={16}/> {error} <button onClick={()=>setError('')} className="bg-white/20 p-1 rounded-full"><X size={12}/></button></div>)}
+      {error && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md z-[200] px-1">
+          <div className="bg-rose-600/95 text-white px-5 py-4 rounded-2xl border border-white/15 shadow-2xl backdrop-blur-xl flex items-start gap-3">
+            <div className="mt-0.5 bg-white/15 p-2 rounded-xl shrink-0"><ShieldAlert size={18}/></div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Aviso importante</p>
+              <p className="text-xs sm:text-sm font-bold leading-snug mt-1 normal-case">{error}</p>
+              {locationRetry && (
+                <button
+                  type="button"
+                  onClick={() => executeLogSubmission(locationRetry.type, locationRetry.report, locationRetry.mode)}
+                  disabled={loading}
+                  className="mt-3 inline-flex items-center justify-center gap-2 bg-white text-rose-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 disabled:opacity-60"
+                >
+                  {loading ? 'Solicitando...' : 'Reintentar ubicación'}
+                </button>
+              )}
+            </div>
+            <button onClick={() => { setError(''); setLocationRetry(null); }} className="bg-white/15 hover:bg-white/25 p-1.5 rounded-xl shrink-0"><X size={14}/></button>
+          </div>
+        </div>
+      )}
       <ConfirmationModal 
         isOpen={confirmState.isOpen} 
         title={`Confirmar ${confirmState.action}`} 
