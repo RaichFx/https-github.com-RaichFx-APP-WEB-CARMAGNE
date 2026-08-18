@@ -198,6 +198,17 @@ export const App: React.FC = () => {
   const [matchedWorker, setMatchedWorker] = useState<Worker | null>(null);
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [recoveryPhone, setRecoveryPhone] = useState('');
+  const [recoveryDni, setRecoveryDni] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('');
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [profileCurrentPassword, setProfileCurrentPassword] = useState('');
+  const [profileNewPassword, setProfileNewPassword] = useState('');
+  const [profileNewPasswordConfirm, setProfileNewPasswordConfirm] = useState('');
+  const [profilePasswordMessage, setProfilePasswordMessage] = useState('');
+  const [profilePasswordLoading, setProfilePasswordLoading] = useState(false);
   const [showRegPin, setShowRegPin] = useState(false);
   const [showRegPinConfirm, setShowRegPinConfirm] = useState(false);
   const [regName, setRegName] = useState('');
@@ -711,6 +722,115 @@ export const App: React.FC = () => {
     }
   };
 
+  const startPasswordRecovery = () => {
+    const formattedPhone = processSpanishPhone(loginPhone || '');
+    setRecoveryPhone(isPhoneValidSpain(formattedPhone) ? formattedPhone : loginPhone);
+    setRecoveryDni('');
+    setRecoveryEmail('');
+    setRecoveryPassword('');
+    setRecoveryPasswordConfirm('');
+    setRecoveryMessage('');
+    setError('');
+    setCurrentStep(Step.RECOVERY);
+  };
+
+  const handlePasswordRecovery = async () => {
+    const formattedPhone = processSpanishPhone(recoveryPhone);
+    if (!isPhoneValidSpain(formattedPhone)) { setError('Introduce un número español válido.'); return; }
+    if (!recoveryDni.trim() || !recoveryEmail.trim()) { setError('Introduce tu DNI y tu email para verificar tu identidad.'); return; }
+    if (!/\S+@\S+\.\S+/.test(recoveryEmail)) { setError('El formato del correo electrónico no es válido.'); return; }
+    if (recoveryPassword.trim().length < 4) { setError('La nueva contraseña debe tener al menos 4 caracteres.'); return; }
+    if (recoveryPassword !== recoveryPasswordConfirm) { setError('Las contraseñas no coinciden.'); return; }
+
+    setLoading(true);
+    setRecoveryMessage('');
+    try {
+      const response = await fetch('/api/auth/reset-worker-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: formattedPhone,
+          dni: recoveryDni.trim(),
+          email: recoveryEmail.trim(),
+          newPassword: recoveryPassword.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data.error || 'No se pudo restablecer la contraseña.');
+        return;
+      }
+
+      setError('');
+      setRecoveryMessage('Contraseña actualizada. Ya puedes volver al login e iniciar sesión con la nueva contraseña.');
+      setLoginPhone(formattedPhone);
+      setIsPhoneVerified(true);
+      setLoginPassword('');
+      setRecoveryPassword('');
+      setRecoveryPasswordConfirm('');
+    } catch (err) {
+      console.error('Error al restablecer contraseña:', err);
+      setError('Error al restablecer la contraseña.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangeProfilePassword = async () => {
+    if (!selectedWorker) return;
+    if (!profileCurrentPassword.trim() || !profileNewPassword.trim()) {
+      setProfilePasswordMessage('Introduce la contraseña actual y la nueva.');
+      return;
+    }
+    if (profileNewPassword.trim().length < 4) {
+      setProfilePasswordMessage('La nueva contraseña debe tener al menos 4 caracteres.');
+      return;
+    }
+    if (profileNewPassword !== profileNewPasswordConfirm) {
+      setProfilePasswordMessage('Las contraseñas no coinciden.');
+      return;
+    }
+    if (profileCurrentPassword === profileNewPassword) {
+      setProfilePasswordMessage('La nueva contraseña debe ser diferente a la actual.');
+      return;
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setProfilePasswordMessage('Tu sesión ha caducado. Cierra sesión y vuelve a entrar.');
+      return;
+    }
+
+    setProfilePasswordLoading(true);
+    setProfilePasswordMessage('');
+    try {
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch('/api/auth/change-worker-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+        body: JSON.stringify({
+          currentPassword: profileCurrentPassword.trim(),
+          newPassword: profileNewPassword.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setProfilePasswordMessage(data.error || 'No se pudo cambiar la contraseña.');
+        return;
+      }
+
+      setProfileCurrentPassword('');
+      setProfileNewPassword('');
+      setProfileNewPasswordConfirm('');
+      setSelectedWorker(prev => prev ? { ...prev, pin: '' } : prev);
+      setProfilePasswordMessage('Contraseña actualizada correctamente.');
+    } catch (err) {
+      console.error('Error al cambiar contraseña:', err);
+      setProfilePasswordMessage('Error al cambiar la contraseña.');
+    } finally {
+      setProfilePasswordLoading(false);
+    }
+  };
   const startEditingProfile = () => {
     if (selectedWorker) {
       setEditDni(selectedWorker.dni || '');
@@ -980,6 +1100,18 @@ export const App: React.FC = () => {
     setError(''); 
     setPinInput(''); 
     setLoginPhone(''); 
+    setLoginPassword('');
+    setIsPhoneVerified(false);
+    setRecoveryPhone('');
+    setRecoveryDni('');
+    setRecoveryEmail('');
+    setRecoveryPassword('');
+    setRecoveryPasswordConfirm('');
+    setRecoveryMessage('');
+    setProfileCurrentPassword('');
+    setProfileNewPassword('');
+    setProfileNewPasswordConfirm('');
+    setProfilePasswordMessage('');
   };
 
   const verifyAdminPassword = async () => {
@@ -1735,6 +1867,49 @@ export const App: React.FC = () => {
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
                 <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Acceso seguro</p>
                 <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin ? 'PIN legacy configurado' : 'Contraseña protegida'}</p>
+              </div>
+              <div className="sm:col-span-2 bg-[var(--panel-bg)] p-5 rounded-[1.75rem] border border-[#15803D]/20 shadow-[var(--panel-shadow)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Cambiar contraseña</p>
+                    <p className="text-xs text-[var(--text-muted)] font-semibold mt-1">Actualiza tu acceso sin pedir ayuda al administrador.</p>
+                  </div>
+                  <div className="bg-[#15803D]/10 text-[#15803D] p-3 rounded-2xl"><KeyRound size={20} /></div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                  <input
+                    type="password"
+                    value={profileCurrentPassword}
+                    onChange={(e) => setProfileCurrentPassword(e.target.value)}
+                    placeholder="Contraseña actual"
+                    className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-2xl p-3 text-sm font-bold outline-none focus:border-[#15803D] text-[var(--input-text)]"
+                  />
+                  <input
+                    type="password"
+                    value={profileNewPassword}
+                    onChange={(e) => setProfileNewPassword(e.target.value)}
+                    placeholder="Nueva contraseña"
+                    className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-2xl p-3 text-sm font-bold outline-none focus:border-[#15803D] text-[var(--input-text)]"
+                  />
+                  <input
+                    type="password"
+                    value={profileNewPasswordConfirm}
+                    onChange={(e) => setProfileNewPasswordConfirm(e.target.value)}
+                    placeholder="Repetir contraseña"
+                    className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-2xl p-3 text-sm font-bold outline-none focus:border-[#15803D] text-[var(--input-text)]"
+                  />
+                </div>
+                {profilePasswordMessage && (
+                  <p className={`text-[10px] font-black uppercase tracking-widest mt-3 ${profilePasswordMessage.startsWith('Contraseña actualizada') ? 'text-[#15803D]' : 'text-rose-500'}`}>{profilePasswordMessage}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleChangeProfilePassword}
+                  disabled={profilePasswordLoading}
+                  className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-3 rounded-2xl uppercase tracking-widest text-[10px] mt-4 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <KeyRound size={14} /> {profilePasswordLoading ? 'Actualizando...' : 'Guardar nueva contraseña'}
+                </button>
               </div>
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
                 <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código QR asignado</p>
@@ -2559,8 +2734,51 @@ export const App: React.FC = () => {
     );
   };
 
+  const renderPasswordRecovery = () => (
+    <div className="flex flex-col h-full animate-fadeIn justify-center items-center py-4 max-w-sm mx-auto w-full">
+      <div className="text-center w-full">
+        <div className="inline-flex mb-6">
+          <AppLogo size="lg" logoUrl={appConfig.logoUrl} scale={appConfig.logoScaleLogin} theme={theme} />
+        </div>
+        <h2 className="text-3xl font-black text-[var(--text-main)] tracking-tighter uppercase font-sans">Restablecer contraseña</h2>
+        <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-[0.25em] mt-1">Verificación de operario</p>
+      </div>
+
+      <div className="bg-[var(--panel-bg)] backdrop-blur-2xl p-6 rounded-[2.5rem] border border-[var(--panel-border)] w-full mt-6 shadow-[var(--panel-shadow)]">
+        <p className="text-xs text-[var(--text-muted)] font-bold text-center mb-4 uppercase tracking-widest">Confirma tus datos y crea una nueva contraseña</p>
+        <div className="space-y-3">
+          <input type="tel" value={recoveryPhone} onChange={(e) => setRecoveryPhone(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-black focus:border-[#15803D] outline-none text-center tracking-widest" placeholder="Teléfono" />
+          <input type="text" value={recoveryDni} onChange={(e) => setRecoveryDni(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-black focus:border-[#15803D] outline-none text-center uppercase tracking-widest" placeholder="DNI / NIE" />
+          <input type="email" value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-bold focus:border-[#15803D] outline-none text-center" placeholder="Email registrado" />
+          <input type="password" value={recoveryPassword} onChange={(e) => setRecoveryPassword(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-black focus:border-[#15803D] outline-none text-center tracking-widest" placeholder="Nueva contraseña" />
+          <input type="password" value={recoveryPasswordConfirm} onChange={(e) => setRecoveryPasswordConfirm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordRecovery(); }} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-black focus:border-[#15803D] outline-none text-center tracking-widest" placeholder="Repetir contraseña" />
+        </div>
+
+        {recoveryMessage && (
+          <div className="mt-4 rounded-2xl border border-[#15803D]/20 bg-[#15803D]/10 p-3 text-center text-[10px] font-black uppercase tracking-widest text-[#15803D]">{recoveryMessage}</div>
+        )}
+
+        <button
+          onClick={handlePasswordRecovery}
+          disabled={loading}
+          className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#15803D]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all disabled:opacity-50"
+        >
+          {loading ? 'Guardando...' : 'Guardar nueva contraseña'} <ArrowRight size={14} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { setCurrentStep(Step.LOGIN_PHONE); setError(''); setRecoveryMessage(''); }}
+          className="w-full text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold text-[10px] uppercase tracking-wider mt-4 text-center block transition-all"
+        >
+          Volver al login
+        </button>
+      </div>
+    </div>
+  );
   const renderStep = () => {
     switch(currentStep) {
+      case Step.RECOVERY: return renderPasswordRecovery();
       case Step.LOGIN_PHONE: return (
         <div className="flex flex-col h-full animate-fadeIn justify-center items-center py-4 max-w-sm mx-auto w-full">
           <div className="text-center w-full">
@@ -2588,6 +2806,13 @@ export const App: React.FC = () => {
                   className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#15803D]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
                 >
                   Continuar <ArrowRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={startPasswordRecovery}
+                  className="w-full text-[var(--text-muted)] hover:text-[#15803D] font-bold text-[10px] uppercase tracking-wider mt-4 text-center block transition-all"
+                >
+                  He olvidado mi contraseña
                 </button>
               </>
             ) : (
@@ -2624,6 +2849,14 @@ export const App: React.FC = () => {
                   Entrar <ArrowRight size={14} />
                 </button>
 
+                <button
+                  type="button"
+                  onClick={startPasswordRecovery}
+                  className="w-full text-[#15803D] hover:text-[#16A34A] font-black text-[10px] uppercase tracking-wider mt-4 text-center block transition-all"
+                >
+                  ¿Has olvidado tu contraseña?
+                </button>
+
                 <button 
                   onClick={() => {
                     setIsPhoneVerified(false);
@@ -2631,7 +2864,7 @@ export const App: React.FC = () => {
                     setLoginPassword('');
                     setError('');
                   }} 
-                  className="w-full text-[var(--text-muted)] hover:text-rose-400 font-bold text-[10px] uppercase tracking-wider mt-4 text-center block transition-all"
+                  className="w-full text-[var(--text-muted)] hover:text-rose-400 font-bold text-[10px] uppercase tracking-wider mt-3 text-center block transition-all"
                 >
                   Atrás / Cambiar de número
                 </button>
