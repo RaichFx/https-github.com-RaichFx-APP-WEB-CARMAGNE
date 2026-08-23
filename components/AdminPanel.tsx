@@ -1239,7 +1239,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       const user = auth.currentUser;
       if (!user) throw new Error('La sesión de administrador ha caducado.');
       const idToken = await user.getIdToken();
-      const response = await fetch('/api/auth/admin-reset-worker-password', {
+      const response = await fetch('/api/auth/reset-worker-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
