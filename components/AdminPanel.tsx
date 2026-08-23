@@ -211,9 +211,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const payslipFileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'workers' | 'sites' | 'logs' | 'tools' | 'hours' | 'admins' | 'settings' | 'reports' | 'payslips' | 'chat'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'workers' | 'sites' | 'logs' | 'tools' | 'hours' | 'admins' | 'settings' | 'reports' | 'payslips' | 'chat'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [logs, setLogs] = useState<WorkLog[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
@@ -1589,6 +1590,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     setIsClearLogsConfirmOpen(false);
   };
 
+  const isPendingWorker = (worker: Worker) =>
+    worker.registrationStatus === 'pending' ||
+    (worker.active === false && Boolean(worker.pinHash) && worker.registrationStatus !== 'rejected');
+
+  const pendingWorkers = workers.filter(isPendingWorker);
+
+  const handleApproveWorker = async (workerId: string) => {
+    setApprovalLoading(workerId);
+    try {
+      const updatedWorkers = workers.map(worker =>
+        worker.id === workerId
+          ? { ...worker, active: true, registrationStatus: 'approved' as const }
+          : worker
+      );
+      await StorageService.saveWorkers(updatedWorkers);
+    } catch (error) {
+      console.error('Error aprobando trabajador:', error);
+      alert('No se pudo aprobar al trabajador. Inténtalo de nuevo.');
+    } finally {
+      setApprovalLoading(null);
+    }
+  };
+
+  const handleApproveAllWorkers = async () => {
+    if (pendingWorkers.length === 0) return;
+    setApprovalLoading('all');
+    try {
+      const updatedWorkers = workers.map(worker =>
+        isPendingWorker(worker)
+          ? { ...worker, active: true, registrationStatus: 'approved' as const }
+          : worker
+      );
+      await StorageService.saveWorkers(updatedWorkers);
+    } catch (error) {
+      console.error('Error aprobando trabajadores:', error);
+      alert('No se pudieron aprobar todos los trabajadores. Inténtalo de nuevo.');
+    } finally {
+      setApprovalLoading(null);
+    }
+  };
+
   const filteredWorkers = workers.filter(w => w.name.toLowerCase().includes(workerSearchQuery.toLowerCase()));
   const filteredSites = sites.filter(s => s.name.toLowerCase().includes(siteSearchQuery.toLowerCase()));
   
@@ -1615,6 +1657,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const sidebarItems = useMemo(() => {
     const baseItems = [
       { id: 'dashboard', icon: BarChart3, label: 'Panel' },
+      { id: 'approvals', icon: CheckCircle2, label: pendingWorkers.length > 0 ? `Solicitudes (${pendingWorkers.length})` : 'Solicitudes' },
       { id: 'workers', icon: Users, label: 'Personal' },
       { id: 'hours', icon: History, label: 'Horas' },
       { id: 'reports', icon: ClipboardList, label: 'Partes' },
@@ -1626,7 +1669,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     ];
     if (isSuperAdmin) { baseItems.push({ id: 'admins', icon: Shield, label: 'Admins' }, { id: 'settings', icon: Settings, label: 'Ajustes' }); }
     return baseItems;
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, pendingWorkers.length]);
 
   const activeSidebarItem = sidebarItems.find(item => item.id === activeTab) || sidebarItems[0];
   const ActiveMobileIcon = activeSidebarItem.icon;
@@ -3273,6 +3316,67 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
           {activeTab === 'dashboard' && renderDashboard()}
+          {activeTab === 'approvals' && (
+            <div className="space-y-6 animate-fadeIn pb-32">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-wide">Nuevos trabajadores</h2>
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
+                    Revisa y autoriza las cuentas creadas desde el formulario de registro
+                  </p>
+                </div>
+                <button
+                  onClick={handleApproveAllWorkers}
+                  disabled={pendingWorkers.length === 0 || approvalLoading !== null}
+                  className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/20 disabled:text-[var(--text-muted)] text-white font-bold text-xs uppercase px-4 py-3 rounded-xl flex items-center gap-2 active:scale-95 transition-all shadow-lg shadow-emerald-600/20"
+                >
+                  {approvalLoading === 'all' ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  Aprobar todos
+                </button>
+              </div>
+
+              {pendingWorkers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {pendingWorkers.map(worker => (
+                    <div key={worker.id} className="bg-[var(--panel-bg)] rounded-3xl border border-amber-500/20 p-5 shadow-md space-y-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                          <UserPlus size={24} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-black text-[var(--text-main)] text-sm uppercase truncate">{worker.name}</h4>
+                            <span className="text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                              Pendiente
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[var(--text-muted)] font-bold mt-2">{worker.dni || 'Sin DNI'}</p>
+                          <p className="text-[10px] text-[var(--text-muted)] font-bold truncate">{worker.phone || 'Sin teléfono'}</p>
+                          <p className="text-[10px] text-[var(--text-muted)] font-bold truncate">{worker.email || 'Sin correo'}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleApproveWorker(worker.id)}
+                        disabled={approvalLoading !== null}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/20 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-wider transition-all flex items-center justify-center gap-2"
+                      >
+                        {approvalLoading === worker.id ? <RefreshCw size={15} className="animate-spin" /> : <Check size={15} />}
+                        Aprobar trabajador
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center p-12 bg-[var(--panel-bg)] rounded-3xl border border-[var(--panel-border)]">
+                  <CheckCircle2 className="mx-auto text-emerald-500 mb-3" size={36} />
+                  <p className="text-sm font-black text-[var(--text-main)] uppercase">No hay solicitudes pendientes</p>
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-2">
+                    Los nuevos registros aparecerán aquí automáticamente
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
           {activeTab === 'workers' && (
             <div className="space-y-6 animate-fadeIn pb-32">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
