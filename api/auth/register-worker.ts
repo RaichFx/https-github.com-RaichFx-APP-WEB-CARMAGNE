@@ -52,6 +52,7 @@ export default async function handler(req: any, res: any) {
       pinHash: hashSecret(password),
       qrCode: `QR_${now}`,
       active: false,
+      registrationStatus: 'pending',
       defaultMode: 'HORAS',
       certificates: [],
     };
