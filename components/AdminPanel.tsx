@@ -420,6 +420,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [workerForm, setWorkerForm] = useState({ name: '', dni: '', phone: '', email: '', pin: '', role: 'Electricista', active: true, photoUrl: '' });
   const [workerFormError, setWorkerFormError] = useState('');
+  const [passwordResetWorker, setPasswordResetWorker] = useState<Worker | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [temporaryPasswordConfirm, setTemporaryPasswordConfirm] = useState('');
+  const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
+  const [passwordResetError, setPasswordResetError] = useState('');
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
   const certFileInputRef = useRef<HTMLInputElement>(null);
   const workerPhotoInputRef = useRef<HTMLInputElement>(null);
   const [certNameInput, setCertNameInput] = useState('');
@@ -1185,6 +1192,72 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     }
     setWorkerFormError('');
     setIsWorkerFormModalOpen(true);
+  };
+
+  const generateTemporaryPassword = () => {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    const values = new Uint32Array(12);
+    crypto.getRandomValues(values);
+    return Array.from(values, value => alphabet[value % alphabet.length]).join('');
+  };
+
+  const handleOpenPasswordReset = (worker: Worker, event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    const generatedPassword = generateTemporaryPassword();
+    setPasswordResetWorker(worker);
+    setTemporaryPassword(generatedPassword);
+    setTemporaryPasswordConfirm(generatedPassword);
+    setShowTemporaryPassword(true);
+    setPasswordResetError('');
+    setPasswordResetSuccess(false);
+  };
+
+  const handleClosePasswordReset = () => {
+    if (passwordResetLoading) return;
+    setPasswordResetWorker(null);
+    setTemporaryPassword('');
+    setTemporaryPasswordConfirm('');
+    setPasswordResetError('');
+    setPasswordResetSuccess(false);
+    setShowTemporaryPassword(false);
+  };
+
+  const handleAdminResetPassword = async () => {
+    if (!passwordResetWorker) return;
+    if (temporaryPassword.length < 8) {
+      setPasswordResetError('La contraseña temporal debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (temporaryPassword !== temporaryPasswordConfirm) {
+      setPasswordResetError('Las contraseñas no coinciden.');
+      return;
+    }
+
+    setPasswordResetLoading(true);
+    setPasswordResetError('');
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('La sesión de administrador ha caducado.');
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/auth/admin-reset-worker-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + idToken,
+        },
+        body: JSON.stringify({
+          workerId: passwordResetWorker.id,
+          newPassword: temporaryPassword,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'No se pudo restablecer la contraseña.');
+      setPasswordResetSuccess(true);
+    } catch (error) {
+      setPasswordResetError(error instanceof Error ? error.message : 'No se pudo restablecer la contraseña.');
+    } finally {
+      setPasswordResetLoading(false);
+    }
   };
 
   const handleSaveWorker = async () => {
@@ -3526,6 +3599,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                         >
                           <FileText size={16} />
                         </button>
+                        <button
+                          onClick={(e) => handleOpenPasswordReset(w, e)}
+                          title="Restablecer contraseña"
+                          className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500 text-amber-500 hover:text-black transition-all duration-200"
+                        >
+                          <KeyRound size={16} />
+                        </button>
                         <button 
                           onClick={(e) => handleOpenWorkerForm(w, e)} 
                           title="Editar operario"
@@ -4070,6 +4150,108 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       })()}
 
       {/* MODAL: FORMULARIO CREAR / EDITAR TRABAJADOR */}
+      {passwordResetWorker && (
+        <div className="fixed inset-0 z-[130] bg-black/85 backdrop-blur-xl flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[var(--modal-bg)] w-full max-w-md rounded-[2rem] border border-[var(--modal-border)] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
+                  <KeyRound size={21} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase text-[var(--modal-text-main)]">Restablecer contraseña</h3>
+                  <p className="text-[10px] font-bold text-[var(--modal-text-muted)] mt-1">{passwordResetWorker.name}</p>
+                </div>
+              </div>
+              <button onClick={handleClosePasswordReset} disabled={passwordResetLoading} className="p-2 text-[var(--modal-text-muted)] hover:text-[var(--modal-text-main)]">
+                <X size={20} />
+              </button>
+            </div>
+
+            {passwordResetSuccess ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+                  <div className="flex items-center gap-2 text-emerald-500">
+                    <CheckCircle2 size={18} />
+                    <p className="text-[10px] font-black uppercase tracking-wider">Contraseña actualizada</p>
+                  </div>
+                  <p className="text-[10px] font-bold text-[var(--modal-text-muted)] mt-2 leading-relaxed">
+                    Comparte esta contraseña temporal de forma privada. La contraseña anterior ya no funcionará.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--panel-border)] bg-[var(--input-bg)] p-4 flex items-center justify-between gap-3">
+                  <code className="text-sm font-black tracking-wider text-[var(--modal-text-main)] break-all">{temporaryPassword}</code>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(temporaryPassword)}
+                    className="shrink-0 px-3 py-2 rounded-xl bg-blue-600 text-white text-[9px] font-black uppercase"
+                  >
+                    Copiar
+                  </button>
+                </div>
+                <button onClick={handleClosePasswordReset} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 rounded-xl font-black uppercase text-[10px]">
+                  Finalizar
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                  <p className="text-[9px] font-bold text-[var(--modal-text-muted)] leading-relaxed">
+                    No se mostrará la contraseña anterior. Esta acción la sustituirá por una contraseña temporal nueva.
+                  </p>
+                </div>
+                <div>
+                  <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1.5 block">Contraseña temporal</label>
+                  <div className="relative">
+                    <input
+                      type={showTemporaryPassword ? 'text' : 'password'}
+                      value={temporaryPassword}
+                      onChange={(e) => setTemporaryPassword(e.target.value)}
+                      minLength={8}
+                      autoComplete="new-password"
+                      className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 pr-11 text-xs text-[var(--modal-text-main)] font-mono outline-none focus:border-amber-500"
+                    />
+                    <button type="button" onClick={() => setShowTemporaryPassword(show => !show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--modal-text-muted)]">
+                      {showTemporaryPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1.5 block">Confirmar contraseña</label>
+                  <input
+                    type={showTemporaryPassword ? 'text' : 'password'}
+                    value={temporaryPasswordConfirm}
+                    onChange={(e) => setTemporaryPasswordConfirm(e.target.value)}
+                    minLength={8}
+                    autoComplete="new-password"
+                    className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--modal-text-main)] font-mono outline-none focus:border-amber-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const generated = generateTemporaryPassword();
+                    setTemporaryPassword(generated);
+                    setTemporaryPasswordConfirm(generated);
+                    setShowTemporaryPassword(true);
+                  }}
+                  className="w-full border border-[var(--panel-border)] bg-[var(--btn-glass-bg)] text-[var(--modal-text-main)] py-3 rounded-xl font-black uppercase text-[9px]"
+                >
+                  Generar otra contraseña segura
+                </button>
+                {passwordResetError && <p className="text-rose-500 text-[9px] font-black text-center">{passwordResetError}</p>}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={handleClosePasswordReset} disabled={passwordResetLoading} className="flex-1 bg-zinc-800 text-white py-3.5 rounded-xl font-black uppercase text-[10px]">Cancelar</button>
+                  <button onClick={handleAdminResetPassword} disabled={passwordResetLoading} className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black py-3.5 rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-2">
+                    {passwordResetLoading ? <RefreshCw size={15} className="animate-spin" /> : <KeyRound size={15} />}
+                    Restablecer
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {isWorkerFormModalOpen && (
         <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-fadeIn">
           <div className="bg-[var(--modal-bg)] w-full max-w-sm rounded-[2.5rem] border border-[var(--modal-border)] p-8 shadow-2xl relative overflow-hidden">
