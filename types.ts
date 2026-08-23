@@ -14,6 +14,7 @@ export interface Worker {
   name: string;
   qrCode: string;
   active: boolean;
+  registrationStatus?: 'pending' | 'approved' | 'rejected';
   pin: string;
   pinHash?: string;
   authUid?: string;
