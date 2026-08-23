@@ -1165,7 +1165,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         dni: worker.dni || '',
         phone: worker.phone || '',
         email: worker.email || '',
-        pin: worker.pin || '',
+        pin: '',
         role: worker.role || 'Electricista',
         active: worker.active !== false,
         photoUrl: worker.photoUrl || ''
@@ -1207,6 +1207,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         return;
       }
     }
+    if (!editingWorker && !/^\d{4}$/.test(workerForm.pin)) {
+      setWorkerFormError('Define un PIN de acceso de 4 dígitos para el nuevo operario.');
+      return;
+    }
     setWorkerFormError('');
     
     if (editingWorker) {
@@ -1216,7 +1220,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         dni: workerForm.dni,
         phone: normalizedPhone,
         email: workerForm.email,
-        pin: workerForm.pin || '0000',
+        pin: editingWorker.pin || '',
         role: workerForm.role,
         active: workerForm.active,
         photoUrl: workerForm.photoUrl
@@ -1234,7 +1238,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         dni: workerForm.dni,
         phone: normalizedPhone,
         email: workerForm.email,
-        pin: workerForm.pin || '0000',
+        pin: workerForm.pin,
         qrCode: `QR_${Date.now()}`,
         role: workerForm.role,
         active: workerForm.active,
@@ -3507,7 +3511,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       {/* Info de Fichajes rápidos */}
                       <div className="pt-3 border-t border-[var(--panel-border)] flex items-center justify-between text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wide">
                         <span>Fichajes Totales: {logs.filter(l => l.workerId === w.id).length}</span>
-                        <span>PIN: <span className="font-mono text-[var(--text-main)]">{w.pin || '0000'}</span></span>
+                        <span className="flex items-center gap-1.5"><Lock size={11} /> Acceso protegido</span>
                       </div>
 
                       {/* Botonera de acciones */}
@@ -4166,17 +4170,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 />
               </div>
 
-              <div>
-                <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">PIN de Acceso (4 Dígitos)</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej: 1234" 
-                  maxLength={4}
-                  className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] font-mono outline-none focus:border-blue-500" 
-                  value={workerForm.pin} 
-                  onChange={(e) => setWorkerForm({ ...workerForm, pin: e.target.value.replace(/\D/g, '') })}
-                />
-              </div>
+              {!editingWorker ? (
+                <div>
+                  <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">PIN inicial de acceso (4 dígitos) *</label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="new-password"
+                    placeholder="Ej: 1234"
+                    maxLength={4}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] font-mono outline-none focus:border-blue-500"
+                    value={workerForm.pin}
+                    onChange={(e) => setWorkerForm({ ...workerForm, pin: e.target.value.replace(/\D/g, '') })}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 flex items-start gap-3">
+                  <Lock size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-wider text-[var(--modal-text-main)]">Contraseña protegida</p>
+                    <p className="text-[9px] font-bold text-[var(--modal-text-muted)] mt-1 leading-relaxed">
+                      Editar este perfil no cambiará la contraseña del trabajador. Si la ha olvidado, debe usar “¿Olvidaste tu contraseña?” en el acceso.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">Puesto / Rol Profesional</label>
