@@ -3252,32 +3252,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           <AppLogo size="sm" logoUrl={config.logoUrl} scale={config.logoScaleDashboard} theme={theme} />
           <h1 className="text-xs font-black tracking-tighter uppercase leading-tight">CARMAGNE<br/>INSTAL SL</h1>
         </div>
-        <nav className="flex flex-col gap-2">
-          {sidebarItems.map(item => {
-            const isChatTab = item.id === 'chat';
-            const unreadCount = isChatTab ? adminTotalUnreadCount : 0;
-            return (
-              <button 
-                key={item.id} 
-                onClick={() => setActiveTab(item.id as any)} 
-                className={`flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold transition w-full ${
-                  activeTab === item.id 
-                    ? 'bg-blue-600 text-white shadow-lg' 
-                    : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--panel-bg)]'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon size={20} />
-                  <span>{item.label}</span>
-                </div>
-                {unreadCount > 0 && (
-                  <span className="bg-[#15803D] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(21,128,61,0.5)]">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <nav className="space-y-3">
+          <label htmlFor="admin-section-desktop" className="text-[9px] font-black uppercase tracking-[0.22em] text-[var(--text-muted)] ml-1">
+            Sección del panel
+          </label>
+          <div className="relative">
+            <select
+              id="admin-section-desktop"
+              value={activeTab}
+              onChange={(event) => setActiveTab(event.target.value as typeof activeTab)}
+              className="w-full appearance-none bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl py-4 pl-4 pr-11 text-xs font-black uppercase tracking-wide text-[var(--text-main)] outline-none focus:border-blue-500 cursor-pointer"
+            >
+              {sidebarItems.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.id === 'chat' && adminTotalUnreadCount > 0
+                    ? `${item.label} (${adminTotalUnreadCount})`
+                    : item.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+          </div>
         </nav>
         <button onClick={() => setIsLogoutConfirmOpen(true)} className="mt-auto flex items-center gap-3 px-4 py-3 text-rose-500 font-bold hover:bg-rose-500/10 rounded-2xl transition">
           <LogOut size={20} /> Salir
