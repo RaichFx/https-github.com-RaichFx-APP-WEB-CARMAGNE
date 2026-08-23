@@ -212,7 +212,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const payslipFileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'workers' | 'sites' | 'logs' | 'tools' | 'hours' | 'admins' | 'settings' | 'reports' | 'payslips' | 'chat'>('dashboard');
+  const [isDesktopMenuOpen, setIsDesktopMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (desktopMenuRef.current && !desktopMenuRef.current.contains(event.target as Node)) {
+        setIsDesktopMenuOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsDesktopMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
@@ -3252,27 +3271,69 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           <AppLogo size="sm" logoUrl={config.logoUrl} scale={config.logoScaleDashboard} theme={theme} />
           <h1 className="text-xs font-black tracking-tighter uppercase leading-tight">CARMAGNE<br/>INSTAL SL</h1>
         </div>
-        <nav className="space-y-3">
-          <label htmlFor="admin-section-desktop" className="text-[9px] font-black uppercase tracking-[0.22em] text-[var(--text-muted)] ml-1">
-            Sección del panel
-          </label>
-          <div className="relative">
-            <select
-              id="admin-section-desktop"
-              value={activeTab}
-              onChange={(event) => setActiveTab(event.target.value as typeof activeTab)}
-              className="w-full appearance-none bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-2xl py-4 pl-4 pr-11 text-xs font-black uppercase tracking-wide text-[var(--text-main)] outline-none focus:border-blue-500 cursor-pointer"
-            >
-              {sidebarItems.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.id === 'chat' && adminTotalUnreadCount > 0
-                    ? `${item.label} (${adminTotalUnreadCount})`
-                    : item.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
-          </div>
+        <nav ref={desktopMenuRef} className="relative">
+          <p className="text-[8px] font-black uppercase tracking-[0.28em] text-[var(--text-muted)] mb-2 ml-1">Navegación</p>
+          <button
+            type="button"
+            aria-expanded={isDesktopMenuOpen}
+            aria-controls="admin-desktop-menu"
+            onClick={() => setIsDesktopMenuOpen(open => !open)}
+            className={`group w-full rounded-2xl border px-3 py-3 flex items-center gap-3 text-left transition-all duration-300 active:scale-[0.98] ${
+              isDesktopMenuOpen
+                ? 'border-blue-500/60 bg-blue-600/10 shadow-[0_12px_35px_rgba(37,99,235,0.16)]'
+                : 'border-[var(--panel-border)] bg-[var(--input-bg)] hover:border-blue-500/30 hover:bg-[var(--btn-glass-bg)]'
+            }`}
+          >
+            <span className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/25 group-hover:scale-105 transition-transform">
+              <ActiveMobileIcon size={19} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[8px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-0.5">Sección actual</span>
+              <span className="block text-xs font-black uppercase tracking-tight text-[var(--text-main)] truncate">{activeSidebarItem.label}</span>
+            </span>
+            <ChevronDown size={17} className={`text-[var(--text-muted)] transition-transform duration-300 ${isDesktopMenuOpen ? 'rotate-180 text-blue-500' : ''}`} />
+          </button>
+
+          {isDesktopMenuOpen && (
+            <div id="admin-desktop-menu" className="absolute left-0 right-0 top-[calc(100%+0.75rem)] z-[90] rounded-3xl border border-[var(--panel-border)] bg-[var(--panel-bg)]/98 backdrop-blur-2xl shadow-[0_24px_70px_rgba(0,0,0,0.38)] p-2 animate-fadeIn max-h-[min(65vh,560px)] overflow-y-auto custom-scrollbar">
+              <div className="px-3 pt-2 pb-2 border-b border-[var(--panel-border)] mb-2">
+                <p className="text-[8px] font-black uppercase tracking-[0.25em] text-blue-500">Panel de administración</p>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] mt-1">Selecciona una sección</p>
+              </div>
+              <div className="space-y-1">
+                {sidebarItems.map(item => {
+                  const isActive = activeTab === item.id;
+                  const unreadCount = item.id === 'chat' ? adminTotalUnreadCount : 0;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(item.id as typeof activeTab);
+                        setIsDesktopMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all duration-200 active:scale-[0.98] ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--btn-glass-bg)]'
+                      }`}
+                    >
+                      <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                        isActive ? 'bg-white/15' : 'bg-[var(--input-bg)] border border-[var(--panel-border)] text-blue-500'
+                      }`}>
+                        <item.icon size={17} />
+                      </span>
+                      <span className="min-w-0 flex-1 text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
+                      {unreadCount > 0 && (
+                        <span className="bg-[#15803D] text-black text-[8px] font-black min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(21,128,61,0.4)]">{unreadCount}</span>
+                      )}
+                      {isActive && <Check size={15} strokeWidth={3} className="shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </nav>
         <button onClick={() => setIsLogoutConfirmOpen(true)} className="mt-auto flex items-center gap-3 px-4 py-3 text-rose-500 font-bold hover:bg-rose-500/10 rounded-2xl transition">
           <LogOut size={20} /> Salir
