@@ -149,7 +149,20 @@ export const compressImage = (dataUrl: string, maxWidth = 400, maxHeight = 400, 
   });
 };
 
+const memoryCache = new Map<string, unknown>();
+const NON_PERSISTENT_KEYS = new Set<string>([
+  ...Object.values(KEYS),
+  'carmagne_certs_cache',
+]);
+
+for (const key of NON_PERSISTENT_KEYS) {
+  try { localStorage.removeItem(key); } catch (e) {}
+}
+
 const loadLocal = <T>(key: string, initial: T): T => {
+  if (NON_PERSISTENT_KEYS.has(key)) {
+    return (memoryCache.has(key) ? memoryCache.get(key) : initial) as T;
+  }
   try {
     const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : initial;
@@ -157,11 +170,15 @@ const loadLocal = <T>(key: string, initial: T): T => {
 };
 
 const saveLocal = <T>(key: string, data: T): void => {
-  try {
-    const cloned = safeClone(data);
-    const cleaned = stripSensitiveLocalFields(key, stripHeavyBase64(cloned));
-    localStorage.setItem(key, JSON.stringify(cleaned));
-  } catch (e) { console.error("Error saving to local", e); }
+  const cloned = safeClone(data);
+  const cleaned = stripSensitiveLocalFields(key, stripHeavyBase64(cloned));
+  if (NON_PERSISTENT_KEYS.has(key)) {
+    memoryCache.set(key, cleaned);
+    try { localStorage.removeItem(key); } catch (e) {}
+    return;
+  }
+  try { localStorage.setItem(key, JSON.stringify(cleaned)); }
+  catch (e) { console.error('Error saving local preference', e); }
 };
 
 type StoredFileDoc = {
@@ -864,11 +881,6 @@ export const StorageService = {
   },
 
   getCertificateBase64: async (certId: string): Promise<string> => {
-    try {
-      const cache = loadLocal<any[]>('carmagne_certs_cache', []);
-      const match = cache.find(c => c.id === certId);
-      if (match && match.fileBase64 && match.fileBase64.length > 50) return match.fileBase64;
-    } catch (e) {}
 
     try {
       const docRef = doc(db, "certificates", certId);
@@ -887,10 +899,6 @@ export const StorageService = {
   },
 
   deleteCertificateDoc: async (certId: string) => {
-    try {
-      const cache = loadLocal<any[]>('carmagne_certs_cache', []);
-      localStorage.setItem('carmagne_certs_cache', JSON.stringify(cache.filter(c => c.id !== certId)));
-    } catch (e) {}
 
     try {
       const docRef = doc(db, "certificates", certId);

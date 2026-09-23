@@ -2,28 +2,31 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    function isAdmin() {
-      return request.auth != null
-        && (request.auth.token.role == 'admin' || request.auth.token.role == 'superadmin');
+    function signedIn() { return request.auth != null; }
+    function isOwner() { return signedIn() && (request.auth.token.role == 'OWNER' || request.auth.token.role == 'owner' || request.auth.token.role == 'superadmin'); }
+    function isAdmin() { return isOwner() || (signedIn() && (request.auth.token.role == 'ADMIN' || request.auth.token.role == 'admin')); }
+    function isWorker(id) { return signedIn() && (request.auth.token.role == 'WORKER' || request.auth.token.role == 'worker') && request.auth.token.workerId == id; }
+    function validCertificate() {
+      return request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('application/pdf|image/jpeg|image/png|image/webp');
     }
-
-    function isWorker(id) {
-      return request.auth != null
-        && request.auth.token.role == 'worker'
-        && request.auth.token.workerId == id;
+    function validPayslip() {
+      return request.resource.size <= 15 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
     }
 
     match /certificates/{id}/{allPaths=**} {
-      allow read, write: if isAdmin() || isWorker(id);
+      allow read: if isAdmin() || isWorker(id);
+      allow create, update: if (isAdmin() || isWorker(id)) && validCertificate();
+      allow delete: if isAdmin() || isWorker(id);
     }
 
     match /payslips/{id}/{allPaths=**} {
       allow read: if isAdmin() || isWorker(id);
-      allow write: if isAdmin();
+      allow create, update: if isAdmin() && validPayslip();
+      allow delete: if isAdmin();
     }
 
-    match /{allPaths=**} {
-      allow read, write: if false;
-    }
+    match /{allPaths=**} { allow read, write: if false; }
   }
 }

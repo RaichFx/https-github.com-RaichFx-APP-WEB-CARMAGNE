@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Secret runtime configuration
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Historical prompt exports must not be reintroduced
+migrated_prompt_history/

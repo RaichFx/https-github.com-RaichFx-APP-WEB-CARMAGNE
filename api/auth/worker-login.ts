@@ -1,11 +1,14 @@
 import {
   createFirebaseCustomToken,
+  hashSecret,
   isSpanishPhone,
   normalizeSpanishPhone,
   queryFirestoreBySpanishPhone,
+  setFirestoreDocument,
   verifySecret,
 } from '../../server/firebaseAdminRest.js';
 import { checkRateLimit } from '../../server/rateLimit.js';
+import { writeSecurityAudit } from '../../server/security/audit.js';
 import type { Worker } from '../../types';
 
 const publicWorker = (worker: Worker) => {
@@ -13,51 +16,63 @@ const publicWorker = (worker: Worker) => {
   return safeWorker;
 };
 
+const loginError = { error: 'No se pudo iniciar sesión.', code: 'INVALID_CREDENTIALS' };
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Metodo no permitido.' });
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Método no permitido.', code: 'METHOD_NOT_ALLOWED' });
   }
 
   const phone = normalizeSpanishPhone(String(req.body?.phone || ''));
-  const password = String(req.body?.password || '');
-  const rateKey = `worker-login:${req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown'}:${phone}`;
+  const password = String(req.body?.password || '').slice(0, 128);
+  const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+  const rateKey = 'worker-login:' + ip + ':' + phone;
 
   if (!checkRateLimit(rateKey, 8, 10 * 60 * 1000)) {
-    return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.' });
+    writeSecurityAudit({ action: 'auth.worker.login', outcome: 'denied', ip, reason: 'rate_limit' });
+    return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.', code: 'RATE_LIMITED' });
   }
 
   if (!isSpanishPhone(phone) || !password) {
-    return res.status(400).json({ error: 'Telefono o contraseña no validos.' });
+    writeSecurityAudit({ action: 'auth.worker.login', outcome: 'denied', ip, reason: 'invalid_credentials' });
+    return res.status(401).json(loginError);
   }
 
   try {
     const matches = await queryFirestoreBySpanishPhone<Worker>('workers', 'phone', phone, 1);
     const workerDoc = matches[0];
+    let worker = workerDoc
+      ? ({ ...workerDoc.data, id: workerDoc.data.id || workerDoc.id } as Worker)
+      : null;
 
-    if (!workerDoc) {
-      return res.status(404).json({ error: 'Trabajador no registrado.' });
+    const validPassword = worker
+      ? verifySecret(password, worker.pinHash, worker.pin)
+      : false;
+
+    if (!worker || worker.active === false || !validPassword) {
+      writeSecurityAudit({ action: 'auth.worker.login', outcome: 'denied', ip, reason: 'invalid_credentials' });
+      return res.status(401).json(loginError);
     }
 
-    const worker = { ...workerDoc.data, id: workerDoc.data.id || workerDoc.id } as Worker;
-    if (!worker.active) {
-      return res.status(403).json({ error: 'Cuenta pendiente de aprobacion o desactivada.' });
+    // Existing accounts are upgraded on their next successful login, so no
+    // forced reset or data loss is needed to remove legacy clear-text PINs.
+    if (!worker.pinHash?.startsWith('pbkdf2_sha256$') && worker.pin) {
+      const pinHash = hashSecret(password);
+      worker = { ...worker, pin: '', pinHash };
+      try {
+        await setFirestoreDocument('workers/' + worker.id, worker as any);
+        writeSecurityAudit({ action: 'auth.worker.password_migrated', outcome: 'allowed', actorUid: worker.id, actorRole: 'WORKER', targetId: worker.id });
+      } catch (migrationError) {
+        console.warn('No se pudo migrar una credencial antigua:', migrationError);
+      }
     }
 
-    if (!verifySecret(password, worker.pinHash, worker.pin || '0000')) {
-      return res.status(401).json({ error: 'Contraseña incorrecta.' });
-    }
-
-    const token = createFirebaseCustomToken(worker.id, {
-      role: 'worker',
-      workerId: worker.id,
-    });
-
-    return res.status(200).json({
-      token,
-      worker: publicWorker(worker),
-    });
-  } catch (error: any) {
-    console.error('Error en worker-login:', error);
-    return res.status(500).json({ error: error?.message || 'No se pudo iniciar sesion.' });
+    const token = createFirebaseCustomToken(worker.id, { role: 'worker', workerId: worker.id });
+    writeSecurityAudit({ action: 'auth.worker.login', outcome: 'allowed', actorUid: worker.id, actorRole: 'WORKER', ip });
+    return res.status(200).json({ token, worker: publicWorker(worker) });
+  } catch (error) {
+    console.error('Error interno en worker-login:', error);
+    return res.status(500).json({ error: 'No se pudo iniciar sesión.', code: 'INTERNAL_ERROR' });
   }
 }

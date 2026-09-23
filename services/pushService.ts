@@ -16,7 +16,7 @@ type PushEventPayload = {
 };
 
 const VAPID_PUBLIC_KEY = 'BA8KhEN04yRW1CO-XKqoK18CguY6hW7SUM4iE3yAOzABQeT_ttg9OxKJVDi1S2pT_HqIGmaFoZa-xf_hJRL52BU';
-const REGISTERED_TOKEN_KEY = 'carmagne_push_registered_token';
+let registeredSession: { ownerType: PushOwnerType; ownerId: string; registeredAt: number } | null = null;
 
 const canUsePushApis = () =>
   typeof window !== 'undefined' &&
@@ -51,14 +51,12 @@ export const PushService = {
   getStatusMessage,
 
   isRegisteredLocally(owner: RegisterPayload) {
-    try {
-      const raw = localStorage.getItem(REGISTERED_TOKEN_KEY);
-      if (!raw) return false;
-      const saved = JSON.parse(raw);
-      return saved?.ownerType === owner.ownerType && saved?.ownerId === owner.ownerId && Date.now() - Number(saved?.registeredAt || 0) < 30 * 24 * 60 * 60 * 1000;
-    } catch {
-      return false;
-    }
+    return Boolean(
+      registeredSession
+      && registeredSession.ownerType === owner.ownerType
+      && registeredSession.ownerId === owner.ownerId
+      && Date.now() - registeredSession.registeredAt < 30 * 24 * 60 * 60 * 1000
+    );
   },
 
   async requestPermissionAndRegister(owner: RegisterPayload): Promise<{ ok: boolean; status: PushPermissionStatus; message: string }> {
@@ -112,13 +110,11 @@ export const PushService = {
     if (!response.ok) {
       throw new Error(data?.error || 'No se pudo registrar este dispositivo para notificaciones.');
     }
-
-    localStorage.setItem(REGISTERED_TOKEN_KEY, JSON.stringify({
+    registeredSession = {
       ownerType: owner.ownerType,
       ownerId: owner.ownerId,
-      token,
       registeredAt: Date.now(),
-    }));
+    };
 
     return { ok: true, status: 'granted', message: getStatusMessage('granted') };
   },

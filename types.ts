@@ -9,6 +9,15 @@ export enum LogType {
 
 export type WorkMode = 'HORAS' | 'DESTAJO';
 
+export type UserRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'WORKER';
+
+export interface WorkerDirectoryEntry {
+  id: string;
+  name: string;
+  role?: string;
+  photoUrl?: string;
+}
+
 export interface Worker {
   id: string;
   name: string;
@@ -53,7 +62,9 @@ export interface Site {
 export interface AdminUser {
   id: string;
   username: string;
-  password: string;
+  password?: string;
+  passwordHash?: string;
+  role?: UserRole;
   active: boolean;
   createdAt: number;
 }
