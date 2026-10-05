@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   User, MapPin, CheckCircle, 
@@ -367,7 +367,12 @@ export const App: React.FC = () => {
     if (!selectedWorker?.id || isAdmin) return;
 
     const unsubWorker = StorageService.subscribeToWorker(selectedWorker.id, (worker) => {
-      if (worker && worker.active) {
+      if (!worker) {
+        console.warn('No se pudo sincronizar el perfil del operario; se mantendrá la sesión.');
+        return;
+      }
+
+      if (worker.active !== false) {
         setSelectedWorker(worker);
         setWorkers([worker]);
         setWorkerDirectory(prev => {
