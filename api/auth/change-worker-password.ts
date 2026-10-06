@@ -5,7 +5,7 @@ import { writeSecurityAudit } from '../../server/security/audit.js';
 import type { Worker } from '../../types';
 import { emailRecoveryEnabled, getEmailAuthAccount, hasEmailPassword, verifyEmailPassword, updateEmailPassword, markEmailRecoveryWorker } from '../../server/auth/emailRecovery.js';
 
-type WorkerWithPassword = Worker & { pinHash?: string; passwordUpdatedAt?: number; firebaseEmailRecovery?: boolean };
+type WorkerWithPassword = Worker & { pinHash?: string; passwordUpdatedAt?: number; firebaseEmailRecovery?: boolean; firebaseEmailMigrated?: boolean };
 const cleanText = (value: unknown, maxLength = 128) => String(value || '').trim().slice(0, maxLength);
 
 const findWorkerDocument = async (workerId: string) => {
@@ -47,13 +47,13 @@ export default async function handler(req: any, res: any) {
 
     const workerDoc = await findWorkerDocument(workerId);
     const worker = workerDoc ? ({ ...workerDoc.data, id: workerDoc.data.id || workerDoc.id } as WorkerWithPassword) : null;
-    const account = worker && (worker.firebaseEmailRecovery || emailRecoveryEnabled(workerId))
+    const account = worker && (worker.firebaseEmailMigrated || worker.firebaseEmailRecovery || emailRecoveryEnabled(workerId))
       ? await getEmailAuthAccount(workerId) : null;
     const linked = hasEmailPassword(account);
     const passwordToken = linked && !account?.disabled
       ? await verifyEmailPassword(workerId, account!.email!, currentPassword) : null;
     const valid = worker && worker.active !== false && !account?.disabled &&
-      (linked ? !!passwordToken : verifySecret(currentPassword, worker.pinHash, worker.pin));
+      (linked ? !!passwordToken : !worker.firebaseEmailMigrated && verifySecret(currentPassword, worker.pinHash, worker.pin));
     if (!valid) {
       writeSecurityAudit({ action: 'worker.password.change', outcome: 'denied', actorUid: auth.uid, actorRole: auth.role, targetType: 'worker', targetId: workerId, ip, reason: 'invalid_current_password' });
       return res.status(401).json({ error: 'La contraseña actual no es correcta.', code: 'INVALID_CURRENT_PASSWORD' });
