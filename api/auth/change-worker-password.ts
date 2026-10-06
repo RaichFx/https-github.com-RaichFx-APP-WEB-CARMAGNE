@@ -32,6 +32,18 @@ export default async function handler(req: any, res: any) {
     const workerId = auth.workerId;
     if (!workerId) return res.status(403).json({ error: 'No tienes permisos para esta acción.', code: 'FORBIDDEN' });
 
+    if (req.body?.action === 'recovery-status') {
+      if (auth.uid !== workerId) return res.status(403).json({ error: 'La sesión no corresponde a tu cuenta.', code: 'FORBIDDEN' });
+      const document = await findWorkerDocument(workerId);
+      if (!document || document.data.active === false) return res.status(403).json({ error: 'Cuenta desactivada o no disponible.', code: 'ACCOUNT_UNAVAILABLE' });
+      const required = process.env.FIREBASE_REQUIRED_EMAIL_RECOVERY === 'true';
+      if (!required) return res.status(200).json({ required: false, linked: false, verified: false });
+      const account = await getEmailAuthAccount(workerId);
+      if (!account || account.disabled) return res.status(403).json({ error: 'Cuenta no disponible. Contacta con el administrador.', code: 'ACCOUNT_UNAVAILABLE' });
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ required: true, linked: hasEmailPassword(account), verified: account.emailVerified === true, email: account.email || '' });
+    }
+
     const currentPassword = String(req.body?.currentPassword || '').slice(0, 128);
     const newPassword = String(req.body?.newPassword || '').slice(0, 128);
     const preparingEmail = req.body?.action === 'prepare-email';
