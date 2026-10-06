@@ -17,6 +17,18 @@ type PushEventPayload = {
 
 const VAPID_PUBLIC_KEY = 'BA8KhEN04yRW1CO-XKqoK18CguY6hW7SUM4iE3yAOzABQeT_ttg9OxKJVDi1S2pT_HqIGmaFoZa-xf_hJRL52BU';
 let registeredSession: { ownerType: PushOwnerType; ownerId: string; registeredAt: number } | null = null;
+const REGISTRATION_KEY = 'carmagne.push.registration.v1';
+const readRegistration = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(REGISTRATION_KEY) || 'null');
+    if (saved && (saved.ownerType === 'worker' || saved.ownerType === 'admin') && typeof saved.ownerId === 'string') return saved;
+  } catch { /* Storage may be unavailable in private browsing. */ }
+  return registeredSession;
+};
+const clearRegistration = () => {
+  registeredSession = null;
+  try { localStorage.removeItem(REGISTRATION_KEY); } catch { /* Memory fallback. */ }
+};
 
 const canUsePushApis = () =>
   typeof window !== 'undefined' &&
@@ -51,12 +63,27 @@ export const PushService = {
   getStatusMessage,
 
   isRegisteredLocally(owner: RegisterPayload) {
-    return Boolean(
-      registeredSession
-      && registeredSession.ownerType === owner.ownerType
-      && registeredSession.ownerId === owner.ownerId
-      && Date.now() - registeredSession.registeredAt < 30 * 24 * 60 * 60 * 1000
-    );
+    if (!canUsePushApis() || Notification.permission !== 'granted') {
+      clearRegistration();
+      return false;
+    }
+    const saved = readRegistration();
+    return Boolean(saved && saved.ownerType === owner.ownerType && saved.ownerId === owner.ownerId);
+  },
+
+  async isRegisteredOnDevice(owner: RegisterPayload): Promise<boolean> {
+    if (!this.isRegisteredLocally(owner)) return false;
+    try {
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      const subscription = await registration?.pushManager.getSubscription();
+      if (!subscription) {
+        clearRegistration();
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   async requestPermissionAndRegister(owner: RegisterPayload): Promise<{ ok: boolean; status: PushPermissionStatus; message: string }> {
@@ -68,7 +95,12 @@ export const PushService = {
       return { ok: false, status: 'unsupported', message: getStatusMessage('unsupported') };
     }
 
-    const permission = await Notification.requestPermission();
+    if (Notification.permission === 'granted' && await this.isRegisteredOnDevice(owner)) {
+      return { ok: true, status: 'granted', message: getStatusMessage('granted') };
+    }
+    const permission = Notification.permission === 'default'
+      ? await Notification.requestPermission()
+      : Notification.permission;
     if (permission !== 'granted') {
       const status = permission as PushPermissionStatus;
       return { ok: false, status, message: getStatusMessage(status) };
@@ -115,6 +147,8 @@ export const PushService = {
       ownerId: owner.ownerId,
       registeredAt: Date.now(),
     };
+
+    try { localStorage.setItem(REGISTRATION_KEY, JSON.stringify(registeredSession)); } catch { /* Memory fallback. */ }
 
     return { ok: true, status: 'granted', message: getStatusMessage('granted') };
   },
