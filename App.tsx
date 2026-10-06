@@ -14,7 +14,7 @@ import { Worker, Site, WorkLog, LogType, GeoLocationData, WorkMode, AdminUser, T
 import { AdminPanel } from './components/AdminPanel';
 import { InstallTutorial } from './components/InstallTutorial';
 import { ConfirmationModal } from './components/ConfirmationModal';
-import { signInWithCustomToken, signOut as firebaseSignOut } from 'firebase/auth';
+import { signInWithCustomToken, signOut as firebaseSignOut, sendPasswordResetEmail, sendEmailVerification, EmailAuthProvider, linkWithCredential } from 'firebase/auth';
 import { auth } from './services/firebase';
 
 type WorkerCertificate = NonNullable<Worker['certificates']>[number];
@@ -210,6 +210,9 @@ export const App: React.FC = () => {
   const [profileNewPasswordConfirm, setProfileNewPasswordConfirm] = useState('');
   const [profilePasswordMessage, setProfilePasswordMessage] = useState('');
   const [profilePasswordLoading, setProfilePasswordLoading] = useState(false);
+  const [profileRecoveryEmail, setProfileRecoveryEmail] = useState('');
+  const [emailRecoveryStatus, setEmailRecoveryStatus] = useState('');
+  const [recoveryNextAttempt, setRecoveryNextAttempt] = useState(0);
   const [showRegPin, setShowRegPin] = useState(false);
   const [showRegPinConfirm, setShowRegPinConfirm] = useState(false);
   const [regName, setRegName] = useState('');
@@ -774,45 +777,70 @@ export const App: React.FC = () => {
   };
 
   const handlePasswordRecovery = async () => {
-    const formattedPhone = processSpanishPhone(recoveryPhone);
-    if (!isPhoneValidSpain(formattedPhone)) { setError('Introduce un número español válido.'); return; }
-    if (!recoveryDni.trim() || !recoveryEmail.trim()) { setError('Introduce tu DNI y tu email para verificar tu identidad.'); return; }
-    if (!/\S+@\S+\.\S+/.test(recoveryEmail)) { setError('El formato del correo electrónico no es válido.'); return; }
-    if (recoveryPassword.trim().length < 4) { setError('La nueva contraseña debe tener al menos 4 caracteres.'); return; }
-    if (recoveryPassword !== recoveryPasswordConfirm) { setError('Las contraseñas no coinciden.'); return; }
-
+    if (loading) return;
+    const email = recoveryEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Introduce un correo válido.'); return; }
+    if (Date.now() < recoveryNextAttempt) { setError('Espera un minuto antes de solicitar otro enlace.'); return; }
     setLoading(true);
+    setError('');
     setRecoveryMessage('');
+    setRecoveryNextAttempt(Date.now() + 60000);
     try {
-      const response = await fetch('/api/auth/reset-worker-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: formattedPhone,
-          dni: recoveryDni.trim(),
-          email: recoveryEmail.trim(),
-          newPassword: recoveryPassword.trim(),
-        }),
+      await sendPasswordResetEmail(auth, email);
+      setRecoveryMessage('Si el correo tiene una cuenta vinculada, recibirás un enlace para recuperar tu contraseña. Revisa también spam. Si aún no has vinculado tu correo, contacta con el administrador.');
+    } catch (err: any) {
+      if (err?.code === 'auth/user-not-found') {
+        setRecoveryMessage('Si el correo tiene una cuenta vinculada, recibirás un enlace para recuperar tu contraseña. Revisa también spam. Si aún no has vinculado tu correo, contacta con el administrador.');
+      } else {
+        setError('No se pudo solicitar el enlace. Espera unos minutos e inténtalo de nuevo.');
+      }
+    } finally { setLoading(false); }
+  };
+
+  const handleEnrollEmailRecovery = async () => {
+    const user = auth.currentUser;
+    if (!user || user.uid !== selectedWorker?.id || profilePasswordLoading) return;
+    const email = profileRecoveryEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailRecoveryStatus('Introduce tu correo de recuperación.'); return; }
+    if (!profileCurrentPassword || profileNewPassword.length < 8 || profileNewPassword.length > 128 || profileNewPassword !== profileNewPasswordConfirm) {
+      setEmailRecoveryStatus('Completa abajo tu contraseña actual y una nueva de al menos 8 caracteres, repetida correctamente.'); return;
+    }
+    setProfilePasswordLoading(true);
+    setEmailRecoveryStatus('');
+    let linked = false;
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/auth/change-worker-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+        body: JSON.stringify({ action: 'prepare-email', currentPassword: profileCurrentPassword, newPassword: profileNewPassword }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setError(data.error || 'No se pudo restablecer la contraseña.');
-        return;
-      }
+      if (!response.ok) { setEmailRecoveryStatus(data.error || 'No se pudo preparar la recuperación.'); return; }
+      await linkWithCredential(user, EmailAuthProvider.credential(email, profileNewPassword));
+      linked = true;
+      setProfileCurrentPassword(''); setProfileNewPassword(''); setProfileNewPasswordConfirm('');
+      await user.getIdToken(true);
+      await sendEmailVerification(user);
+      setEmailRecoveryStatus('Correo vinculado. Ya debes usar la nueva contraseña con tu teléfono. Abre el correo de verificación; tus registros no han cambiado.');
+    } catch (err: any) {
+      setEmailRecoveryStatus(linked
+        ? 'El correo ya está vinculado y la nueva contraseña está activa, pero no se pudo enviar la verificación. Usa Reenviar verificación.'
+        : err?.code === 'auth/email-already-in-use'
+          ? 'Ese correo ya está asociado a otra cuenta. No crees otra cuenta: contacta con el administrador.'
+          : 'No se pudo vincular el correo. Tu acceso anterior se conserva; vuelve a iniciar sesión e inténtalo de nuevo.');
+    } finally { setProfilePasswordLoading(false); }
+  };
 
-      setError('');
-      setRecoveryMessage('Contraseña actualizada. Ya puedes volver al login e iniciar sesión con la nueva contraseña.');
-      setLoginPhone(formattedPhone);
-      setIsPhoneVerified(true);
-      setLoginPassword('');
-      setRecoveryPassword('');
-      setRecoveryPasswordConfirm('');
-    } catch (err) {
-      console.error('Error al restablecer contraseña:', err);
-      setError('Error al restablecer la contraseña.');
-    } finally {
-      setLoading(false);
-    }
+  const handleResendEmailVerification = async () => {
+    const user = auth.currentUser;
+    if (!user?.email || profilePasswordLoading) return;
+    setProfilePasswordLoading(true);
+    try {
+      await user.reload();
+      if (user.emailVerified) setEmailRecoveryStatus('Tu correo ya está verificado.');
+      else { await sendEmailVerification(user); setEmailRecoveryStatus('Verificación solicitada. Revisa tu correo y spam.'); }
+    } catch { setEmailRecoveryStatus('No se pudo enviar la verificación. Espera unos minutos.'); }
+    finally { setProfilePasswordLoading(false); }
   };
 
   const handleChangeProfilePassword = async () => {
@@ -821,8 +849,8 @@ export const App: React.FC = () => {
       setProfilePasswordMessage('Introduce la contraseña actual y la nueva.');
       return;
     }
-    if (profileNewPassword.trim().length < 4) {
-      setProfilePasswordMessage('La nueva contraseña debe tener al menos 4 caracteres.');
+    if (profileNewPassword.length < 8) {
+      setProfilePasswordMessage('La nueva contraseña debe tener al menos 8 caracteres.');
       return;
     }
     if (profileNewPassword !== profileNewPasswordConfirm) {
@@ -848,8 +876,8 @@ export const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
         body: JSON.stringify({
-          currentPassword: profileCurrentPassword.trim(),
-          newPassword: profileNewPassword.trim(),
+          currentPassword: profileCurrentPassword,
+          newPassword: profileNewPassword,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -1921,6 +1949,16 @@ export const App: React.FC = () => {
                 <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Acceso seguro</p>
                 <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin ? 'PIN legacy configurado' : 'Contraseña protegida'}</p>
               </div>
+              <div className="sm:col-span-2 bg-[var(--panel-bg)] p-5 rounded-[1.75rem] border border-[var(--panel-border)]">
+                <h3 className="text-sm font-bold text-[var(--text-main)]">Recuperación por correo</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-2">Activación progresiva. Conserva tu cuenta, fichajes y documentos. Para vincular, introduce tu correo y completa las contraseñas en el apartado de abajo.</p>
+                <input type="email" autoComplete="email" aria-label="Correo para vincular" placeholder="Tu correo de recuperación" value={profileRecoveryEmail} onChange={e => setProfileRecoveryEmail(e.target.value)} className="w-full mt-3 p-3 rounded-2xl bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)]" />
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button type="button" disabled={profilePasswordLoading} onClick={handleEnrollEmailRecovery} className="rounded-2xl px-4 py-3 bg-[#15803D] text-white font-bold text-xs disabled:opacity-50">Vincular correo y nueva contraseña</button>
+                  <button type="button" disabled={profilePasswordLoading} onClick={handleResendEmailVerification} className="rounded-2xl px-4 py-3 border border-[var(--panel-border)] text-[var(--text-main)] font-bold text-xs disabled:opacity-50">Reenviar verificación</button>
+                </div>
+                {emailRecoveryStatus && <p role="status" className="text-xs text-[var(--text-main)] mt-3 leading-relaxed">{emailRecoveryStatus}</p>}
+              </div>
               <div className="sm:col-span-2 bg-[var(--panel-bg)] p-5 rounded-[1.75rem] border border-[#15803D]/20 shadow-[var(--panel-shadow)]">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -2798,14 +2836,8 @@ export const App: React.FC = () => {
       </div>
 
       <div className="bg-[var(--panel-bg)] backdrop-blur-2xl p-6 rounded-[2.5rem] border border-[var(--panel-border)] w-full mt-6 shadow-[var(--panel-shadow)]">
-        <p className="text-xs text-[var(--text-muted)] font-bold text-center mb-4 uppercase tracking-widest">Confirma tus datos y crea una nueva contraseña</p>
-        <div className="space-y-3">
-          <input type="tel" value={recoveryPhone} onChange={(e) => setRecoveryPhone(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-black focus:border-[#15803D] outline-none text-center tracking-widest" placeholder="Teléfono" />
-          <input type="text" value={recoveryDni} onChange={(e) => setRecoveryDni(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-black focus:border-[#15803D] outline-none text-center uppercase tracking-widest" placeholder="DNI / NIE" />
-          <input type="email" value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-bold focus:border-[#15803D] outline-none text-center" placeholder="Email registrado" />
-          <input type="password" value={recoveryPassword} onChange={(e) => setRecoveryPassword(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-black focus:border-[#15803D] outline-none text-center tracking-widest" placeholder="Nueva contraseña" />
-          <input type="password" value={recoveryPasswordConfirm} onChange={(e) => setRecoveryPasswordConfirm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordRecovery(); }} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-black focus:border-[#15803D] outline-none text-center tracking-widest" placeholder="Repetir contraseña" />
-        </div>
+        <p className="text-xs text-[var(--text-muted)] font-bold text-center mb-4">Introduce el correo que has vinculado a tu cuenta. Recibirás un enlace seguro; aquí no pedimos DNI ni una contraseña nueva.</p>
+        <input type="email" autoComplete="email" aria-label="Correo de recuperación" value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordRecovery(); }} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl p-4 text-base font-bold outline-none focus:border-[#15803D]" placeholder="Correo de recuperación" />
 
         {recoveryMessage && (
           <div className="mt-4 rounded-2xl border border-[#15803D]/20 bg-[#15803D]/10 p-3 text-center text-[10px] font-black uppercase tracking-widest text-[#15803D]">{recoveryMessage}</div>
@@ -2816,7 +2848,7 @@ export const App: React.FC = () => {
           disabled={loading}
           className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#15803D]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all disabled:opacity-50"
         >
-          {loading ? 'Guardando...' : 'Guardar nueva contraseña'} <ArrowRight size={14} />
+          {loading ? 'Solicitando...' : 'Enviar enlace de recuperación'} <ArrowRight size={14} />
         </button>
 
         <button

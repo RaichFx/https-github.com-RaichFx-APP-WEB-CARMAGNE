@@ -3,8 +3,9 @@ import { requireAuth, requireRole, sendApiError } from '../../server/auth/verify
 import { checkRateLimit } from '../../server/rateLimit.js';
 import { writeSecurityAudit } from '../../server/security/audit.js';
 import type { Worker } from '../../types';
+import { emailRecoveryEnabled, getEmailAuthAccount, hasEmailPassword, verifyEmailPassword, updateEmailPassword, markEmailRecoveryWorker } from '../../server/auth/emailRecovery.js';
 
-type WorkerWithPassword = Worker & { pinHash?: string; passwordUpdatedAt?: number };
+type WorkerWithPassword = Worker & { pinHash?: string; passwordUpdatedAt?: number; firebaseEmailRecovery?: boolean; firebaseEmailMigrated?: boolean };
 const cleanText = (value: unknown, maxLength = 128) => String(value || '').trim().slice(0, maxLength);
 
 const findWorkerDocument = async (workerId: string) => {
@@ -21,7 +22,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const ip = cleanText(req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown', 80).split(',')[0].trim();
-  if (!checkRateLimit(`change-worker-password:ip:${ip}`, 10, 15 * 60 * 1000)) {
+  if (!checkRateLimit('change-worker-password', ip, 10, 15 * 60 * 1000).allowed) {
     return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.', code: 'RATE_LIMITED' });
   }
 
@@ -31,8 +32,9 @@ export default async function handler(req: any, res: any) {
     const workerId = auth.workerId;
     if (!workerId) return res.status(403).json({ error: 'No tienes permisos para esta acción.', code: 'FORBIDDEN' });
 
-    const currentPassword = cleanText(req.body?.currentPassword);
-    const newPassword = cleanText(req.body?.newPassword);
+    const currentPassword = String(req.body?.currentPassword || '').slice(0, 128);
+    const newPassword = String(req.body?.newPassword || '').slice(0, 128);
+    const preparingEmail = req.body?.action === 'prepare-email';
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Introduce la contraseña actual y la nueva.', code: 'PASSWORDS_REQUIRED' });
     }
@@ -45,9 +47,27 @@ export default async function handler(req: any, res: any) {
 
     const workerDoc = await findWorkerDocument(workerId);
     const worker = workerDoc ? ({ ...workerDoc.data, id: workerDoc.data.id || workerDoc.id } as WorkerWithPassword) : null;
-    if (!worker || !verifySecret(currentPassword, worker.pinHash, worker.pin)) {
+    const account = worker && (worker.firebaseEmailMigrated || worker.firebaseEmailRecovery || emailRecoveryEnabled(workerId))
+      ? await getEmailAuthAccount(workerId) : null;
+    const linked = hasEmailPassword(account);
+    const passwordToken = linked && !account?.disabled
+      ? await verifyEmailPassword(workerId, account!.email!, currentPassword) : null;
+    const valid = worker && worker.active !== false && !account?.disabled &&
+      (linked ? !!passwordToken : !worker.firebaseEmailMigrated && verifySecret(currentPassword, worker.pinHash, worker.pin));
+    if (!valid) {
       writeSecurityAudit({ action: 'worker.password.change', outcome: 'denied', actorUid: auth.uid, actorRole: auth.role, targetType: 'worker', targetId: workerId, ip, reason: 'invalid_current_password' });
       return res.status(401).json({ error: 'La contraseña actual no es correcta.', code: 'INVALID_CURRENT_PASSWORD' });
+    }
+
+    if (preparingEmail) {
+      if (auth.uid !== workerId || !emailRecoveryEnabled(workerId)) return res.status(403).json({ error: 'La recuperación por correo aún no está habilitada para tu cuenta.', code: 'EMAIL_RECOVERY_NOT_ENABLED' });
+      if (!account || linked) return res.status(409).json({ error: 'La cuenta ya está vinculada o no está preparada.', code: 'EMAIL_LINK_UNAVAILABLE' });
+      await markEmailRecoveryWorker(workerDoc!.id);
+      return res.status(200).json({ ok: true });
+    }
+    if (linked) {
+      await updateEmailPassword(passwordToken!, newPassword);
+      return res.status(200).json({ ok: true });
     }
 
     await setFirestoreDocument(`workers/${workerDoc!.id}`, {
