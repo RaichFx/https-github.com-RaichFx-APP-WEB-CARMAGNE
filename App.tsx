@@ -1207,9 +1207,9 @@ export const App: React.FC = () => {
       .slice(0, 4);
 
     return (
-      <div className="flex flex-col md:grid md:grid-cols-12 gap-5 md:h-full animate-fadeIn md:overflow-hidden text-[var(--text-main)]">
+      <div className="flex flex-col md:grid md:grid-cols-12 gap-5  animate-fadeIn  text-[var(--text-main)]">
         {/* LEFT COLUMN: Profile & Actions (Widgets style) */}
-        <div className="md:col-span-4 flex flex-col gap-4 md:justify-between md:h-full">
+        <div className="md:col-span-4 flex flex-col gap-4 md:justify-between ">
           {/* iOS Profile widget with glassmorphism */}
           <div className="bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] rounded-[2rem] p-5 shadow-[var(--panel-shadow)] relative overflow-hidden flex items-center justify-between group transition-all duration-300 shrink-0">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentStep(Step.WORKER_PROFILE)}>
@@ -1276,7 +1276,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* Quick Shortcuts Grid (iOS-style icon widgets) */}
-          <div className="grid grid-cols-2 gap-3 md:flex-1 md:overflow-y-auto custom-scrollbar pr-1 shrink-0 pb-1">
+          <div className="grid grid-cols-2 gap-3   custom-scrollbar pr-1 shrink-0 pb-1">
             {/* Navigation: History */}
             <button onClick={() => setCurrentStep(Step.WORKER_HISTORY)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-emerald-500/30 transition-all duration-300">
               <div className="text-emerald-500 bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/10"><History size={24} /></div>
@@ -1321,8 +1321,8 @@ export const App: React.FC = () => {
         </div>
 
         {/* CENTER COLUMN: Focal Time state stopwatch & Dynamic Island */}
-        <div className="md:col-span-5 flex flex-col md:h-full gap-4">
-          <div className="flex-1 bg-[var(--panel-bg)] backdrop-blur-2xl border border-[var(--panel-border)] rounded-[2.5rem] p-6 shadow-[var(--panel-shadow)] flex flex-col items-center justify-between relative overflow-hidden md:h-full min-h-[320px] py-8">
+        <div className="order-first md:order-none md:col-span-5 flex flex-col  gap-4">
+          <div className="flex-1 bg-[var(--panel-bg)] backdrop-blur-2xl border border-[var(--panel-border)] rounded-[2.5rem] p-6 shadow-[var(--panel-shadow)] flex flex-col items-center justify-between relative overflow-hidden  min-h-[320px] py-8">
             
             {/* Top portion: Apple-style "Dynamic Island" state pill */}
             <div className="w-full flex justify-center mt-2">
@@ -1399,13 +1399,13 @@ export const App: React.FC = () => {
         </div>
 
         {/* RIGHT COLUMN: Recent activity borderless widget */}
-        <div className="md:col-span-3 bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] rounded-[2rem] p-5 shadow-[var(--panel-shadow)] flex flex-col md:h-full md:overflow-hidden min-h-[250px] shrink-0">
+        <div className="md:col-span-3 bg-[var(--panel-bg)] backdrop-blur-xl border border-[var(--panel-border)] rounded-[2rem] p-5 shadow-[var(--panel-shadow)] flex flex-col   min-h-[250px] shrink-0">
           <div className="flex items-center gap-2 mb-4 shrink-0">
             <div className="w-1.5 h-3 bg-blue-500 rounded-full"></div>
             <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Actividad Reciente</span>
           </div>
 
-          <div className="md:flex-1 md:overflow-y-auto space-y-3 custom-scrollbar pr-1">
+          <div className="  space-y-3 custom-scrollbar pr-1">
             {recentLogs.length > 0 ? (
               recentLogs.map((log, idx) => (
                 <div key={log.id} className={`flex flex-col py-2 ${idx !== recentLogs.length - 1 ? 'border-b border-[var(--panel-border)]' : ''}`}>
@@ -3220,16 +3220,16 @@ case Step.WORKER_TOOLS: return (
 
   if (isAdmin) return <AdminPanel onBack={() => { firebaseSignOut(auth).catch(() => {}); setIsAdmin(false); setCurrentAdminUser(null); }} currentUser={currentAdminUser} theme={theme} setTheme={setTheme} />;
   return (
-    <div className="min-h-[100dvh] w-full min-w-full flex items-start justify-start md:items-center md:justify-center p-0 md:p-6 relative md:overflow-hidden font-inter select-none text-[var(--text-main)]">
+    <div className="min-h-[100dvh] w-full min-w-full flex items-start justify-start md:items-start md:justify-center p-0 md:p-6 relative font-inter select-none text-[var(--text-main)]">
       {/* Background Liquid Glows */}
       <div className="liquid-bg hidden md:block">
         <div className="liquid-glow-1"></div>
         <div className="liquid-glow-2"></div>
       </div>
 
-      {/* Main 16:9 Aspect ratio container on desktop, full-screen on mobile */}
-      <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl md:aspect-video bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] md:overflow-hidden flex flex-col relative">
-        <div className="flex-1 px-4 py-4 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8 flex flex-col md:overflow-hidden relative z-10">
+      {/* El contenido crece con la página para mantener accesibles todas las acciones. */}
+      <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] flex flex-col relative">
+        <div className="flex-1 px-4 py-4 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8 flex flex-col relative z-10">
           {renderStep()}
         </div>
       </div>
