@@ -3313,7 +3313,12 @@ case Step.WORKER_TOOLS: return (
       <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] flex flex-col relative">
         <div className="flex-1 px-4 py-4 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8 flex flex-col relative z-10">
           
-      {selectedWorker && !isAdmin && (recoveryGate.checking || recoveryGate.error || (recoveryGate.required && (!recoveryGate.linked || !recoveryGate.verified))) ? (
+      {selectedWorker && !isAdmin && recoveryGate.checking ? (
+        <div className="w-full min-h-[12rem] flex items-center justify-center" role="status" aria-label="Cargando">
+          <span className="w-7 h-7 rounded-full border-2 border-[var(--panel-border)] border-t-emerald-600 animate-spin" aria-hidden="true" />
+          <span className="sr-only">Cargando</span>
+        </div>
+      ) : selectedWorker && !isAdmin && (recoveryGate.error || (recoveryGate.required && (!recoveryGate.linked || !recoveryGate.verified))) ? (
         <section className="w-full max-w-xl mx-auto rounded-3xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-6 space-y-5" aria-labelledby="required-recovery-title">
           <h1 id="required-recovery-title" className="text-2xl font-bold">Protege el acceso a tu cuenta</h1>
           <p>Confirma un correo de recuperación y verifícalo antes de continuar. Tus fichajes y documentos se conservan.</p>
