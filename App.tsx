@@ -225,19 +225,29 @@ export const App: React.FC = () => {
       return;
     }
     setRecoveryGate(prev => ({ ...prev, checking: true, error: '' }));
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      if (version !== recoveryRequestVersion.current) return;
+      ++recoveryRequestVersion.current;
+      controller.abort();
+      setRecoveryGate(prev => ({ ...prev, checking: false, error: 'La comprobación ha tardado demasiado. Pulsa Reintentar para comprobar tu correo sin volver a vincularlo.' }));
+    }, 15000);
     try {
       await user.reload();
       const token = await user.getIdToken(true);
       const response = await fetch('/api/auth/change-worker-password', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ action: 'recovery-status' }),
+        body: JSON.stringify({ action: 'recovery-status' }), signal: controller.signal,
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'No se pudo comprobar la recuperación.');
-      if (version !== recoveryRequestVersion.current || auth.currentUser?.uid !== user.uid) return;
+      if (version !== recoveryRequestVersion.current) return;
+      if (auth.currentUser?.uid !== user.uid) throw new Error('La sesión ha cambiado. Cierra sesión y vuelve a entrar.');
       setRecoveryGate({ checking: false, required: data.required === true, linked: data.linked === true, verified: data.verified === true, email: data.email || '', error: '' });
     } catch (err: any) {
       if (version === recoveryRequestVersion.current) setRecoveryGate(prev => ({ ...prev, checking: false, error: err.message || 'No se pudo comprobar la recuperación. Reintenta o contacta con el administrador.' }));
+    } finally {
+      window.clearTimeout(timeout);
     }
   };
 
