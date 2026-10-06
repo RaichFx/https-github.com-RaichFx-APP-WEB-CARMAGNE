@@ -478,14 +478,15 @@ export const StorageService = {
 
   getLogs: (): WorkLog[] => loadLocal(KEYS.LOGS, []),
   addLog: async (log: WorkLog) => {
-    const logs = loadLocal<WorkLog[]>(KEYS.LOGS, []);
-    saveLocal(KEYS.LOGS, [log, ...logs]);
-    try { 
-      await setDoc(doc(db, "logs", log.id), safeClone(log)); 
+    try {
+      await setDoc(doc(db, "logs", log.id), safeClone(log));
     } catch (e) {
       console.error("Firestore error in addLog:", e);
       throw e;
     }
+    // Actualizar la caché solo después de confirmar el guardado remoto.
+    const logs = loadLocal<WorkLog[]>(KEYS.LOGS, []);
+    saveLocal(KEYS.LOGS, [log, ...logs.filter(item => item.id !== log.id)]);
   },
   updateLog: async (updatedLog: WorkLog) => {
     const logs = loadLocal<WorkLog[]>(KEYS.LOGS, []);
