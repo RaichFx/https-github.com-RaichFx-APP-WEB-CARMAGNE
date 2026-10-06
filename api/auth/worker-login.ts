@@ -10,6 +10,7 @@ import {
 import { checkRateLimit } from '../../server/rateLimit.js';
 import { writeSecurityAudit } from '../../server/security/audit.js';
 import type { Worker } from '../../types';
+import { emailRecoveryEnabled, getEmailAuthAccount, hasEmailPassword, verifyEmailPassword } from '../../server/auth/emailRecovery.js';
 
 const publicWorker = (worker: Worker) => {
   const { pin, pinHash, ...safeWorker } = worker as Worker & { pinHash?: string };
@@ -29,7 +30,7 @@ export default async function handler(req: any, res: any) {
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
   const rateKey = 'worker-login:' + ip + ':' + phone;
 
-  if (!checkRateLimit(rateKey, 8, 10 * 60 * 1000)) {
+  if (!checkRateLimit('worker-login', rateKey, 8, 10 * 60 * 1000).allowed) {
     writeSecurityAudit({ action: 'auth.worker.login', outcome: 'denied', ip, reason: 'rate_limit' });
     return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.', code: 'RATE_LIMITED' });
   }
@@ -46,8 +47,13 @@ export default async function handler(req: any, res: any) {
       ? ({ ...workerDoc.data, id: workerDoc.data.id || workerDoc.id } as Worker)
       : null;
 
-    const validPassword = worker
-      ? verifySecret(password, worker.pinHash, worker.pin)
+    const emailAccount = worker && emailRecoveryEnabled(worker.id)
+      ? await getEmailAuthAccount(worker.id) : null;
+    const firebasePassword = hasEmailPassword(emailAccount);
+    const validPassword = worker && !emailAccount?.disabled
+      ? firebasePassword
+        ? !!(await verifyEmailPassword(worker.id, emailAccount!.email!, password))
+        : verifySecret(password, worker.pinHash, worker.pin)
       : false;
 
     if (!worker || worker.active === false || !validPassword) {
@@ -57,7 +63,7 @@ export default async function handler(req: any, res: any) {
 
     // Existing accounts are upgraded on their next successful login, so no
     // forced reset or data loss is needed to remove legacy clear-text PINs.
-    if (!worker.pinHash?.startsWith('pbkdf2_sha256$') && worker.pin) {
+    if (!firebasePassword && !worker.pinHash?.startsWith('pbkdf2_sha256$') && worker.pin) {
       const pinHash = hashSecret(password);
       worker = { ...worker, pin: '', pinHash };
       try {
