@@ -1100,7 +1100,11 @@ export const App: React.FC = () => {
       };
       
       await StorageService.addLog(newLog);
-      PushService.sendEvent({
+      setExitReportText('');
+      setCurrentStep(Step.SUCCESS);
+
+      // El fichaje ya está guardado. Los avisos no cambian su resultado.
+      void Promise.resolve().then(() => PushService.sendEvent({
         eventType: 'worker_log',
         payload: {
           workerId: newLog.workerId,
@@ -1110,21 +1114,24 @@ export const App: React.FC = () => {
           timeStr: newLog.timeStr,
           dateStr: newLog.dateStr,
         },
-      }).catch((pushError) => console.warn('No se pudo enviar push de fichaje:', pushError));
-      
-      // Send Telegram Notification
-      const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-      const actionEmoji = type === LogType.ENTRADA ? '🚀' : type === LogType.SALIDA ? '🏠' : type === LogType.INICIO_DESCANSO ? '☕' : '⚙️';
-      
-      const locationText = `📍 Ubicación: <a href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}">Ver en Google Maps</a>`;
+      })).then(result => {
+        if (!result.ok) console.warn('Fichaje guardado; aviso push no enviado:', result.error);
+      }).catch(err => console.warn('Fichaje guardado; fallo del aviso push:', err));
 
-      const telegramMessage = `👷‍♂️ <b>${selectedWorker!.name}</b> ha marcado <b>${type}</b> a las <b>${timeStr}</b> ${actionEmoji}\n🏢 Obra: ${newLog.siteName}${report ? `\n📝 Reporte: ${report}` : ''}\n${locationText}`;
-      
-      TelegramService.enviarNotificacionTelegram(telegramMessage);
-
-      setExitReportText('');
-      setCurrentStep(Step.SUCCESS);
+      void Promise.resolve().then(() => TelegramService.enviarEventoTelegram('WORK_LOG', {
+        workerId: newLog.workerId,
+        workerName: newLog.workerName,
+        logType: newLog.type,
+        siteName: newLog.siteName,
+        timeStr: newLog.timeStr,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        report: report || '',
+      })).then(sent => {
+        if (!sent) console.warn('Fichaje guardado; aviso Telegram no enviado.');
+      }).catch(err => console.warn('Fichaje guardado; fallo del aviso Telegram:', err));
     } catch (err) { 
+      console.error('No se pudo guardar el fichaje en Firebase:', err);
       setError('Error al registrar el fichaje.'); 
     } finally { 
       setLoading(false); 
