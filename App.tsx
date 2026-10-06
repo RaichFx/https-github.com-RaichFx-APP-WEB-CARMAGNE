@@ -213,6 +213,43 @@ export const App: React.FC = () => {
   const [profileRecoveryEmail, setProfileRecoveryEmail] = useState('');
   const [emailRecoveryStatus, setEmailRecoveryStatus] = useState('');
   const [recoveryNextAttempt, setRecoveryNextAttempt] = useState(0);
+  const [recoveryGate, setRecoveryGate] = useState<{ checking: boolean; required: boolean; linked: boolean; verified: boolean; email: string; error: string }>({ checking: true, required: false, linked: false, verified: false, email: '', error: '' });
+  const recoveryRequestVersion = useRef(0);
+
+  const checkRequiredRecovery = async () => {
+    const version = ++recoveryRequestVersion.current;
+    const user = auth.currentUser;
+    if (!selectedWorker) return;
+    if (!user || user.uid !== selectedWorker.id) {
+      setRecoveryGate(prev => ({ ...prev, checking: false, error: 'Tu sesión no está disponible. Reintenta la comprobación o cierra sesión y vuelve a entrar.' }));
+      return;
+    }
+    setRecoveryGate(prev => ({ ...prev, checking: true, error: '' }));
+    try {
+      await user.reload();
+      const token = await user.getIdToken(true);
+      const response = await fetch('/api/auth/change-worker-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ action: 'recovery-status' }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'No se pudo comprobar la recuperación.');
+      if (version !== recoveryRequestVersion.current || auth.currentUser?.uid !== user.uid) return;
+      setRecoveryGate({ checking: false, required: data.required === true, linked: data.linked === true, verified: data.verified === true, email: data.email || '', error: '' });
+    } catch (err: any) {
+      if (version === recoveryRequestVersion.current) setRecoveryGate(prev => ({ ...prev, checking: false, error: err.message || 'No se pudo comprobar la recuperación. Reintenta o contacta con el administrador.' }));
+    }
+  };
+
+  useEffect(() => {
+    ++recoveryRequestVersion.current;
+    setProfileRecoveryEmail(selectedWorker?.email || '');
+    setEmailRecoveryStatus('');
+    setProfileCurrentPassword(''); setProfileNewPassword(''); setProfileNewPasswordConfirm('');
+    setRecoveryGate({ checking: true, required: false, linked: false, verified: false, email: '', error: '' });
+    if (selectedWorker && !isAdmin) void checkRequiredRecovery();
+    return () => { ++recoveryRequestVersion.current; };
+  }, [selectedWorker?.id, isAdmin]);
   const [showRegPin, setShowRegPin] = useState(false);
   const [showRegPinConfirm, setShowRegPinConfirm] = useState(false);
   const [regName, setRegName] = useState('');
@@ -818,6 +855,7 @@ export const App: React.FC = () => {
       if (!response.ok) { setEmailRecoveryStatus(data.error || 'No se pudo preparar la recuperación.'); return; }
       await linkWithCredential(user, EmailAuthProvider.credential(email, profileNewPassword));
       linked = true;
+      setRecoveryGate(prev => ({ ...prev, linked: true, verified: false, email }));
       setProfileCurrentPassword(''); setProfileNewPassword(''); setProfileNewPasswordConfirm('');
       await user.getIdToken(true);
       await sendEmailVerification(user);
@@ -3262,7 +3300,32 @@ case Step.WORKER_TOOLS: return (
       {/* El contenido crece con la página para mantener accesibles todas las acciones. */}
       <div className="w-full min-h-[100dvh] md:min-h-0 md:h-auto md:max-w-6xl bg-[var(--bg-color)] md:bg-[var(--panel-bg)] backdrop-blur-none md:backdrop-blur-3xl md:rounded-[2.5rem] md:border md:border-[var(--panel-border)] md:shadow-[var(--panel-shadow)] flex flex-col relative">
         <div className="flex-1 px-4 py-4 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8 flex flex-col relative z-10">
-          {renderStep()}
+          
+      {selectedWorker && !isAdmin && (recoveryGate.checking || recoveryGate.error || (recoveryGate.required && (!recoveryGate.linked || !recoveryGate.verified))) ? (
+        <section className="w-full max-w-xl mx-auto rounded-3xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-6 space-y-5" aria-labelledby="required-recovery-title">
+          <h1 id="required-recovery-title" className="text-2xl font-bold">Protege el acceso a tu cuenta</h1>
+          <p>Confirma un correo de recuperación y verifícalo antes de continuar. Tus fichajes y documentos se conservan.</p>
+          {recoveryGate.checking ? <p role="status">Comprobando tu cuenta…</p> : recoveryGate.error ? <p role="alert">{recoveryGate.error}</p> : recoveryGate.linked ? (
+            <div className="space-y-4">
+              <p>Abre el enlace de verificación enviado a <strong className="break-all">{recoveryGate.email}</strong>. Después pulsa «Ya he verificado mi correo».</p>
+              <button type="button" disabled={profilePasswordLoading} onClick={handleResendEmailVerification} className="w-full rounded-2xl border p-3">Reenviar verificación</button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <label className="block">Correo de recuperación<input type="email" autoComplete="email" value={profileRecoveryEmail} onChange={e => setProfileRecoveryEmail(e.target.value)} className="block w-full rounded-xl bg-[var(--input-bg)] border border-[var(--panel-border)] p-3" /></label>
+              <label className="block">Contraseña actual de la app<input type="password" autoComplete="current-password" value={profileCurrentPassword} onChange={e => setProfileCurrentPassword(e.target.value)} className="block w-full rounded-xl bg-[var(--input-bg)] border border-[var(--panel-border)] p-3" /></label>
+              <label className="block">Nueva contraseña (8–128 caracteres)<input type="password" autoComplete="new-password" value={profileNewPassword} onChange={e => setProfileNewPassword(e.target.value)} className="block w-full rounded-xl bg-[var(--input-bg)] border border-[var(--panel-border)] p-3" /></label>
+              <label className="block">Repite la nueva contraseña<input type="password" autoComplete="new-password" value={profileNewPasswordConfirm} onChange={e => setProfileNewPasswordConfirm(e.target.value)} className="block w-full rounded-xl bg-[var(--input-bg)] border border-[var(--panel-border)] p-3" /></label>
+              <p className="text-sm">Al vincular el correo, usarás la nueva contraseña para entrar con tu teléfono. No uses la contraseña de tu correo.</p>
+              <button type="button" disabled={profilePasswordLoading} onClick={handleEnrollEmailRecovery} className="w-full bg-emerald-700 text-white rounded-2xl p-3 font-bold">{profilePasswordLoading ? 'Preparando…' : 'Vincular y enviar verificación'}</button>
+            </div>
+          )}
+          {emailRecoveryStatus && <p role="status">{emailRecoveryStatus}</p>}
+          {!recoveryGate.checking && <button type="button" disabled={profilePasswordLoading} onClick={checkRequiredRecovery} className="w-full rounded-2xl border p-3">{recoveryGate.linked ? 'Ya he verificado mi correo' : 'Reintentar comprobación'}</button>}
+          <button type="button" onClick={async () => { ++recoveryRequestVersion.current; await firebaseSignOut(auth); setSelectedWorker(null); setStep(Step.LOGIN_PHONE); }} className="w-full rounded-2xl border p-3">Cerrar sesión</button>
+        </section>
+      ) : renderStep()}
+
         </div>
       </div>
       {showAdminLogin && (

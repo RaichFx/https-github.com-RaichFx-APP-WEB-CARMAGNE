@@ -2,6 +2,7 @@ import { getGoogleAccessToken, getServiceAccount } from '../firebaseAdminRest.js
 
 // Opt-in rollout: configure only the pilot UID first. No new paid infrastructure.
 export const emailRecoveryEnabled = (uid: string) =>
+  process.env.FIREBASE_REQUIRED_EMAIL_RECOVERY === 'true' ||
   (process.env.FIREBASE_EMAIL_RECOVERY_WORKER_IDS || '').split(',').map(v => v.trim()).includes(uid);
 
 export type EmailAuthAccount = { localId: string; email?: string; emailVerified?: boolean; disabled?: boolean; providerUserInfo?: { providerId: string }[] };
