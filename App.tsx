@@ -308,15 +308,34 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     selectedWorkerRef.current = selectedWorker;
-    if (selectedWorker) {
-      setPushRegistered(PushService.isRegisteredLocally({
-        ownerType: 'worker',
-        ownerId: selectedWorker.id,
-        ownerName: selectedWorker.name,
-      }));
-      setPushStatus(PushService.getPermissionStatus());
-    }
   }, [selectedWorker]);
+
+  useEffect(() => {
+    if (!selectedWorker || isAdmin) return;
+    let active = true;
+    let revision = 0;
+    const owner = { ownerType: 'worker' as const, ownerId: selectedWorker.id, ownerName: selectedWorker.name };
+    const refresh = async () => {
+      const current = ++revision;
+      const status = PushService.getPermissionStatus();
+      setPushStatus(status);
+      if (status !== 'granted') setPushRegistered(false);
+      const registered = await PushService.isRegisteredOnDevice(owner);
+      if (active && current === revision) {
+        setPushRegistered(registered);
+        setPushStatus(PushService.getPermissionStatus());
+      }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    void refresh();
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [selectedWorker?.id, isAdmin]);
 
   useEffect(() => {
     isAdminRef.current = isAdmin;
