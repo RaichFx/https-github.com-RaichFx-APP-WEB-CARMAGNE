@@ -47,7 +47,7 @@ export default async function handler(req: any, res: any) {
       ? ({ ...workerDoc.data, id: workerDoc.data.id || workerDoc.id } as Worker)
       : null;
 
-    const emailAccount = worker && emailRecoveryEnabled(worker.id)
+    const emailAccount = worker && ((worker as Worker & { firebaseEmailRecovery?: boolean }).firebaseEmailRecovery || emailRecoveryEnabled(worker.id))
       ? await getEmailAuthAccount(worker.id) : null;
     const firebasePassword = hasEmailPassword(emailAccount);
     const validPassword = worker && !emailAccount?.disabled
