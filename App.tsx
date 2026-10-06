@@ -1987,6 +1987,7 @@ export const App: React.FC = () => {
                 <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Acceso seguro</p>
                 <p className="text-sm font-mono font-black text-[var(--text-main)] mt-1">{selectedWorker.pin ? 'PIN legacy configurado' : 'Contraseña protegida'}</p>
               </div>
+              {!(recoveryGate.linked && recoveryGate.verified) && (<>
               <div className="sm:col-span-2 bg-[var(--panel-bg)] p-5 rounded-[1.75rem] border border-[var(--panel-border)]">
                 <h3 className="text-sm font-bold text-[var(--text-main)]">Recuperación por correo</h3>
                 <p className="text-xs text-[var(--text-muted)] mt-2">Activación progresiva. Conserva tu cuenta, fichajes y documentos. Para vincular, introduce tu correo y completa las contraseñas en el apartado de abajo.</p>
@@ -2040,6 +2041,7 @@ export const App: React.FC = () => {
                   <KeyRound size={14} /> {profilePasswordLoading ? 'Actualizando...' : 'Guardar nueva contraseña'}
                 </button>
               </div>
+              </>)}
               <div className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-[var(--panel-shadow)]">
                 <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Código QR asignado</p>
                 <p className="text-sm font-mono font-black text-blue-400 mt-1 truncate">{selectedWorker.qrCode || 'S/QR'}</p>
