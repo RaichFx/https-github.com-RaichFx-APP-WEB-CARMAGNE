@@ -20,7 +20,7 @@ export async function getEmailAuthAccount(uid: string): Promise<EmailAuthAccount
 }
 
 export const hasEmailPassword = (account: EmailAuthAccount | null) =>
-  !!account?.email && !!account.providerUserInfo?.some(provider => provider.providerId === 'password');
+  !!account?.email && !!account?.providerUserInfo?.some(provider => provider.providerId === 'password');
 
 export async function verifyEmailPassword(uid: string, email: string, password: string): Promise<string | null> {
   const response = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + apiKey(), {
@@ -50,4 +50,16 @@ export async function markEmailRecoveryWorker(documentId: string): Promise<void>
     body: JSON.stringify({ fields: { firebaseEmailRecovery: { booleanValue: true } } }),
   });
   if (!response.ok) throw new Error('No se pudo preparar la recuperación.');
+}
+
+export async function finalizeEmailRecoveryWorker(documentId: string): Promise<void> {
+  const { projectId } = getServiceAccount();
+  const token = await getGoogleAccessToken();
+  const mask = ['firebaseEmailMigrated', 'pin', 'pinHash'].map(field => 'updateMask.fieldPaths=' + field).join('&');
+  const url = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(projectId) + '/databases/(default)/documents/workers/' + encodeURIComponent(documentId) + '?' + mask;
+  const response = await fetch(url, {
+    method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { firebaseEmailMigrated: { booleanValue: true }, pin: { stringValue: '' }, pinHash: { stringValue: '' } } }),
+  });
+  if (!response.ok) throw new Error('No se pudo finalizar la migración de la credencial.');
 }
