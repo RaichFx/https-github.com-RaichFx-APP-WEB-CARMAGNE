@@ -219,7 +219,11 @@ export const App: React.FC = () => {
   const checkRequiredRecovery = async () => {
     const version = ++recoveryRequestVersion.current;
     const user = auth.currentUser;
-    if (!selectedWorker || !user || user.uid !== selectedWorker.id) return;
+    if (!selectedWorker) return;
+    if (!user || user.uid !== selectedWorker.id) {
+      setRecoveryGate(prev => ({ ...prev, checking: false, error: 'Tu sesión no está disponible. Reintenta la comprobación o cierra sesión y vuelve a entrar.' }));
+      return;
+    }
     setRecoveryGate(prev => ({ ...prev, checking: true, error: '' }));
     try {
       await user.reload();
