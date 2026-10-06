@@ -40,3 +40,14 @@ export async function updateEmailPassword(idToken: string, password: string): Pr
   });
   if (!response.ok) throw new Error('No se pudo actualizar la contraseña Firebase.');
 }
+
+export async function markEmailRecoveryWorker(documentId: string): Promise<void> {
+  const { projectId } = getServiceAccount();
+  const token = await getGoogleAccessToken();
+  const url = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(projectId) + '/databases/(default)/documents/workers/' + encodeURIComponent(documentId) + '?updateMask.fieldPaths=firebaseEmailRecovery';
+  const response = await fetch(url, {
+    method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { firebaseEmailRecovery: { booleanValue: true } } }),
+  });
+  if (!response.ok) throw new Error('No se pudo preparar la recuperación.');
+}
