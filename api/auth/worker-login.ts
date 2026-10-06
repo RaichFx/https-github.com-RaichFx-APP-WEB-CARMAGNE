@@ -10,7 +10,7 @@ import {
 import { checkRateLimit } from '../../server/rateLimit.js';
 import { writeSecurityAudit } from '../../server/security/audit.js';
 import type { Worker } from '../../types';
-import { emailRecoveryEnabled, getEmailAuthAccount, hasEmailPassword, verifyEmailPassword } from '../../server/auth/emailRecovery.js';
+import { emailRecoveryEnabled, getEmailAuthAccount, hasEmailPassword, verifyEmailPassword, finalizeEmailRecoveryWorker } from '../../server/auth/emailRecovery.js';
 
 const publicWorker = (worker: Worker) => {
   const { pin, pinHash, ...safeWorker } = worker as Worker & { pinHash?: string };
@@ -47,18 +47,24 @@ export default async function handler(req: any, res: any) {
       ? ({ ...workerDoc.data, id: workerDoc.data.id || workerDoc.id } as Worker)
       : null;
 
-    const emailAccount = worker && ((worker as Worker & { firebaseEmailRecovery?: boolean }).firebaseEmailRecovery || emailRecoveryEnabled(worker.id))
+    const migrated = !!(worker as (Worker & { firebaseEmailMigrated?: boolean }) | null)?.firebaseEmailMigrated;
+    const emailAccount = worker && (migrated || (worker as Worker & { firebaseEmailRecovery?: boolean }).firebaseEmailRecovery || emailRecoveryEnabled(worker.id))
       ? await getEmailAuthAccount(worker.id) : null;
     const firebasePassword = hasEmailPassword(emailAccount);
     const validPassword = worker && !emailAccount?.disabled
       ? firebasePassword
         ? !!(await verifyEmailPassword(worker.id, emailAccount!.email!, password))
-        : verifySecret(password, worker.pinHash, worker.pin)
+        : !migrated && verifySecret(password, worker.pinHash, worker.pin)
       : false;
 
     if (!worker || worker.active === false || !validPassword) {
       writeSecurityAudit({ action: 'auth.worker.login', outcome: 'denied', ip, reason: 'invalid_credentials' });
       return res.status(401).json(loginError);
+    }
+
+    if (firebasePassword && !migrated) {
+      await finalizeEmailRecoveryWorker(workerDoc!.id);
+      worker = { ...worker, pin: '', pinHash: '' };
     }
 
     // Existing accounts are upgraded on their next successful login, so no
