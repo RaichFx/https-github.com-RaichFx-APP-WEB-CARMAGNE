@@ -454,13 +454,6 @@ export const App: React.FC = () => {
         setError('Cuenta desactivada o pendiente de aprobación.');
       }
     });
-    const unsubWorkerDirectory = StorageService.subscribeToWorkers((newWorkers) => {
-      const safeDirectory = newWorkers
-        .filter(worker => worker.active)
-        .map(sanitizeWorkerForDirectory)
-        .sort((a, b) => a.name.localeCompare(b.name, 'es'));
-      setWorkerDirectory(safeDirectory);
-    });
     loadWorkerDirectoryFromApi().catch(error => console.warn('No se pudo cargar el directorio de compañeros:', error));
     const unsubSites = StorageService.subscribeToSites(setSites);
     const unsubLogs = StorageService.subscribeToWorkerLogs(selectedWorker.id, (newLogs) => {
@@ -503,7 +496,7 @@ export const App: React.FC = () => {
       })
       .catch(error => console.warn('No se pudo ejecutar la limpieza mensual de chats:', error));
     return () => {
-      unsubWorker(); unsubWorkerDirectory(); unsubSites(); unsubLogs(); unsubTools(); unsubReports(); unsubPayslips(); unsubChats();
+      unsubWorker(); unsubSites(); unsubLogs(); unsubTools(); unsubReports(); unsubPayslips(); unsubChats();
     };
   }, [selectedWorker?.id, isAdmin]);
 
@@ -631,9 +624,17 @@ export const App: React.FC = () => {
   };
 
   const sanitizeWorkerForDirectory = (worker: Worker): Worker => ({
-    ...worker,
+    id: worker.id,
+    name: worker.name,
+    role: worker.role,
+    photoUrl: worker.photoUrl,
+    active: worker.active !== false,
+    dni: '',
+    phone: '',
+    email: '',
     pin: '',
     pinHash: '',
+    qrCode: '',
     certificates: [],
   });
 
@@ -2348,23 +2349,6 @@ export const App: React.FC = () => {
 
                       {isExpanded && (
                         <div className="mx-3 mb-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-3 animate-fadeIn">
-                          <div className="grid grid-cols-1 gap-2 text-[10px] font-bold">
-                            <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
-                              <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">Email</span>
-                              <span className="break-all text-[var(--text-main)]">{workerEmail}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
-                                <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">DNI</span>
-                                <span className="text-[var(--text-main)]">{formatDni(w.dni)}</span>
-                              </div>
-                              <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
-                                <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">Teléfono</span>
-                                <span className="text-[var(--text-main)]">{workerPhone}</span>
-                              </div>
-                            </div>
-                          </div>
-
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             <button
                               type="button"
