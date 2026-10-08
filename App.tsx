@@ -454,13 +454,6 @@ export const App: React.FC = () => {
         setError('Cuenta desactivada o pendiente de aprobación.');
       }
     });
-    const unsubWorkerDirectory = StorageService.subscribeToWorkers((newWorkers) => {
-      const safeDirectory = newWorkers
-        .filter(worker => worker.active)
-        .map(sanitizeWorkerForDirectory)
-        .sort((a, b) => a.name.localeCompare(b.name, 'es'));
-      setWorkerDirectory(safeDirectory);
-    });
     loadWorkerDirectoryFromApi().catch(error => console.warn('No se pudo cargar el directorio de compañeros:', error));
     const unsubSites = StorageService.subscribeToSites(setSites);
     const unsubLogs = StorageService.subscribeToWorkerLogs(selectedWorker.id, (newLogs) => {
@@ -503,7 +496,7 @@ export const App: React.FC = () => {
       })
       .catch(error => console.warn('No se pudo ejecutar la limpieza mensual de chats:', error));
     return () => {
-      unsubWorker(); unsubWorkerDirectory(); unsubSites(); unsubLogs(); unsubTools(); unsubReports(); unsubPayslips(); unsubChats();
+      unsubWorker(); unsubSites(); unsubLogs(); unsubTools(); unsubReports(); unsubPayslips(); unsubChats();
     };
   }, [selectedWorker?.id, isAdmin]);
 
@@ -631,9 +624,17 @@ export const App: React.FC = () => {
   };
 
   const sanitizeWorkerForDirectory = (worker: Worker): Worker => ({
-    ...worker,
+    id: worker.id,
+    name: worker.name,
+    role: worker.role,
+    photoUrl: worker.photoUrl,
+    active: worker.active !== false,
+    dni: '',
+    phone: '',
+    email: '',
     pin: '',
     pinHash: '',
+    qrCode: '',
     certificates: [],
   });
 
@@ -2348,23 +2349,6 @@ export const App: React.FC = () => {
 
                       {isExpanded && (
                         <div className="mx-3 mb-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--panel-bg)] p-3 animate-fadeIn">
-                          <div className="grid grid-cols-1 gap-2 text-[10px] font-bold">
-                            <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
-                              <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">Email</span>
-                              <span className="break-all text-[var(--text-main)]">{workerEmail}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
-                                <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">DNI</span>
-                                <span className="text-[var(--text-main)]">{formatDni(w.dni)}</span>
-                              </div>
-                              <div className="rounded-xl border border-[var(--panel-border)] bg-[var(--input-bg)] px-3 py-2">
-                                <span className="block text-[8px] uppercase tracking-widest text-[var(--text-muted)]">Teléfono</span>
-                                <span className="text-[var(--text-main)]">{workerPhone}</span>
-                              </div>
-                            </div>
-                          </div>
-
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             <button
                               type="button"
@@ -3476,44 +3460,4 @@ case Step.WORKER_TOOLS: return (
 
       {/* iOS 26 Styled Push Notifications Container */}
       <div className="fixed top-4 left-0 right-0 z-[99999] flex flex-col items-center gap-2 pointer-events-none px-4 pt-[env(safe-area-inset-top,0px)]">
-        {pushNotifications.map(notif => (
-          <div 
-            key={notif.id}
-            onClick={() => handleNotificationClick(notif)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleNotificationClick(notif); }}
-            className={`push-toast push-toast--${notif.type === 'chat' ? 'chat' : notif.type === 'log' ? 'log' : 'system'} pointer-events-auto w-full max-w-sm rounded-[1.75rem] p-4 flex gap-3 cursor-pointer hover:scale-[1.015] active:scale-[0.99] transition-all duration-300 transform animate-slideDown relative overflow-hidden`}
-          >
-             {/* Dynamic glass accent bar */}
-             <div className="push-toast__shine absolute top-0 left-8 right-8 h-[2px] rounded-full" />
-             
-             {/* Left Icon/Initial */}
-             <div className="push-toast__icon w-11 h-11 min-w-[44px] rounded-2xl flex items-center justify-center text-lg font-black">
-               {notif.icon || (notif.type === 'chat' ? '💬' : '📋')}
-             </div>
-             
-             {/* Body */}
-             <div className="flex-1 min-w-0">
-               <div className="flex justify-between items-center">
-                 <span className="push-toast__label text-[9px] font-black uppercase tracking-[0.18em] font-sans">
-                   {notif.type === 'chat' ? 'Mensaje Recibido' : 'Registro de Actividad'}
-                 </span>
-                 <span className="push-toast__time text-[9px] font-bold font-mono">Ahora</span>
-               </div>
-               <h4 className="push-toast__title text-[13px] font-black uppercase tracking-tight mt-1 truncate font-sans">
-                 {notif.title}
-               </h4>
-               <p className="push-toast__body text-[11px] font-semibold truncate mt-0.5 leading-snug font-sans">
-                 {notif.body}
-               </p>
-             </div>
-             
-             {/* Subtle iOS indicator line */}
-             <div className="push-toast__handle absolute bottom-1.5 w-12 h-[3px] left-1/2 transform -translate-x-1/2 rounded-full" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+        {pushNotific[Truncated]
