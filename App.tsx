@@ -97,6 +97,33 @@ const calculateTotalsFromLogs = (logs: WorkLog[]) => {
   return { totalWork, totalBreak, isOngoing };
 };
 
+const getHistoryDayDetails = (logs: WorkLog[], dayTimestamp: number, now: number) => {
+  const start = new Date(dayTimestamp); start.setHours(0, 0, 0, 0);
+  const end = new Date(start); end.setDate(end.getDate() + 1);
+  const sorted = [...logs].filter(log => Number.isFinite(log.timestamp)).sort((a, b) => a.timestamp - b.timestamp);
+  const dayLogs = sorted.filter(log => log.timestamp >= start.getTime() && log.timestamp < end.getTime());
+  let work = 0; let rest = 0;
+  let state: 'work' | 'rest' | null = null;
+  let previous = start.getTime();
+  let incomplete = false;
+  const addInterval = (until: number) => {
+    const duration = Math.max(0, Math.min(until, end.getTime(), now) - Math.max(previous, start.getTime()));
+    if (state === 'work') work += duration;
+    if (state === 'rest') rest += duration;
+  };
+  for (const log of sorted) {
+    if (log.timestamp >= end.getTime() || log.timestamp > now) break;
+    addInterval(log.timestamp);
+    if (log.type === LogType.ENTRADA) { if (state && log.timestamp >= start.getTime()) incomplete = true; state = 'work'; }
+    else if (log.type === LogType.INICIO_DESCANSO) { if (state !== 'work' && log.timestamp >= start.getTime()) incomplete = true; state = state ? 'rest' : null; }
+    else if (log.type === LogType.FIN_DESCANSO) { if (state !== 'rest' && log.timestamp >= start.getTime()) incomplete = true; state = state ? 'work' : null; }
+    else if (log.type === LogType.SALIDA) { if (!state && log.timestamp >= start.getTime()) incomplete = true; state = null; }
+    previous = log.timestamp;
+  }
+  addInterval(Math.min(now, end.getTime()));
+  return { dayLogs, work, rest, ongoing: state !== null && now >= start.getTime() && now < end.getTime(), incomplete: incomplete || (state !== null && now >= end.getTime()) };
+};
+
 const isPasswordProtectedPdf = async (file: File): Promise<boolean> => {
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
   if (!isPdf) return false;
@@ -290,6 +317,7 @@ export const App: React.FC = () => {
   const [chats, setChats] = useState<ChatMessage[]>([]);
   const [activeChatPartnerId, setActiveChatPartnerId] = useState<string | null>(null);
   const [chatMessageInput, setChatMessageInput] = useState('');
+  const [historyDayTimestamp, setHistoryDayTimestamp] = useState<number | null>(null);
   const [workerDirectory, setWorkerDirectory] = useState<Worker[]>([]);
   const [expandedPhoneWorkerId, setExpandedPhoneWorkerId] = useState<string | null>(null);
   const [expandedDirectoryWorkerId, setExpandedDirectoryWorkerId] = useState<string | null>(null);
@@ -560,6 +588,7 @@ export const App: React.FC = () => {
     return baseHistory;
   }, [workerLogs, selectedWorker, historySearch, historyPeriod, selectedMonth, selectedDate]);
 
+  const historyDayDetails = useMemo(() => historyDayTimestamp === null ? null : getHistoryDayDetails(workerLogs, historyDayTimestamp, currentTime.getTime()), [workerLogs, historyDayTimestamp, currentTime]);
   const historyTotals = useMemo(() => calculateTotalsFromLogs(filteredHistory), [filteredHistory, currentTime]);
 
   const handleDownloadPDF = () => {
@@ -3129,7 +3158,7 @@ export const App: React.FC = () => {
         </div>
       );
       case Step.WORKER_HISTORY: return (
-        <div className="flex flex-col md:h-full animate-fadeIn md:overflow-hidden">
+        <div className="flex flex-col md:h-full animate-fadeIn md:overflow-y-auto">
            <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
              <div className="flex items-center gap-4">
                <button onClick={() => setCurrentStep(Step.WORKER_DASHBOARD)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10">
@@ -3161,15 +3190,31 @@ export const App: React.FC = () => {
              {historyPeriod === 'MONTH' && (<div className="animate-slideDown relative"><select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 px-4 text-xs font-bold outline-none appearance-none">{MONTH_NAMES.map((name, idx) => (<option key={name} value={idx} className="bg-[var(--panel-bg)] text-[var(--text-main)]">{name}</option>))}</select><ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" size={16} /></div>)}
              {(historyPeriod === 'WEEK' || historyPeriod === 'DAY') && (<div className="animate-slideDown flex flex-col gap-1"><span className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest ml-1">{historyPeriod === 'DAY' ? 'Elegir día:' : 'Elegir día de la semana:'}</span><div className="relative"><CalendarDays size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-2xl py-3 pl-11 pr-4 text-xs font-bold outline-none [color-scheme:dark]"/></div></div>)}
            </div>
-           <div className="md:flex-1 md:overflow-y-auto space-y-3 pb-4 custom-scrollbar">
+           {historyDayDetails && historyDayTimestamp !== null && (
+             <section aria-label="Detalle del día" className="mb-4 p-4 rounded-2xl border border-[var(--panel-border)] bg-[var(--panel-bg)] text-[var(--text-main)] shrink-0">
+               <div className="flex items-center justify-between gap-3 mb-3">
+                 <div><h3 className="text-sm font-black">Detalle del día</h3><p className="text-xs text-[var(--text-muted)]">{new Date(historyDayTimestamp).toLocaleDateString('es-ES')} · {historyDayDetails.ongoing ? 'En curso' : historyDayDetails.incomplete ? 'Registros incompletos' : 'Finalizada'}</p></div>
+                 <button type="button" aria-label="Cerrar detalle del día" onClick={() => setHistoryDayTimestamp(null)} className="p-2 rounded-xl border border-[var(--panel-border)] focus-visible:outline focus-visible:outline-2"><X size={18}/></button>
+               </div>
+               <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 text-xs">
+                 {([['Trabajo neto', historyDayDetails.work], ['Descansos', historyDayDetails.rest], ['Total jornada', historyDayDetails.work + historyDayDetails.rest]] as const).map(([label, value]) => <div key={label}><dt className="text-[var(--text-muted)]">{label}</dt><dd className="font-mono font-bold mt-1">{formatMsToTime(value)}</dd></div>)}
+               </dl>
+               {historyDayDetails.incomplete && <p className="text-xs text-amber-600 mb-3">Faltan fichajes o hay registros sin pareja. Los tiempos pueden estar incompletos.</p>}
+               <ol className="space-y-3">
+                 {historyDayDetails.dayLogs.map(item => <li key={item.id} className="border-l-2 border-emerald-600 pl-3 text-xs"><div className="flex flex-wrap justify-between gap-2"><strong>{item.type}</strong><span className="font-mono">{item.timeStr}</span></div><p className="mt-1 break-words">{item.siteName}</p>{item.type === LogType.SALIDA && <div className="mt-2 rounded-xl bg-[var(--input-bg)] p-3"><span className="font-bold">Parte de salida</span><p className="mt-1 whitespace-pre-wrap break-words">{item.report?.trim() || 'Sin parte escrito.'}</p></div>}</li>)}
+               </ol>
+             </section>
+           )}
+           <div className="space-y-3 pb-4 custom-scrollbar">
               {filteredHistory.map(log => (
-                <div key={log.id} className="bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-sm">
+                <button type="button" key={log.id} aria-label={`Ver detalle del día ${log.dateStr}`} onClick={() => setHistoryDayTimestamp(log.timestamp)} className="w-full text-left bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-sm hover:border-emerald-600 focus-visible:outline focus-visible:outline-2">
                   <div className="flex justify-between items-start mb-2">
                     <span className={`text-[10px] font-black uppercase tracking-widest ${log.type === LogType.ENTRADA ? 'text-emerald-500' : log.type === LogType.SALIDA ? 'text-rose-500' : 'text-blue-500'}`}>{log.type}</span>
                     <span className="text-[9px] text-[var(--text-muted)] font-bold">{log.dateStr} • {log.timeStr}</span>
                   </div>
                   <p className="text-xs font-black text-[var(--text-main)] uppercase tracking-tight truncate">{log.siteName}</p>
-                </div>
+                  <span className="block mt-2 text-[10px] text-emerald-600 font-bold">Ver detalle del día →</span>
+                </button>
               ))}
             </div>
          </div>
