@@ -456,3 +456,36 @@ export const createFirebaseCustomToken = (uid: string, claims: Record<string, an
     serviceAccount.privateKey
   );
 };
+
+/**
+ * Create an account and its uniqueness reservations in one atomic commit.
+ * Returns false on a uniqueness conflict; never leaves a partial worker behind.
+ * Reservations are server-only (the existing default-deny rules apply).
+ */
+export const createFirestoreDocumentsAtomically = async (
+  documents: Array<{ path: string; data: Record<string, any> }>
+): Promise<boolean> => {
+  if (!documents.length || new Set(documents.map(item => item.path)).size !== documents.length) {
+    throw new Error('Documentos de alta no válidos.');
+  }
+  const accessToken = await getGoogleAccessToken();
+  const base = firestoreBaseUrl();
+  const documentRoot = base.slice('https://firestore.googleapis.com/v1/'.length);
+  const response = await fetch(base + ':commit', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      writes: documents.map(({ path, data }) => ({
+        update: {
+          name: documentRoot + '/' + path,
+          fields: Object.fromEntries(Object.entries(data).map(([key, value]) => [key, jsToFirestoreValue(value)])),
+        },
+        currentDocument: { exists: false },
+      })),
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (response.status === 409 || body?.error?.status === 'ALREADY_EXISTS') return false;
+  if (!response.ok) throw new Error('No se pudo completar el alta atómica.');
+  return true;
+};

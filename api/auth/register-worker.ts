@@ -1,10 +1,11 @@
+import { createHash, randomUUID } from 'crypto';
 import {
   hashSecret,
   isSpanishPhone,
   normalizeSpanishPhone,
   queryFirestoreByField,
   queryFirestoreBySpanishPhone,
-  setFirestoreDocument,
+  createFirestoreDocumentsAtomically,
 } from '../../server/firebaseAdminRest.js';
 import { requireRole, sendApiError } from '../../server/auth/verifyToken.js';
 import { checkRateLimit } from '../../server/rateLimit.js';
@@ -12,7 +13,13 @@ import { writeSecurityAudit } from '../../server/security/audit.js';
 import { sendTelegramMessage } from '../../server/telegram.js';
 import type { Worker } from '../../types';
 
-const clean = (value: unknown, max: number) => String(value || '').trim().slice(0, max);
+const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+
+export const validSpanishIdentity = (dni: string): boolean => {
+  if (!/^(?:[0-9]{8}|[XYZ][0-9]{7})[A-Z]$/.test(dni)) return false;
+  const digits = dni.slice(0, -1).replace(/^[XYZ]/, letter => String('XYZ'.indexOf(letter)));
+  return 'TRWAGMYFPDXBNJZSQVHLCKE'[Number(digits) % 23] === dni.slice(-1);
+};
 const validRoles = new Set(['Operario', 'Electricista', 'Encargado', 'Supervisor']);
 
 export default async function handler(req: any, res: any) {
@@ -36,36 +43,39 @@ export default async function handler(req: any, res: any) {
   const dni = clean(req.body?.dni, 24).toUpperCase().replace(/[^0-9A-Z]/g, '');
   const phone = normalizeSpanishPhone(clean(req.body?.phone, 40));
   const email = clean(req.body?.email, 180).toLowerCase();
-  const password = String(req.body?.password || '').slice(0, 128);
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
   const requestedRole = clean(req.body?.role, 40);
   const role = adminContext && validRoles.has(requestedRole) ? requestedRole : 'Operario';
-  const active = adminContext ? Boolean(req.body?.active) : false;
+  const active = adminContext ? req.body?.active === true : false;
   const photoUrl = adminContext ? clean(req.body?.photoUrl, 400000) : '';
   const ip = clean(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown', 80).split(',')[0].trim();
 
   const scope = adminContext ? 'admin-create-worker' : 'register-worker';
-  if (!checkRateLimit(scope + ':ip:' + ip, adminContext ? 30 : 6, 60 * 60 * 1000) ||
-      !checkRateLimit(scope + ':phone:' + phone, 3, 60 * 60 * 1000)) {
+  const ipLimit = checkRateLimit(scope, 'ip:' + ip, adminContext ? 30 : 6, 60 * 60 * 1000);
+  const phoneLimit = checkRateLimit(scope, 'phone:' + phone, 3, 60 * 60 * 1000);
+  if (!ipLimit.allowed || !phoneLimit.allowed) {
+    res.setHeader('Retry-After', String(Math.max(ipLimit.retryAfterSeconds, phoneLimit.retryAfterSeconds)));
     writeSecurityAudit({ action: 'auth.worker.register', outcome: 'denied', actorUid: adminContext?.uid, actorRole: adminContext?.role, metadata: { reason: 'rate_limit', source: adminContext ? 'admin' : 'self_registration' } });
     return res.status(429).json({ error: 'Demasiados registros. Espera antes de intentarlo de nuevo.', code: 'RATE_LIMITED' });
   }
 
-  if (!name || !dni || !isSpanishPhone(phone) || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8) {
-    return res.status(400).json({ error: 'Revisa los datos. La contraseña debe tener al menos 8 caracteres.', code: 'INVALID_REGISTRATION' });
+  if (name.length < 2 || !dni || (!adminContext && !validSpanishIdentity(dni)) || !isSpanishPhone(phone) || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8 || password.length > 128 || !password.trim()) {
+    return res.status(400).json({ error: 'Revisa nombre, DNI/NIE, teléfono y correo. La contraseña debe tener entre 8 y 128 caracteres.', code: 'INVALID_REGISTRATION' });
   }
 
   try {
-    const [existingPhone, existingEmail] = await Promise.all([
+    const [existingPhone, existingEmail, existingDni] = await Promise.all([
       queryFirestoreBySpanishPhone<Worker>('workers', 'phone', phone, 1),
       queryFirestoreByField<Worker>('workers', 'email', email, 1),
+      queryFirestoreByField<Worker>('workers', 'dni', dni, 1),
     ]);
-    if (existingPhone.length > 0 || existingEmail.length > 0) {
+    if (existingPhone.length > 0 || existingEmail.length > 0 || existingDni.length > 0) {
       writeSecurityAudit({ action: 'auth.worker.register', outcome: 'denied', actorUid: adminContext?.uid, actorRole: adminContext?.role, metadata: { reason: 'identity_exists', source: adminContext ? 'admin' : 'self_registration' } });
       return res.status(409).json({ error: 'No se pudo completar el registro con esos datos.', code: 'REGISTRATION_CONFLICT' });
     }
 
     const now = Date.now();
-    const workerId = 'W' + now;
+    const workerId = 'W' + randomUUID();
     const worker: Worker = {
       id: workerId,
       name,
@@ -74,7 +84,7 @@ export default async function handler(req: any, res: any) {
       email,
       pin: '',
       pinHash: hashSecret(password),
-      qrCode: 'QR_' + now,
+      qrCode: 'QR_' + workerId,
       role,
       active,
       registrationStatus: active ? 'approved' : 'pending',
@@ -82,7 +92,20 @@ export default async function handler(req: any, res: any) {
       photoUrl,
       certificates: [],
     };
-    await setFirestoreDocument('workers/' + workerId, worker);
+    // Hash keys avoid putting phone/email/DNI in document paths. These reservations
+    // cover all accounts created through this endpoint, across concurrent instances.
+    // Historical accounts are checked above; their data is not migrated or changed.
+    const identities = [['phone', phone], ['email', email], ['dni', dni]];
+    const created = await createFirestoreDocumentsAtomically([
+      { path: 'workers/' + workerId, data: worker },
+      ...identities.map(([kind, value]) => ({
+        path: 'worker_registration_keys/' + createHash('sha256').update(kind + ':' + value).digest('hex'),
+        data: { workerId, kind, createdAt: now },
+      })),
+    ]);
+    if (!created) {
+      return res.status(409).json({ error: 'No se pudo completar el registro con esos datos.', code: 'REGISTRATION_CONFLICT' });
+    }
     await sendTelegramMessage(
       '👷 ' + (adminContext ? 'Operario creado' : 'Nueva solicitud de trabajador') + '\nNombre: ' + name,
       { botToken: process.env.TELEGRAM_BOT_TOKEN, chatId: process.env.TELEGRAM_CHAT_ID }
