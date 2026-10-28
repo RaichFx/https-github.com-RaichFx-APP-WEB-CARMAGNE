@@ -292,6 +292,7 @@ export const App: React.FC = () => {
   const [regName, setRegName] = useState('');
   const [regDni, setRegDni] = useState('');
   const [regPhone, setRegPhone] = useState('');
+  const registrationInFlight = useRef(false);
   const [regEmail, setRegEmail] = useState('');
   const [forceEmailInput, setForceEmailInput] = useState('');
   const [forceEmailError, setForceEmailError] = useState('');
@@ -828,15 +829,6 @@ export const App: React.FC = () => {
       });
       const data = await response.json().catch(() => ({}));
 
-      if (response.status === 404) {
-        if (confirm("Este número no está registrado. ¿Quieres crear una cuenta nueva?")) {
-          setRegPhone(formattedPhone);
-          setError('');
-          setCurrentStep(Step.REGISTER);
-        }
-        return;
-      }
-
       if (!response.ok || !data.token || !data.worker) {
         setError(data.error || 'No se pudo iniciar sesión.');
         return;
@@ -1083,12 +1075,15 @@ export const App: React.FC = () => {
   };
 
   const handleRegistration = async () => {
+    if (registrationInFlight.current || loading) return;
     const fPhone = processSpanishPhone(regPhone);
-    if (!regName || !regDni || !fPhone || !regEmail) { setError('Todos los campos son obligatorios, incluyendo el Correo Electrónico.'); return; }
+    if (!regName.trim() || !regDni.trim() || !fPhone || !regEmail.trim()) { setError('Todos los campos son obligatorios, incluyendo el Correo Electrónico.'); return; }
     if (!isPhoneValidSpain(fPhone)) { setError('Solo números de España (+34)'); return; }
     if (!/\S+@\S+\.\S+/.test(regEmail)) { setError('El formato del correo electrónico no es válido.'); return; }
-    if (!regPin.trim()) { setError('La contraseña es obligatoria.'); return; }
+    if (regPin.length < 8 || regPin.length > 128) { setError('La contraseña debe tener entre 8 y 128 caracteres.'); return; }
     if (regPin !== regPinConfirm) { setError('Las contraseñas no coinciden.'); return; }
+    registrationInFlight.current = true;
+    setError('');
     setLoading(true);
     try { 
       const response = await fetch('/api/auth/register-worker', {
@@ -1099,7 +1094,7 @@ export const App: React.FC = () => {
           dni: regDni.trim(),
           phone: fPhone,
           email: regEmail.trim(),
-          password: regPin.trim(),
+          password: regPin,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -1107,10 +1102,6 @@ export const App: React.FC = () => {
         setError(data.error || 'Error al registrar.');
         return;
       }
-
-      // Notificación Telegram: Nuevo Operario
-      const telegramMessage = `🆕 <b>Nuevo Operario Pendiente de Aprobación</b>\n👷‍♂️ Nombre: <b>${regName.trim()}</b>\n🆔 DNI: ${regDni.trim()}\n📱 Teléfono: ${fPhone}\n📧 Email: ${regEmail.trim()}`;
-      TelegramService.enviarNotificacionTelegram(telegramMessage);
 
       alert("Registro enviado. Tu cuenta queda pendiente de aprobación por el administrador.");
       setRegName('');
@@ -1121,7 +1112,7 @@ export const App: React.FC = () => {
       setLoginPassword('');
       setIsPhoneVerified(false);
       setCurrentStep(Step.LOGIN_PHONE); 
-    } catch (err) { setError('Error al registrar.'); } finally { setLoading(false); }
+    } catch (err) { setError('No se pudo confirmar el registro. Antes de repetirlo, comprueba con el administrador si recibió tu solicitud.'); } finally { registrationInFlight.current = false; setLoading(false); }
   };
 
   const handleSaveForceEmail = async () => {
@@ -3039,6 +3030,14 @@ export const App: React.FC = () => {
             )}
           </div>
           
+          <button type="button" disabled={loading} onClick={() => {
+            const phone = processSpanishPhone(loginPhone);
+            setRegPhone(isPhoneValidSpain(phone) ? phone : '');
+            setRegPin(''); setRegPinConfirm(''); setError('');
+            setCurrentStep(Step.REGISTER);
+          }} className="w-full mt-4 py-3 px-4 rounded-2xl border border-[var(--panel-border)] text-[var(--text-main)] bg-[var(--panel-bg)] font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-50">
+            Crear cuenta de trabajador
+          </button>
           <div className="flex items-center justify-center gap-4 mt-6">
             <button onClick={() => setShowAdminLogin(true)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] text-[9px] font-black uppercase tracking-[0.4em] transition-colors">
               Admin Panel
@@ -3294,7 +3293,7 @@ case Step.WORKER_TOOLS: return (
                <label className="text-[9px] font-black tracking-widest text-[var(--text-muted)] uppercase ml-1">Datos Personales</label>
                <input type="text" placeholder="Nombre completo" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" value={regName} onChange={(e)=>setRegName(e.target.value)}/>
                <input type="text" placeholder="DNI / NIE" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" value={regDni} onChange={(e)=>setRegDni(e.target.value)}/>
-               <input type="tel" placeholder="Teléfono" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] font-bold opacity-80" value={regPhone} readOnly />
+               <input type="tel" placeholder="Teléfono" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] font-bold opacity-80" value={regPhone} onChange={(e) => setRegPhone(e.target.value)} />
                <input type="email" placeholder="Correo electrónico" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" value={regEmail} onChange={(e)=>setRegEmail(e.target.value)}/>
              </div>
 
@@ -3304,7 +3303,7 @@ case Step.WORKER_TOOLS: return (
                <div className="relative">
                  <input 
                    type={showRegPin ? "text" : "password"} 
-                   placeholder="Elige contraseña" 
+                   placeholder="Elige contraseña (mínimo 8 caracteres)" 
                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3.5 pr-12 text-sm text-[var(--input-text)] focus:border-[#15803D] outline-none" 
                    value={regPin} 
                    onChange={(e)=>setRegPin(e.target.value)}
@@ -3336,7 +3335,7 @@ case Step.WORKER_TOOLS: return (
                </div>
              </div>
 
-             <button onClick={handleRegistration} className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shadow-[#15803D]/10 shrink-0">Registrarme</button>
+             <button type="button" disabled={loading} aria-busy={loading} onClick={handleRegistration} className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shadow-[#15803D]/10 shrink-0">{loading ? 'Enviando solicitud…' : 'Registrarme'}</button>
            </div>
         </div>
       );
