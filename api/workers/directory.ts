@@ -38,8 +38,9 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Método no permitido.', code: 'METHOD_NOT_ALLOWED' });
   }
 
+  res.setHeader('Cache-Control', 'no-store');
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
-  if (!checkRateLimit(`workers-directory:ip:${ip}`, 60, 10 * 60 * 1000)) {
+  if (!checkRateLimit('workers-directory', `ip:${ip}`, 60, 10 * 60 * 1000).allowed) {
     writeSecurityAudit({ action: 'workers.directory.read', outcome: 'denied', ip, reason: 'rate_limit' });
     return res.status(429).json({ error: 'Demasiadas solicitudes. Espera unos minutos.', code: 'RATE_LIMITED' });
   }
@@ -47,16 +48,17 @@ export default async function handler(req: any, res: any) {
   try {
     const auth = await requireAuth(req);
     requireRole(auth, ['OWNER', 'ADMIN', 'MANAGER', 'WORKER']);
-    if (!checkRateLimit(`workers-directory:uid:${auth.uid}`, 120, 10 * 60 * 1000)) {
+    if (!checkRateLimit('workers-directory', `uid:${auth.uid}`, 120, 10 * 60 * 1000).allowed) {
       writeSecurityAudit({ action: 'workers.directory.read', outcome: 'denied', actorUid: auth.uid, actorRole: auth.role, ip, reason: 'rate_limit' });
       return res.status(429).json({ error: 'Demasiadas solicitudes. Espera unos minutos.', code: 'RATE_LIMITED' });
     }
 
     const docs = await listFirestoreCollection<Worker>('workers', 500);
+    const administrative = auth.role === 'OWNER' || auth.role === 'ADMIN';
     const workers = docs
       .map((doc) => ({ ...doc.data, id: doc.data.id || doc.id }) as Worker)
-      .filter((worker) => worker.active !== false)
-      .map(toDirectoryEntry)
+      .filter((worker) => administrative || worker.active !== false)
+      .map(worker => administrative ? { ...worker, pin: '', pinHash: '' } : toDirectoryEntry(worker))
       .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
     return res.status(200).json({ workers });

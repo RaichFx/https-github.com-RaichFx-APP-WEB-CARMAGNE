@@ -278,18 +278,21 @@ export const StorageService = {
 
   getWorkers: (): Worker[] => loadLocal(KEYS.WORKERS, INITIAL_WORKERS),
   registerNewWorker: async (worker: Worker) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Debes iniciar sesión como administrador.');
+    const response = await fetch('/api/auth/register-worker', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...worker, password: worker.pin }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.worker) throw new Error(data.error || 'No se pudo crear al trabajador.');
     const current = loadLocal<Worker[]>(KEYS.WORKERS, INITIAL_WORKERS);
-    saveLocal(KEYS.WORKERS, [...current, worker]);
-    try { 
-      await setDoc(doc(db, "workers", worker.id), safeClone(worker), { merge: true }); 
-    } catch (e) {
-      console.error("Firestore error in registerNewWorker:", e);
-      throw e;
-    }
+    saveLocal(KEYS.WORKERS, [...current.filter(w => w.id !== data.worker.id), data.worker]);
+    return data.worker as Worker;
   },
   saveWorkers: async (newWorkers: Worker[]) => {
     const oldWorkers = loadLocal<Worker[]>(KEYS.WORKERS, INITIAL_WORKERS);
-    saveLocal(KEYS.WORKERS, newWorkers);
     try {
       // Find which workers actually changed compared to oldWorkers to avoid useless writes
       const changedWorkers = newWorkers.filter(newW => {
@@ -319,6 +322,7 @@ export const StorageService = {
           }
         }));
         console.log(`[Firebase Sync] Updated ${changedWorkers.length} worker documents successfully.`);
+        saveLocal(KEYS.WORKERS, newWorkers);
       }
     } catch (e) {
       console.error("Firestore error in saveWorkers:", e);
@@ -335,7 +339,7 @@ export const StorageService = {
       throw e;
     }
   },
-  subscribeToWorkers: (callback: (workers: Worker[]) => void, options: { includeDirectory?: boolean } = {}) => {
+  subscribeToWorkers: (callback: (workers: Worker[]) => void, options: { includeDirectory?: boolean; onError?: (error: Error) => void } = {}) => {
     callback(loadLocal(KEYS.WORKERS, INITIAL_WORKERS));
     const loadWorkersDirectoryFromApi = async () => {
       const user = auth.currentUser;
@@ -362,9 +366,10 @@ export const StorageService = {
     };
 
     // A limited colleague directory must never replace the administrative list.
-    if (options.includeDirectory !== false) {
+    {
       loadWorkersDirectoryFromApi().catch((err) => {
         console.error("API error in subscribeToWorkers:", err);
+        options.onError?.(err);
       });
     }
 
@@ -374,6 +379,7 @@ export const StorageService = {
       callback(workers);
     }, (err) => {
       console.error("onSnapshot error in subscribeToWorkers:", err);
+      if (options.includeDirectory === false) loadWorkersDirectoryFromApi().catch(error => options.onError?.(error));
     });
   },
   subscribeToWorker: (workerId: string, callback: (worker: Worker | null) => void) => {

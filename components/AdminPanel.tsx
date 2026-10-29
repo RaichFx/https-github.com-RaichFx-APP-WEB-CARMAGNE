@@ -233,6 +233,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
   }, []);
 
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [workersLoadError, setWorkersLoadError] = useState('');
   const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [logs, setLogs] = useState<WorkLog[]>([]);
@@ -486,7 +487,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     setPayslips(StorageService.getPayslips());
     setChats(StorageService.getChats());
 
-    const unsubWorkers = StorageService.subscribeToWorkers(setWorkers, { includeDirectory: false });
+    const unsubWorkers = StorageService.subscribeToWorkers(items => { setWorkers(items); setWorkersLoadError(''); }, { includeDirectory: false, onError: error => setWorkersLoadError(error.message || 'No se pudieron cargar los trabajadores.') });
     const unsubSites = StorageService.subscribeToSites(setSites);
     const unsubLogs = StorageService.subscribeToLogs((newLogs) => {
       setLogs(newLogs);
@@ -1280,12 +1281,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         return;
       }
     }
-    if (!editingWorker && !/^\d{4}$/.test(workerForm.pin)) {
-      setWorkerFormError('Define un PIN de acceso de 4 dígitos para el nuevo operario.');
+    if (!editingWorker && (workerForm.pin.length < 8 || workerForm.pin.length > 128)) {
+      setWorkerFormError('Define una contraseña de entre 8 y 128 caracteres para el nuevo operario.');
       return;
     }
     setWorkerFormError('');
     
+    try {
     if (editingWorker) {
       const updated: Worker = {
         ...editingWorker,
@@ -1320,11 +1322,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       };
       await StorageService.registerNewWorker(newWorker);
       
-      const telegramMessage = `🆕 <b>Nuevo Operario Registrado (desde Admin)</b>\n👷‍♂️ Nombre: <b>${newWorker.name}</b>\n🆔 DNI: ${newWorker.dni || 'S/DNI'}\n💼 Puesto: ${newWorker.role}\n📱 Teléfono: ${newWorker.phone || 'No registrado'}\n📧 Email: ${newWorker.email || 'No registrado'}`;
-      TelegramService.enviarNotificacionTelegram(telegramMessage);
       alert('Nuevo operario creado con éxito.');
     }
     setIsWorkerFormModalOpen(false);
+    } catch (error) { setWorkerFormError(error instanceof Error ? error.message : 'No se pudo guardar el trabajador.'); }
   };
 
   const handleWorkerPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3468,7 +3469,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                 </button>
               </div>
 
-              {pendingWorkers.length > 0 ? (
+              {workersLoadError ? <div role="alert" className="p-5 rounded-2xl border border-rose-500/30 text-rose-500">No se pudieron cargar las solicitudes: {workersLoadError}. Vuelve a iniciar sesión e inténtalo de nuevo.</div> : pendingWorkers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {pendingWorkers.map(worker => (
                     <div key={worker.id} className="bg-[var(--panel-bg)] rounded-3xl border border-amber-500/20 p-5 shadow-md space-y-4">
@@ -4354,16 +4355,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
               {!editingWorker ? (
                 <div>
-                  <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">PIN inicial de acceso (4 dígitos) *</label>
+                  <label className="text-[8px] font-black text-[var(--modal-text-muted)] uppercase tracking-widest mb-1 block">Contraseña inicial (8–128 caracteres) *</label>
                   <input
                     type="password"
-                    inputMode="numeric"
                     autoComplete="new-password"
-                    placeholder="Ej: 1234"
-                    maxLength={4}
+                    placeholder="Mínimo 8 caracteres"
+                    maxLength={128}
                     className="w-full bg-[var(--input-bg)] border border-[var(--panel-border)] rounded-xl p-3 text-xs text-[var(--text-main)] font-mono outline-none focus:border-blue-500"
                     value={workerForm.pin}
-                    onChange={(e) => setWorkerForm({ ...workerForm, pin: e.target.value.replace(/\D/g, '') })}
+                    onChange={(e) => setWorkerForm({ ...workerForm, pin: e.target.value })}
                   />
                 </div>
               ) : (

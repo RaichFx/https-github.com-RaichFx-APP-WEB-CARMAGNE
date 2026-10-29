@@ -7,7 +7,7 @@ import {
   queryFirestoreBySpanishPhone,
   createFirestoreDocumentsAtomically,
 } from '../../server/firebaseAdminRest.js';
-import { requireRole, sendApiError } from '../../server/auth/verifyToken.js';
+import { requireAuth, requireRole, sendApiError } from '../../server/auth/verifyToken.js';
 import { checkRateLimit } from '../../server/rateLimit.js';
 import { writeSecurityAudit } from '../../server/security/audit.js';
 import { sendTelegramMessage } from '../../server/telegram.js';
@@ -30,10 +30,11 @@ export default async function handler(req: any, res: any) {
 
   // A bearer token turns this into an administrator-created account.  Without
   // one, it remains a pending self-registration and can never self-activate.
-  let adminContext: Awaited<ReturnType<typeof requireRole>> | null = null;
+  let adminContext: Awaited<ReturnType<typeof requireAuth>> | null = null;
   if (req.headers?.authorization) {
     try {
-      adminContext = await requireRole(req, ['OWNER', 'ADMIN']);
+      adminContext = await requireAuth(req);
+      requireRole(adminContext, ['OWNER', 'ADMIN']);
     } catch (error) {
       return sendApiError(res, error);
     }
