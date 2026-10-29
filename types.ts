@@ -24,6 +24,9 @@ export interface Worker {
   qrCode: string;
   active: boolean;
   registrationStatus?: 'pending' | 'approved' | 'rejected';
+  emailVerificationRequired?: boolean;
+  firebaseEmailRecovery?: boolean;
+  firebaseEmailMigrated?: boolean;
   pin: string;
   pinHash?: string;
   authUid?: string;

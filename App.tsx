@@ -16,6 +16,7 @@ import { InstallTutorial } from './components/InstallTutorial';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { signInWithCustomToken, signOut as firebaseSignOut, sendPasswordResetEmail, sendEmailVerification, EmailAuthProvider, linkWithCredential } from 'firebase/auth';
 import { auth } from './services/firebase';
+import { RegistrationVerification } from './services/registrationVerification';
 
 type WorkerCertificate = NonNullable<Worker['certificates']>[number];
 enum Step {
@@ -33,7 +34,8 @@ enum Step {
   REPORT_EXIT = 4, 
   SUCCESS = 5,
   REGISTER = 99,
-  RECOVERY = 100
+  RECOVERY = 100,
+  REGISTRATION_VERIFICATION = 101
 }
 
 const MAX_DISTANCE_METERS = 500;
@@ -293,6 +295,15 @@ export const App: React.FC = () => {
   const [regDni, setRegDni] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const registrationInFlight = useRef(false);
+  const verificationInFlight = useRef(false);
+  const [verificationRequest, setVerificationRequest] = useState<{ token: string; email: string } | null>(null);
+  const [verificationReady, setVerificationReady] = useState(false);
+  const [verificationBusy, setVerificationBusy] = useState(false);
+  const [verificationPassword, setVerificationPassword] = useState('');
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [registrationEmailVerified, setRegistrationEmailVerified] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
+  const [verificationNextSendAt, setVerificationNextSendAt] = useState(0);
   const [regEmail, setRegEmail] = useState('');
   const [forceEmailInput, setForceEmailInput] = useState('');
   const [forceEmailError, setForceEmailError] = useState('');
@@ -829,6 +840,13 @@ export const App: React.FC = () => {
       });
       const data = await response.json().catch(() => ({}));
 
+      if (data.code === 'EMAIL_VERIFICATION_REQUIRED' && data.verificationToken && data.email) {
+        const password = loginPassword;
+        setLoginPassword('');
+        await startRegistrationVerification(data.verificationToken, data.email, password);
+        return;
+      }
+
       if (!response.ok || !data.token || !data.worker) {
         setError(data.error || 'No se pudo iniciar sesión.');
         return;
@@ -1074,6 +1092,86 @@ export const App: React.FC = () => {
     setIsToolModalOpen(false);
   };
 
+  const registrationVerificationError = (error: any) => {
+    if (error?.code === 'auth/email-already-in-use') return 'Ese correo ya está vinculado a otra cuenta. Tu solicitud está guardada; contacta con el administrador y no vuelvas a registrarte.';
+    if (error?.code === 'auth/too-many-requests' || error?.code === 'auth/quota-exceeded') return 'Firebase ha limitado temporalmente el envío. Tu solicitud está guardada. Espera antes de reenviar; no necesitas registrarte otra vez.';
+    if (error?.code === 'auth/operation-not-allowed') return 'No se pudo preparar la verificación. Contacta con el administrador; tu solicitud está guardada.';
+    return 'No se pudo completar el envío de verificación. Tu solicitud está guardada. Reintenta aquí o vuelve al acceso con tu teléfono y contraseña.';
+  };
+
+  const startRegistrationVerification = async (token: string, email: string, password: string) => {
+    setVerificationRequest({ token, email });
+    setVerificationReady(false); setVerificationSent(false); setRegistrationEmailVerified(false);
+    setVerificationError(''); setVerificationPassword(''); setError('');
+    setCurrentStep(Step.REGISTRATION_VERIFICATION);
+    if (!token) {
+      setVerificationError('Tu solicitud está guardada, pero no se pudo iniciar la verificación. Vuelve al acceso e introduce tu teléfono y contraseña.');
+      return;
+    }
+    verificationInFlight.current = true; setVerificationBusy(true);
+    try {
+      await RegistrationVerification.prepare(token, email, password);
+      setVerificationReady(true);
+      const result = await RegistrationVerification.send();
+      setRegistrationEmailVerified(result.alreadyVerified);
+      setVerificationSent(!result.alreadyVerified);
+      setVerificationNextSendAt(Date.now() + 60000);
+    } catch (error) {
+      setVerificationError(registrationVerificationError(error));
+      setVerificationNextSendAt(Date.now() + 60000);
+    } finally {
+      verificationInFlight.current = false; setVerificationBusy(false);
+    }
+  };
+
+  const resendRegistrationVerification = async () => {
+    if (!verificationRequest?.token || verificationInFlight.current || Date.now() < verificationNextSendAt) return;
+    if (!verificationReady && !verificationPassword) {
+      setVerificationError('Introduce la contraseña que elegiste para preparar la verificación.');
+      return;
+    }
+    verificationInFlight.current = true; setVerificationBusy(true); setVerificationError('');
+    setVerificationSent(false);
+    setVerificationNextSendAt(Date.now() + 60000);
+    try {
+      if (!verificationReady) {
+        await RegistrationVerification.prepare(verificationRequest.token, verificationRequest.email, verificationPassword);
+        setVerificationReady(true);
+      }
+      const result = await RegistrationVerification.send();
+      setRegistrationEmailVerified(result.alreadyVerified);
+      setVerificationSent(!result.alreadyVerified);
+    } catch (error) {
+      setVerificationError(registrationVerificationError(error));
+    } finally {
+      setVerificationPassword('');
+      verificationInFlight.current = false; setVerificationBusy(false);
+    }
+  };
+
+  const checkRegistrationVerification = async () => {
+    if (verificationInFlight.current) return;
+    verificationInFlight.current = true; setVerificationBusy(true); setVerificationError('');
+    try {
+      const verified = await RegistrationVerification.isVerified();
+      setRegistrationEmailVerified(verified);
+      if (!verified) setVerificationError('El correo todavía no consta como verificado. Abre el enlace recibido y vuelve a comprobar.');
+    } catch (error) {
+      setVerificationError(registrationVerificationError(error));
+    } finally {
+      verificationInFlight.current = false; setVerificationBusy(false);
+    }
+  };
+
+  const leaveRegistrationVerification = async () => {
+    if (verificationInFlight.current) return;
+    await RegistrationVerification.close().catch(() => {});
+    setVerificationRequest(null); setVerificationPassword(''); setVerificationError('');
+    setVerificationReady(false); setVerificationSent(false); setRegistrationEmailVerified(false);
+    setRegPin(''); setRegPinConfirm(''); setLoginPassword(''); setIsPhoneVerified(false);
+    setError(''); setCurrentStep(Step.LOGIN_PHONE);
+  };
+
   const handleRegistration = async () => {
     if (registrationInFlight.current || loading) return;
     const fPhone = processSpanishPhone(regPhone);
@@ -1103,7 +1201,8 @@ export const App: React.FC = () => {
         return;
       }
 
-      alert("Registro enviado. Tu cuenta queda pendiente de aprobación por el administrador.");
+      const verificationEmail = regEmail.trim().toLowerCase();
+      const chosenPassword = regPin;
       setRegName('');
       setRegDni('');
       setRegEmail('');
@@ -1111,7 +1210,7 @@ export const App: React.FC = () => {
       setRegPinConfirm('');
       setLoginPassword('');
       setIsPhoneVerified(false);
-      setCurrentStep(Step.LOGIN_PHONE); 
+      await startRegistrationVerification(data.verificationToken || '', verificationEmail, chosenPassword);
     } catch (err) { setError('No se pudo confirmar el registro. Antes de repetirlo, comprueba con el administrador si recibió tu solicitud.'); } finally { registrationInFlight.current = false; setLoading(false); }
   };
 
@@ -2936,6 +3035,36 @@ export const App: React.FC = () => {
   );
   const renderStep = () => {
     switch(currentStep) {
+      case Step.REGISTRATION_VERIFICATION: return (
+        <section className="w-full max-w-md mx-auto py-4 animate-fadeIn" aria-labelledby="registration-verification-title">
+          <div className="rounded-[2rem] bg-[var(--panel-bg)] border border-[var(--panel-border)] p-6 space-y-5 shadow-[var(--panel-shadow)]">
+            <div className="flex items-center gap-3">
+              <Mail size={24} className="text-emerald-600 shrink-0" aria-hidden="true" />
+              <h1 id="registration-verification-title" className="text-2xl font-black tracking-tight text-[var(--text-main)]">
+                {registrationEmailVerified ? 'Correo verificado' : 'Verifica tu correo'}
+              </h1>
+            </div>
+            <p className="text-sm text-[var(--text-main)] leading-relaxed">¡Registro completado con éxito! Tu cuenta está pendiente de aprobación. Verifica tu correo para preparar la recuperación de contraseña; verificarlo no sustituye la aprobación.</p>
+            <p className="rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] p-3 text-sm font-bold break-all">{verificationRequest?.email}</p>
+            {verificationBusy && <p role="status" className="text-sm text-[var(--text-muted)]">Preparando la verificación…</p>}
+            {verificationSent && !registrationEmailVerified && <p role="status" className="text-sm text-[var(--text-main)] leading-relaxed">Envío solicitado. Revisa tu bandeja de entrada y spam y abre el enlace de Firebase. No necesitas registrarte otra vez.</p>}
+            {registrationEmailVerified && <p role="status" className="text-sm text-emerald-600 font-bold">Tu correo ya está verificado. Podrás entrar cuando el administrador haya aprobado tu solicitud.</p>}
+            {verificationError && <p role="alert" className="text-sm text-rose-500 leading-relaxed">{verificationError}</p>}
+            {!registrationEmailVerified && !verificationBusy && verificationRequest?.token && (
+              <div className="space-y-3">
+                {!verificationReady && <label className="block text-sm font-bold">Contraseña que elegiste
+                  <input type="password" autoComplete="current-password" value={verificationPassword} onChange={event => setVerificationPassword(event.target.value)} className="block w-full mt-2 p-3 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)]" />
+                </label>}
+                <button type="button" onClick={resendRegistrationVerification} disabled={verificationBusy || currentTime.getTime() < verificationNextSendAt} className="w-full rounded-2xl p-3 bg-emerald-700 text-white font-bold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+                  {currentTime.getTime() < verificationNextSendAt ? 'Espera un minuto antes de reenviar' : verificationReady ? 'Reenviar verificación' : 'Reintentar preparación y envío'}
+                </button>
+                {verificationReady && <button type="button" onClick={checkRegistrationVerification} disabled={verificationBusy} className="w-full rounded-2xl p-3 border border-[var(--panel-border)] text-[var(--text-main)] font-bold disabled:opacity-50">Ya he verificado mi correo</button>}
+              </div>
+            )}
+            <button type="button" onClick={leaveRegistrationVerification} disabled={verificationBusy} className="w-full rounded-2xl p-3 border border-[var(--panel-border)] text-[var(--text-main)] font-bold disabled:opacity-50">Volver al acceso</button>
+          </div>
+        </section>
+      );
       case Step.RECOVERY: return renderPasswordRecovery();
       case Step.LOGIN_PHONE: return (
         <div className="flex flex-col h-full animate-fadeIn justify-center items-center py-4 max-w-sm mx-auto w-full">

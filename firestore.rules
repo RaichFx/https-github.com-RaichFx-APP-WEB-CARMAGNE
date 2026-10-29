@@ -40,7 +40,8 @@ service cloud.firestore {
     }
 
     match /sites/{id} {
-      allow read: if signedIn();
+      // A verification-only session is authenticated but has no business role.
+      allow read: if signedIn() && role() in ['admin', 'superadmin', 'worker', 'ADMIN', 'OWNER', 'WORKER', 'MANAGER', 'manager'];
       allow write: if isAdmin();
     }
 
