@@ -57,6 +57,10 @@ h=loginHarness({worker:{...baseWorker,registrationStatus:'rejected'}});assert.eq
 h=loginHarness({account:{...account(true),email:'other@example.invalid'}});assert.equal((await h.call()).body.code,'EMAIL_MISMATCH');assert.equal(h.issued.length,0);
 h=loginHarness({worker:{...baseWorker,active:true,registrationStatus:'approved',emailVerificationRequired:undefined,firebaseEmailRecovery:undefined},account:null});
 assert.equal((await h.call()).code,200);assert.deepEqual(h.issued[0].claims,{role:'worker',workerId:'W-test'});
+h=loginHarness({worker:{...baseWorker,active:false,registrationStatus:'approved'},account:account(false)});
+assert.equal((await h.call()).body.code,'ACCOUNT_UNAVAILABLE');assert.equal(h.issued.length,0);
+h=loginHarness({worker:{...baseWorker,active:true,registrationStatus:'pending',emailVerificationRequired:undefined,firebaseEmailRecovery:undefined},account:null});
+assert.equal((await h.call()).code,200); // Preserve legacy behavior; audit hardening is separate.
 h=loginHarness({rateLimited:true});assert.equal((await h.call()).code,429);assert.equal(h.issued.length,0);
 
 // Execute the actual secondary-session helper with SDK doubles, never a Firebase project.

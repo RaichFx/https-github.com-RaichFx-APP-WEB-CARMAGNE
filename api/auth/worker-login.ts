@@ -67,7 +67,7 @@ export default async function handler(req: any, res: any) {
     // Only new self-registrations use this requirement. Existing accounts are untouched.
     // A valid password is required before issuing a verification-only session.
     if (worker.emailVerificationRequired === true) {
-      if (worker.registrationStatus === 'rejected') {
+      if (worker.registrationStatus === 'rejected' || (worker.active === false && worker.registrationStatus !== 'pending')) {
         return res.status(403).json({ error: 'Cuenta no disponible. Contacta con el administrador.', code: 'ACCOUNT_UNAVAILABLE' });
       }
       if (firebasePassword && emailAccount?.email?.trim().toLowerCase() !== worker.email?.trim().toLowerCase()) {
@@ -82,7 +82,7 @@ export default async function handler(req: any, res: any) {
         });
       }
     }
-    if (worker.active === false || ['pending', 'rejected'].includes(worker.registrationStatus || '')) {
+    if (worker.active === false || (worker.emailVerificationRequired === true && ['pending', 'rejected'].includes(worker.registrationStatus || ''))) {
       return res.status(403).json({
         error: 'Tu solicitud está pendiente de aprobación o la cuenta está desactivada. Contacta con el administrador.',
         code: 'ACCOUNT_UNAVAILABLE',
