@@ -1,3 +1,4 @@
+import approveWorker from '../../server/approveWorker.js';
 import { listFirestoreCollection } from '../../server/firebaseAdminRest.js';
 import { requireAuth, requireRole, sendApiError } from '../../server/auth/verifyToken.js';
 import { checkRateLimit } from '../../server/rateLimit.js';
@@ -33,6 +34,7 @@ const toDirectoryEntry = (worker: Worker): WorkerDirectoryEntry => ({
 });
 
 export default async function handler(req: any, res: any) {
+  if (req.method === 'POST') return approveWorker(req, res);
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Método no permitido.', code: 'METHOD_NOT_ALLOWED' });

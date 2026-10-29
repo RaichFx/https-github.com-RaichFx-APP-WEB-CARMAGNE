@@ -279,7 +279,7 @@ export const StorageService = {
   approveWorker: async (workerId: string) => {
     const user = auth.currentUser;
     if (!user) throw new Error('Vuelve a iniciar sesión como administrador.');
-    const response = await fetch('/api/workers/approve', {
+    const response = await fetch('/api/workers/directory', {
       method: 'POST',
       headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ workerId }),

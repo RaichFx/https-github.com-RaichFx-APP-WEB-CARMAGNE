@@ -1,7 +1,7 @@
-import { getFirestoreDocument, patchFirestoreDocument } from '../../server/firebaseAdminRest.js';
-import { requireAuth, requireRole, sendApiError, ApiError } from '../../server/auth/verifyToken.js';
-import { checkRateLimit } from '../../server/rateLimit.js';
-import type { Worker } from '../../types';
+import { getFirestoreDocument, patchFirestoreDocument } from './firebaseAdminRest.js';
+import { requireAuth, requireRole, sendApiError, ApiError } from './auth/verifyToken.js';
+import { checkRateLimit } from './rateLimit.js';
+import type { Worker } from '../types';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Cache-Control', 'no-store');
