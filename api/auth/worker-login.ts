@@ -25,6 +25,8 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Método no permitido.', code: 'METHOD_NOT_ALLOWED' });
   }
 
+  res.setHeader('Cache-Control', 'no-store');
+
   const phone = normalizeSpanishPhone(String(req.body?.phone || ''));
   const password = String(req.body?.password || '').slice(0, 128);
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
@@ -57,9 +59,34 @@ export default async function handler(req: any, res: any) {
         : !migrated && verifySecret(password, worker.pinHash, worker.pin)
       : false;
 
-    if (!worker || worker.active === false || !validPassword) {
+    if (!worker || !validPassword) {
       writeSecurityAudit({ action: 'auth.worker.login', outcome: 'denied', ip, reason: 'invalid_credentials' });
       return res.status(401).json(loginError);
+    }
+
+    // Only new self-registrations use this requirement. Existing accounts are untouched.
+    // A valid password is required before issuing a verification-only session.
+    if (worker.emailVerificationRequired === true) {
+      if (worker.registrationStatus === 'rejected') {
+        return res.status(403).json({ error: 'Cuenta no disponible. Contacta con el administrador.', code: 'ACCOUNT_UNAVAILABLE' });
+      }
+      if (firebasePassword && emailAccount?.email?.trim().toLowerCase() !== worker.email?.trim().toLowerCase()) {
+        return res.status(403).json({ error: 'El correo vinculado no coincide con la solicitud. Contacta con el administrador.', code: 'EMAIL_MISMATCH' });
+      }
+      if (!firebasePassword || emailAccount?.emailVerified !== true) {
+        return res.status(403).json({
+          error: 'Verifica tu correo para continuar. La aprobación del administrador se comprueba por separado.',
+          code: 'EMAIL_VERIFICATION_REQUIRED',
+          email: worker.email,
+          verificationToken: createFirebaseCustomToken(worker.id, { registrationPending: true }),
+        });
+      }
+    }
+    if (worker.active === false || ['pending', 'rejected'].includes(worker.registrationStatus || '')) {
+      return res.status(403).json({
+        error: 'Tu solicitud está pendiente de aprobación o la cuenta está desactivada. Contacta con el administrador.',
+        code: 'ACCOUNT_UNAVAILABLE',
+      });
     }
 
     if (firebasePassword && !migrated) {

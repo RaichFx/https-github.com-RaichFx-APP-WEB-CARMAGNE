@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'crypto';
 import {
   hashSecret,
+  createFirebaseCustomToken,
   isSpanishPhone,
   normalizeSpanishPhone,
   queryFirestoreByField,
@@ -27,6 +28,8 @@ export default async function handler(req: any, res: any) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Método no permitido.', code: 'METHOD_NOT_ALLOWED' });
   }
+
+  res.setHeader('Cache-Control', 'no-store');
 
   // A bearer token turns this into an administrator-created account.  Without
   // one, it remains a pending self-registration and can never self-activate.
@@ -91,6 +94,7 @@ export default async function handler(req: any, res: any) {
       defaultMode: 'HORAS',
       photoUrl,
       certificates: [],
+      ...(!adminContext ? { emailVerificationRequired: true, firebaseEmailRecovery: true } : {}),
     };
     // Hash keys avoid putting phone/email/DNI in document paths. These reservations
     // cover all accounts created through this endpoint, across concurrent instances.
@@ -113,6 +117,10 @@ export default async function handler(req: any, res: any) {
     writeSecurityAudit({ action: 'auth.worker.register', outcome: 'allowed', actorUid: adminContext?.uid, actorRole: adminContext?.role, targetId: workerId, metadata: { source: adminContext ? 'admin' : 'self_registration' } });
     return res.status(201).json({
       ok: true,
+      ...(!adminContext ? {
+        verificationToken: createFirebaseCustomToken(workerId, { registrationPending: true }),
+        verificationRequired: true,
+      } : {}),
       worker: { ...worker, pin: '', pinHash: '' },
       message: adminContext ? 'Operario creado correctamente.' : 'Registro recibido. Un administrador debe aprobar la cuenta antes de poder entrar.'
     });

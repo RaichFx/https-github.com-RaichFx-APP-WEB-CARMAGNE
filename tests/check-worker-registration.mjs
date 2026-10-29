@@ -12,6 +12,7 @@ function makeHarness(options = {}) {
  let telegram = 0;
  const mocks = {
  createHash: cryptoModule.createHash, randomUUID: cryptoModule.randomUUID,
+ createFirebaseCustomToken: (uid, claims) => { assert.deepEqual(claims, {registrationPending:true}); return 'verification-only-token'; },
  hashSecret: p => 'hash:' + p,
  isSpanishPhone: p => /^\+34[6789]\d{8}$/.test(p),
  normalizeSpanishPhone: p => p.startsWith('+34') ? p : '+34' + p,
@@ -34,8 +35,8 @@ function makeHarness(options = {}) {
 const valid={name:'Usuario de prueba',dni:'12345678Z',phone:'600000000',email:'TEST@example.invalid',password:'Test secret 123'};
 {
  const h=makeHarness();const r=await h.call({...valid,active:true,role:'Supervisor',photoUrl:'ignored'});
- assert.equal(r.code,201);assert.equal(h.writes[0].length,4);const w=h.writes[0][0].data;
- assert.equal(w.active,false);assert.equal(w.registrationStatus,'pending');assert.equal(w.role,'Operario');assert.equal(w.photoUrl,'');
+ assert.equal(r.code,201);assert.equal(r.body.verificationToken,'verification-only-token');assert.equal(r.body.verificationRequired,true);assert.equal(h.writes[0].length,4);const w=h.writes[0][0].data;
+ assert.equal(w.emailVerificationRequired,true);assert.equal(w.firebaseEmailRecovery,true);assert.equal(w.active,false);assert.equal(w.registrationStatus,'pending');assert.equal(w.role,'Operario');assert.equal(w.photoUrl,'');
  assert.equal(w.pin,'');assert.equal(w.pinHash,'hash:Test secret 123');assert.equal(r.body.worker.pinHash,'');
  assert.equal(w.email,'test@example.invalid');assert.equal(w.phone,'+34600000000');
  assert.ok(h.writes[0].slice(1).every(d=>/^worker_registration_keys\/[a-f0-9]{64}$/.test(d.path)));
