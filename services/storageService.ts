@@ -335,7 +335,7 @@ export const StorageService = {
       throw e;
     }
   },
-  subscribeToWorkers: (callback: (workers: Worker[]) => void) => {
+  subscribeToWorkers: (callback: (workers: Worker[]) => void, options: { includeDirectory?: boolean } = {}) => {
     callback(loadLocal(KEYS.WORKERS, INITIAL_WORKERS));
     const loadWorkersDirectoryFromApi = async () => {
       const user = auth.currentUser;
@@ -361,9 +361,12 @@ export const StorageService = {
       }
     };
 
-    loadWorkersDirectoryFromApi().catch((err) => {
-      console.error("API error in subscribeToWorkers:", err);
-    });
+    // A limited colleague directory must never replace the administrative list.
+    if (options.includeDirectory !== false) {
+      loadWorkersDirectoryFromApi().catch((err) => {
+        console.error("API error in subscribeToWorkers:", err);
+      });
+    }
 
     return onSnapshot(collection(db, "workers"), (snapshot) => {
       const workers = snapshot.docs.map(doc => doc.data() as Worker);

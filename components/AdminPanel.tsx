@@ -486,7 +486,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
     setPayslips(StorageService.getPayslips());
     setChats(StorageService.getChats());
 
-    const unsubWorkers = StorageService.subscribeToWorkers(setWorkers);
+    const unsubWorkers = StorageService.subscribeToWorkers(setWorkers, { includeDirectory: false });
     const unsubSites = StorageService.subscribeToSites(setSites);
     const unsubLogs = StorageService.subscribeToLogs((newLogs) => {
       setLogs(newLogs);
