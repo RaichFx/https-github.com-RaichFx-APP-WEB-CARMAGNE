@@ -1693,39 +1693,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
   const pendingWorkers = workers.filter(isPendingWorker);
 
+  const approvePendingWorker = async (workerId: string) => {
+    await StorageService.approveWorker(workerId);
+    setWorkers(current => current.map(w => w.id === workerId ? { ...w, active: true, registrationStatus: 'approved' as const } : w));
+  };
+
   const handleApproveWorker = async (workerId: string) => {
     setApprovalLoading(workerId);
     try {
-      const updatedWorkers = workers.map(worker =>
-        worker.id === workerId
-          ? { ...worker, active: true, registrationStatus: 'approved' as const }
-          : worker
-      );
-      await StorageService.saveWorkers(updatedWorkers);
+      await approvePendingWorker(workerId);
     } catch (error) {
-      console.error('Error aprobando trabajador:', error);
-      alert('No se pudo aprobar al trabajador. Inténtalo de nuevo.');
-    } finally {
-      setApprovalLoading(null);
-    }
+      alert(error instanceof Error ? error.message : 'No se pudo aprobar al trabajador.');
+    } finally { setApprovalLoading(null); }
   };
 
   const handleApproveAllWorkers = async () => {
-    if (pendingWorkers.length === 0) return;
+    if (!pendingWorkers.length) return;
     setApprovalLoading('all');
     try {
-      const updatedWorkers = workers.map(worker =>
-        isPendingWorker(worker)
-          ? { ...worker, active: true, registrationStatus: 'approved' as const }
-          : worker
-      );
-      await StorageService.saveWorkers(updatedWorkers);
+      for (const worker of pendingWorkers) await approvePendingWorker(worker.id);
     } catch (error) {
-      console.error('Error aprobando trabajadores:', error);
-      alert('No se pudieron aprobar todos los trabajadores. Inténtalo de nuevo.');
-    } finally {
-      setApprovalLoading(null);
-    }
+      alert(error instanceof Error ? error.message : 'No se pudieron completar las aprobaciones. Las ya confirmadas se conservan.');
+    } finally { setApprovalLoading(null); }
   };
 
   const filteredWorkers = workers.filter(w => w.name.toLowerCase().includes(workerSearchQuery.toLowerCase()));

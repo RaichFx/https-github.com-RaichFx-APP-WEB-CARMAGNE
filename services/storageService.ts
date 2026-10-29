@@ -276,6 +276,19 @@ export const StorageService = {
     });
   },
 
+  approveWorker: async (workerId: string) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Vuelve a iniciar sesión como administrador.');
+    const response = await fetch('/api/workers/approve', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workerId }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok !== true) throw new Error(data.error || 'No se pudo aprobar al trabajador.');
+    const workers = loadLocal<Worker[]>(KEYS.WORKERS, INITIAL_WORKERS);
+    saveLocal(KEYS.WORKERS, workers.map(w => w.id === workerId ? { ...w, active: true, registrationStatus: 'approved' } : w));
+  },
   getWorkers: (): Worker[] => loadLocal(KEYS.WORKERS, INITIAL_WORKERS),
   registerNewWorker: async (worker: Worker) => {
     const user = auth.currentUser;

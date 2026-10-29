@@ -9,6 +9,7 @@ type ServiceAccount = {
 type FirestoreDocument<T = any> = {
   id: string;
   name: string;
+  updateTime?: string;
   data: T;
 };
 
@@ -275,6 +276,7 @@ const jsToFirestoreValue = (value: any): any => {
 const docToJs = <T = any>(doc: any): FirestoreDocument<T> => ({
   id: String(doc.name || '').split('/').pop() || '',
   name: doc.name,
+  updateTime: doc.updateTime,
   data: Object.fromEntries(
     Object.entries(doc.fields || {}).map(([key, value]) => [key, firestoreValueToJs(value)])
   ) as T,
@@ -488,4 +490,23 @@ export const createFirestoreDocumentsAtomically = async (
   if (response.status === 409 || body?.error?.status === 'ALREADY_EXISTS') return false;
   if (!response.ok) throw new Error('No se pudo completar el alta atómica.');
   return true;
+};
+
+// Conditional partial update: preserve unrelated profile fields and credentials.
+export const patchFirestoreDocument = async (path: string, data: Record<string, any>, updateTime: string) => {
+  if (!updateTime || !Object.keys(data).length) throw new Error('Falta la versión del documento.');
+  const accessToken = await getGoogleAccessToken();
+  const url = new URL(firestoreBaseUrl() + '/' + path.split('/').filter(Boolean).join('/'));
+  Object.keys(data).forEach(key => url.searchParams.append('updateMask.fieldPaths', key));
+  url.searchParams.set('currentDocument.updateTime', updateTime);
+  const response = await fetch(url.toString(), {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: Object.fromEntries(Object.entries(data).map(([key, value]) => [key, jsToFirestoreValue(value)])) }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(response.status === 409 || response.status === 400
+    ? 'La cuenta ha cambiado. Recarga las solicitudes antes de aprobar.'
+    : 'No se pudo guardar la aprobación en Firebase.');
+  return docToJs(body);
 };
