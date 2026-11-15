@@ -14,9 +14,11 @@ const staged = sizes.map(size => {
 });
 
 const destination = new URL('../public/icons/', import.meta.url);
-mkdirSync(destination, { recursive: true });
+const homeScreenDestination = new URL('ovlane-v1/', destination);
+mkdirSync(homeScreenDestination, { recursive: true });
 for (const { size, png } of staged) {
   writeFileSync(new URL(`icon-${size}.png`, destination), png);
+  writeFileSync(new URL(`icon-${size}.png`, homeScreenDestination), png);
 }
 // Existing web push payloads reference this legacy URL.
 writeFileSync(new URL('../public/pwa-192.png', import.meta.url), staged.find(icon => icon.size === 192).png);
