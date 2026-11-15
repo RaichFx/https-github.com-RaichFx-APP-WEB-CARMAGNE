@@ -1,3 +1,4 @@
+import { BrandLogo } from './components/BrandLogo';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
@@ -150,23 +151,6 @@ const downloadDataUri = (dataUri: string, fileName: string) => {
   document.body.appendChild(link);
   link.click();
   link.remove();
-};
-
-const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0, theme = "light" }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number, theme?: "light" | "dark" }) => {
-  const baseSize = size === "sm" ? 28 : size === "md" ? 64 : size === "lg" ? 140 : 64;
-  const iconSize = baseSize * scale;
-  const configuredLogo = logoUrl || "/logo.png";
-  const logoSrc = configuredLogo === "/logo.png" ? (theme === "dark" ? "/logo.png" : "/logo-black.png") : configuredLogo;
-  return (
-    <div className={`relative flex items-center justify-center ${className}`}>
-      <img 
-        src={logoSrc} 
-        alt="Company Logo" 
-        style={{ width: iconSize, height: iconSize }} 
-        className="object-contain rounded-2xl logo-glow"
-      />
-    </div>
-  );
 };
 
 export const App: React.FC = () => {
@@ -2991,7 +2975,7 @@ export const App: React.FC = () => {
     <div className="flex flex-col h-full animate-fadeIn justify-center items-center py-4 max-w-sm mx-auto w-full">
       <div className="text-center w-full">
         <div className="inline-flex mb-6">
-          <AppLogo size="lg" logoUrl={appConfig.logoUrl} scale={appConfig.logoScaleLogin} theme={theme} />
+          <BrandLogo size="access" logoUrl={appConfig.logoUrl} scale={appConfig.logoScaleLogin} />
         </div>
         <h2 className="text-3xl font-black text-[var(--text-main)] tracking-tighter uppercase font-sans">Restablecer contraseña</h2>
         <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-[0.25em] mt-1">Verificación de operario</p>
@@ -3060,9 +3044,9 @@ export const App: React.FC = () => {
         <div className="flex flex-col h-full animate-fadeIn justify-center items-center py-4 max-w-sm mx-auto w-full">
           <div className="ovlane-access-brand text-center w-full">
             <div className="inline-flex mb-6">
-              <AppLogo size="lg" logoUrl={appConfig.logoUrl} scale={appConfig.logoScaleLogin} theme={theme} />
+              <BrandLogo size="access" logoUrl={appConfig.logoUrl} scale={appConfig.logoScaleLogin} />
             </div>
-            <h2 className="ovlane-name">ovlane</h2>
+            <h2 className="sr-only">Acceso a OVLANE</h2>
             <p className="ovlane-tagline">Work, in sync.</p>
             <p className="ovlane-descriptor">Workforce &amp; Operations Platform</p>
             <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-[0.25em] mt-1">Acceso de trabajador</p>
@@ -3408,6 +3392,7 @@ case Step.WORKER_TOOLS: return (
              </button>
              <h2 className="text-2xl font-black text-[var(--text-main)] tracking-tighter uppercase">Crear cuenta</h2>
            </div>
+           <div className="flex justify-center mb-4"><BrandLogo size="compact" logoUrl={appConfig.logoUrl} /></div>
            
            <div className="bg-[var(--panel-bg)] p-5 rounded-[2.5rem] border border-[var(--panel-border)] space-y-3 shadow-xl md:overflow-y-auto custom-scrollbar md:flex-1">
              <div className="space-y-1">

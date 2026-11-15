@@ -526,3 +526,23 @@ button {
     scroll-behavior: auto !important;
   }
 }
+
+/* Original OVLANE SVG stays unfiltered; a light backing preserves contrast in dark mode. */
+.ovlane-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  padding: .25rem .5rem;
+  border-radius: var(--ov-control-radius);
+}
+.dark-theme .ovlane-mark:not(.ovlane-mark--custom) {
+  background: var(--ov-white);
+}
+.ovlane-mark img {
+  display: block;
+  height: auto;
+  max-inline-size: 100%;
+  object-fit: contain;
+}

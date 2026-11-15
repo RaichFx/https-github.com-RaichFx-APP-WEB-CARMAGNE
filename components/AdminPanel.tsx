@@ -1,4 +1,5 @@
-﻿
+﻿import { BrandLogo } from './BrandLogo';
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StorageService, ELECTRICAL_TOOLS_LIST, ELECTRICAL_BRANDS_LIST, compressImage } from '../services/storageService';
 import { TelegramService } from '../services/telegramService';
@@ -174,36 +175,6 @@ const LogIcon = ({ type, size = 18 }: { type: LogType, size?: number }) => {
     default:
       return <ClipboardList size={size} className="text-[var(--text-muted)]" />;
   }
-};
-
-const AppLogo = ({ className, size = "md", logoUrl, scale = 1.0, theme = "light" }: { className?: string, size?: "sm" | "md" | "lg", logoUrl?: string, scale?: number, theme?: "light" | "dark" }) => {
-  const baseSize = size === "sm" ? 28 : size === "md" ? 64 : size === "lg" ? 140 : 64;
-  const iconSize = baseSize * scale;
-  const configuredLogo = logoUrl || "/logo.png";
-  const logoSrc = configuredLogo === "/logo.png" ? (theme === "dark" ? "/logo.png" : "/logo-black.png") : configuredLogo;
-  
-  if (logoSrc) {
-    return (
-      <div className={`relative flex items-center justify-center ${className}`}>
-        <img 
-          src={logoSrc} 
-          alt="Company Logo" 
-          style={{ width: iconSize, height: iconSize }} 
-          className="object-contain rounded-2xl drop-shadow-[0_0_15px_rgba(59,130,246,0.4)]"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className={`relative flex items-center justify-center ${className} text-blue-500`}>
-      <Zap 
-        size={iconSize} 
-        className="drop-shadow-[0_0_20px_rgba(59,130,246,0.6)] fill-blue-500/20" 
-        strokeWidth={2.5}
-      />
-    </div>
-  );
 };
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, theme, setTheme }) => {
@@ -3235,13 +3206,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           </div>
           
           <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-[var(--input-bg)]/50 rounded-3xl border border-[var(--panel-border)]">
-            <div className="w-32 h-32 bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-              {config.logoUrl ? (
-                <img src={config.logoUrl} className="w-full h-full object-contain p-2" alt="Logo preview" />
-              ) : (
-                <Zap size={32} className="text-slate-800" />
-              )}
-            </div>
+            <div className="w-full max-w-48 shrink-0"><BrandLogo size="sidebar" logoUrl={config.logoUrl} /></div>
             <div className="flex-1 space-y-3">
               <p className="text-[10px] text-[var(--text-muted)] font-bold leading-relaxed">
                 <span className="text-blue-500 font-black uppercase">Guía:</span> Se recomienda un logo en formato PNG o SVG con fondo transparente. Aparecerá en el login y en el panel superior.
@@ -3335,8 +3300,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
       <aside className="ovlane-sidebar hidden md:flex flex-col w-64 border-r border-[var(--panel-border)] p-6 gap-8 bg-[var(--panel-bg)]">
         <div className="flex items-center gap-3">
-          <AppLogo size="sm" logoUrl={config.logoUrl} scale={config.logoScaleDashboard} theme={theme} />
-          <div><h1 className="ovlane-name ovlane-name--compact">ovlane</h1><p className="ovlane-descriptor">Administración</p></div>
+          <BrandLogo size="sidebar" logoUrl={config.logoUrl} scale={config.logoScaleDashboard} />
+          
         </div>
         <nav ref={desktopMenuRef} className="relative">
           <p className="text-[8px] font-black uppercase tracking-[0.28em] text-[var(--text-muted)] mb-2 ml-1">Navegación</p>
@@ -3659,6 +3624,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           <nav className="relative mx-auto max-w-sm pointer-events-auto">
             {isMobileMenuOpen && (
               <div className="mb-3 rounded-[2rem] border border-[var(--panel-border)] bg-[var(--panel-bg)]/95 backdrop-blur-2xl shadow-2xl p-3 grid grid-cols-2 gap-2 animate-fadeIn">
+                <div className="col-span-2 flex justify-center pb-2"><BrandLogo size="compact" logoUrl={config.logoUrl} /></div>
                 {sidebarItems.map(item => {
                   const isChatTab = item.id === 'chat';
                   const unreadCount = isChatTab ? adminTotalUnreadCount : 0;
