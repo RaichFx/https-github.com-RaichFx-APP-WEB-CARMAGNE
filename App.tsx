@@ -1469,32 +1469,32 @@ export const App: React.FC = () => {
             {/* Navigation: History */}
             <button onClick={() => setCurrentStep(Step.WORKER_HISTORY)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-emerald-500/30 transition-all duration-300">
               <div className="text-emerald-500 bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/10"><History size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Historial</span><span className="ovlane-module">Time</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Historial</span>
             </button>
             {/* Navigation: Tools */}
             <button onClick={() => setCurrentStep(Step.WORKER_TOOLS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-amber-500/30 transition-all duration-300">
               <div className="text-amber-500 bg-amber-500/10 p-3 rounded-2xl border border-amber-500/10"><Wrench size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Equipos</span><span className="ovlane-module">Field</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Equipos</span>
             </button>
             {/* Navigation: Reports */}
             <button onClick={() => setCurrentStep(Step.WORKER_REPORTS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-cyan-500/30 transition-all duration-300">
               <div className="text-cyan-500 bg-cyan-500/10 p-3 rounded-2xl border border-cyan-500/10"><ClipboardList size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Partes</span><span className="ovlane-module">Field</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Partes</span>
             </button>
             {/* Navigation: Payslips */}
             <button onClick={() => setCurrentStep(Step.WORKER_PAYSLIPS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-fuchsia-500/30 transition-all duration-300">
               <div className="text-fuchsia-500 bg-fuchsia-500/10 p-3 rounded-2xl border border-fuchsia-500/10"><FileText size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Nóminas</span><span className="ovlane-module">Docs</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Nóminas</span>
             </button>
             {/* Navigation: Profile */}
             <button onClick={() => setCurrentStep(Step.WORKER_PROFILE)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
               <div className="text-blue-500 bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10"><User size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mi Perfil</span><span className="ovlane-module">People</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mi Perfil</span>
             </button>
             {/* Navigation: Certificates */}
             <button onClick={() => setCurrentStep(Step.WORKER_CERTIFICATES)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
               <div className="text-blue-500 bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10"><FileText size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Certificados</span><span className="ovlane-module">Docs</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Certificados</span>
             </button>
             {/* Navigation: Chat / Mensajes */}
             <button onClick={() => setCurrentStep(Step.WORKER_CHAT)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-[#15803D]/30 transition-all duration-300 relative">
