@@ -1,11 +1,11 @@
 {
-  "name": "CARMAGNE INSTAL SL",
-  "short_name": "CARMAGNE INSTAL",
-  "description": "Control de presencia y gestión de obras",
+  "name": "OVLANE",
+  "short_name": "OVLANE",
+  "description": "Workforce & Operations Platform",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#050505",
-  "theme_color": "#050505",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
   "orientation": "portrait",
   "icons": [
     {

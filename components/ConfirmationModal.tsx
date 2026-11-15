@@ -26,17 +26,17 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-[var(--modal-bg)] border border-[var(--modal-border)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-100">
+      <div role="dialog" aria-modal="true" aria-label={title} className="ovlane-dialog bg-[var(--modal-bg)] border border-[var(--modal-border)] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-100">
         
         {/* Header */}
         <div className="p-5 flex items-center gap-3 border-b border-[var(--modal-border)]">
           <div className={`p-2.5 rounded-full ${isDestructive ? 'bg-rose-500/15 text-rose-500' : 'bg-[var(--accent-color)]/10 text-[var(--accent-color)]'}`}>
             {isDestructive ? <AlertTriangle size={24} /> : <Check size={24} />}
           </div>
-          <h3 className="text-xl font-bold text-[var(--modal-text-main)] font-bebas uppercase tracking-wide">
+          <h3 className="text-xl font-bold text-[var(--modal-text-main)] tracking-tight">
             {title}
           </h3>
-          <button onClick={onCancel} className="ml-auto text-[var(--modal-text-muted)] hover:text-[var(--modal-text-main)] transition">
+          <button aria-label="Cerrar diálogo" onClick={onCancel} className="ml-auto text-[var(--modal-text-muted)] hover:text-[var(--modal-text-main)] transition">
             <X size={20} />
           </button>
         </div>

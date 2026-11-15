@@ -1485,37 +1485,37 @@ export const App: React.FC = () => {
             {/* Navigation: History */}
             <button onClick={() => setCurrentStep(Step.WORKER_HISTORY)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-emerald-500/30 transition-all duration-300">
               <div className="text-emerald-500 bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/10"><History size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Historial</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Historial</span><span className="ovlane-module">Time</span>
             </button>
             {/* Navigation: Tools */}
             <button onClick={() => setCurrentStep(Step.WORKER_TOOLS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-amber-500/30 transition-all duration-300">
               <div className="text-amber-500 bg-amber-500/10 p-3 rounded-2xl border border-amber-500/10"><Wrench size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Equipos</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Equipos</span><span className="ovlane-module">Field</span>
             </button>
             {/* Navigation: Reports */}
             <button onClick={() => setCurrentStep(Step.WORKER_REPORTS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-cyan-500/30 transition-all duration-300">
               <div className="text-cyan-500 bg-cyan-500/10 p-3 rounded-2xl border border-cyan-500/10"><ClipboardList size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Partes</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Partes</span><span className="ovlane-module">Field</span>
             </button>
             {/* Navigation: Payslips */}
             <button onClick={() => setCurrentStep(Step.WORKER_PAYSLIPS)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-fuchsia-500/30 transition-all duration-300">
               <div className="text-fuchsia-500 bg-fuchsia-500/10 p-3 rounded-2xl border border-fuchsia-500/10"><FileText size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Nóminas</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Nóminas</span><span className="ovlane-module">Docs</span>
             </button>
             {/* Navigation: Profile */}
             <button onClick={() => setCurrentStep(Step.WORKER_PROFILE)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
               <div className="text-blue-500 bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10"><User size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mi Perfil</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Mi Perfil</span><span className="ovlane-module">People</span>
             </button>
             {/* Navigation: Certificates */}
             <button onClick={() => setCurrentStep(Step.WORKER_CERTIFICATES)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-blue-500/30 transition-all duration-300">
               <div className="text-blue-500 bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10"><FileText size={24} /></div>
-              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Certificados</span>
+              <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-wider">Certificados</span><span className="ovlane-module">Docs</span>
             </button>
             {/* Navigation: Chat / Mensajes */}
             <button onClick={() => setCurrentStep(Step.WORKER_CHAT)} className="bg-[var(--panel-bg)] backdrop-blur-md border border-[var(--panel-border)] p-4 rounded-3xl flex flex-col items-center justify-center gap-2 active:bg-[var(--btn-glass-bg)] hover:border-[#15803D]/30 transition-all duration-300 relative">
               {unreadChatsCount > 0 && (
-                <div className="absolute top-2 right-2 bg-[#15803D] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(21,128,61,0.4)]">
+                <div className="absolute top-2 right-2 ovlane-primary   text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(21,128,61,0.4)]">
                   {unreadChatsCount}
                 </div>
               )}
@@ -1574,7 +1574,7 @@ export const App: React.FC = () => {
             <div className="w-full">
               {workerStatus?.type === 'INACTIVO' ? (
                 // Logic: Clock in starts by choosing site first
-                <button onClick={() => setCurrentStep(Step.SELECT_SITE)} className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-[#15803D]/10 transition-all duration-300 active:scale-95 uppercase text-xs tracking-widest">
+                <button onClick={() => setCurrentStep(Step.SELECT_SITE)} className="w-full ovlane-primary    font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg  transition-all duration-300 active:scale-95 uppercase text-xs tracking-widest">
                   <Timer size={16} /> Fichar Entrada
                 </button>
               ) : (
@@ -1593,7 +1593,7 @@ export const App: React.FC = () => {
                     </>
                   ) : (
                     // Logic: Resume work ending break
-                    <button onClick={() => handleActionSelect(LogType.FIN_DESCANSO)} className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-[#15803D]/10 transition-all duration-300 active:scale-95 uppercase text-xs tracking-widest">
+                    <button onClick={() => handleActionSelect(LogType.FIN_DESCANSO)} className="w-full ovlane-primary    font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg  transition-all duration-300 active:scale-95 uppercase text-xs tracking-widest">
                       <Timer size={16} /> Reanudar Trabajo
                     </button>
                   )}
@@ -2107,7 +2107,7 @@ export const App: React.FC = () => {
               <button 
                 onClick={handleSaveProfile}
                 disabled={loading}
-                className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-[#15803D]/10 transition-all disabled:opacity-50"
+                className="w-full ovlane-primary    font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 flex items-center justify-center gap-2 active:scale-95 shadow-lg  transition-all disabled:opacity-50"
               >
                 <Save size={14} /> {loading ? "Guardando..." : "Guardar Perfil"}
               </button>
@@ -2132,7 +2132,7 @@ export const App: React.FC = () => {
                 <p className="text-xs text-[var(--text-muted)] mt-2">Activación progresiva. Conserva tu cuenta, fichajes y documentos. Para vincular, introduce tu correo y completa las contraseñas en el apartado de abajo.</p>
                 <input type="email" autoComplete="email" aria-label="Correo para vincular" placeholder="Tu correo de recuperación" value={profileRecoveryEmail} onChange={e => setProfileRecoveryEmail(e.target.value)} className="w-full mt-3 p-3 rounded-2xl bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)]" />
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <button type="button" disabled={profilePasswordLoading} onClick={handleEnrollEmailRecovery} className="rounded-2xl px-4 py-3 bg-[#15803D] text-white font-bold text-xs disabled:opacity-50">Vincular correo y nueva contraseña</button>
+                  <button type="button" disabled={profilePasswordLoading} onClick={handleEnrollEmailRecovery} className="rounded-2xl px-4 py-3 ovlane-primary  text-white font-bold text-xs disabled:opacity-50">Vincular correo y nueva contraseña</button>
                   <button type="button" disabled={profilePasswordLoading} onClick={handleResendEmailVerification} className="rounded-2xl px-4 py-3 border border-[var(--panel-border)] text-[var(--text-main)] font-bold text-xs disabled:opacity-50">Reenviar verificación</button>
                 </div>
                 {emailRecoveryStatus && <p role="status" className="text-xs text-[var(--text-main)] mt-3 leading-relaxed">{emailRecoveryStatus}</p>}
@@ -2175,7 +2175,7 @@ export const App: React.FC = () => {
                   type="button"
                   onClick={handleChangeProfilePassword}
                   disabled={profilePasswordLoading}
-                  className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-3 rounded-2xl uppercase tracking-widest text-[10px] mt-4 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                  className="w-full ovlane-primary    font-black py-3 rounded-2xl uppercase tracking-widest text-[10px] mt-4 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
                 >
                   <KeyRound size={14} /> {profilePasswordLoading ? 'Actualizando...' : 'Guardar nueva contraseña'}
                 </button>
@@ -2387,7 +2387,7 @@ export const App: React.FC = () => {
               </div>
               
               {partnerUnreadCount('ADMIN') > 0 && (
-                <span className="bg-[#15803D] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(21,128,61,0.5)] shrink-0 ml-2">
+                <span className="ovlane-primary   text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(21,128,61,0.5)] shrink-0 ml-2">
                   {partnerUnreadCount('ADMIN')}
                 </span>
               )}
@@ -2448,7 +2448,7 @@ export const App: React.FC = () => {
 
                         <div className="flex items-center gap-2 shrink-0">
                           {unread > 0 && (
-                            <span className="bg-[#15803D] text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(21,128,61,0.5)]">
+                            <span className="ovlane-primary   text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(21,128,61,0.5)]">
                               {unread}
                             </span>
                           )}
@@ -2465,7 +2465,7 @@ export const App: React.FC = () => {
                                 setActiveChatPartnerId(w.id);
                                 setExpandedPhoneWorkerId(null);
                               }}
-                              className="col-span-2 rounded-xl bg-[#15803D] text-black px-3 py-2.5 text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform"
+                              className="col-span-2 rounded-xl ovlane-primary   px-3 py-2.5 text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform"
                             >
                               Abrir chat
                             </button>
@@ -2619,7 +2619,7 @@ export const App: React.FC = () => {
                         <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm text-xs ${
                             isMe 
-                              ? 'bg-[#15803D] text-black font-medium rounded-tr-none' 
+                              ? 'ovlane-primary font-medium rounded-tr-none' 
                               : 'bg-[var(--btn-glass-bg)] border border-[var(--btn-glass-border)] text-[var(--text-main)] rounded-tl-none'
                           }`}>
                             <p className="whitespace-pre-wrap leading-relaxed break-words">{m.text}</p>
@@ -2651,7 +2651,7 @@ export const App: React.FC = () => {
                   />
                   <button 
                     onClick={handleSendWorkerMessage}
-                    className="p-3 bg-[#15803D] text-black rounded-xl hover:bg-[#16A34A] active:scale-95 transition-all shadow-md shadow-[#15803D]/10 flex items-center justify-center"
+                    className="p-3 ovlane-primary   rounded-xl  active:scale-95 transition-all shadow-md  flex items-center justify-center"
                   >
                     <Send size={16} />
                   </button>
@@ -2747,7 +2747,7 @@ export const App: React.FC = () => {
               <textarea value={reportComments} onChange={(e) => setReportComments(e.target.value)} placeholder="Ej: He trabajado horas extras el martes..." className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-3 text-xs text-[var(--input-text)] h-20 resize-none focus:border-blue-500 outline-none" />
             </div>
 
-            <button disabled={submittingReport || !reportPhoto} onClick={handleSendWeeklyReport} className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black disabled:bg-slate-800 disabled:text-slate-500 py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300">
+            <button disabled={submittingReport || !reportPhoto} onClick={handleSendWeeklyReport} className="w-full ovlane-primary    disabled:bg-slate-800 disabled:text-slate-500 py-4 rounded-xl font-black uppercase text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300">
               {submittingReport ? (
                 <>
                   <Clock className="animate-spin text-black" size={16} /> Subiendo parte...
@@ -3008,7 +3008,7 @@ export const App: React.FC = () => {
         <button
           onClick={handlePasswordRecovery}
           disabled={loading}
-          className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#15803D]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all disabled:opacity-50"
+          className="w-full ovlane-primary    font-black py-4 rounded-2xl shadow-lg  mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all disabled:opacity-50"
         >
           {loading ? 'Solicitando...' : 'Enviar enlace de recuperación'} <ArrowRight size={14} />
         </button>
@@ -3058,12 +3058,14 @@ export const App: React.FC = () => {
       case Step.RECOVERY: return renderPasswordRecovery();
       case Step.LOGIN_PHONE: return (
         <div className="flex flex-col h-full animate-fadeIn justify-center items-center py-4 max-w-sm mx-auto w-full">
-          <div className="text-center w-full">
+          <div className="ovlane-access-brand text-center w-full">
             <div className="inline-flex mb-6">
               <AppLogo size="lg" logoUrl={appConfig.logoUrl} scale={appConfig.logoScaleLogin} theme={theme} />
             </div>
-            <h2 className="text-3xl font-black text-[var(--text-main)] tracking-tighter uppercase font-sans">CARMAGNE INSTAL SL</h2>
-            <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-[0.25em] mt-1">Acceso Operario</p>
+            <h2 className="ovlane-name">ovlane</h2>
+            <p className="ovlane-tagline">Work, in sync.</p>
+            <p className="ovlane-descriptor">Workforce &amp; Operations Platform</p>
+            <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-[0.25em] mt-1">Acceso de trabajador</p>
           </div>
           
           <div className="bg-[var(--panel-bg)] backdrop-blur-2xl p-6 rounded-[2.5rem] border border-[var(--panel-border)] w-full mt-6 shadow-[var(--panel-shadow)]">
@@ -3080,7 +3082,7 @@ export const App: React.FC = () => {
                 />
                 <button 
                   onClick={handlePhoneLogin} 
-                  className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#15803D]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
+                  className="w-full ovlane-primary    font-black py-4 rounded-2xl shadow-lg  mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
                 >
                   Continuar <ArrowRight size={14} />
                 </button>
@@ -3121,7 +3123,7 @@ export const App: React.FC = () => {
 
                 <button 
                   onClick={handlePhoneLogin} 
-                  className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl shadow-lg shadow-[#15803D]/10 mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
+                  className="w-full ovlane-primary    font-black py-4 rounded-2xl shadow-lg  mt-4 flex items-center justify-center gap-2 active:scale-95 uppercase text-xs tracking-widest transition-all"
                 >
                   Entrar <ArrowRight size={14} />
                 </button>
@@ -3404,7 +3406,7 @@ case Step.WORKER_TOOLS: return (
              <button onClick={() => setCurrentStep(Step.LOGIN_PHONE)} className="p-2.5 bg-[var(--btn-glass-bg)] rounded-xl border border-[var(--btn-glass-border)] text-[var(--text-main)] hover:bg-slate-500/10">
                <ChevronLeft size={20}/>
              </button>
-             <h2 className="text-2xl font-black text-[var(--text-main)] tracking-tighter uppercase">Crear Cuenta</h2>
+             <h2 className="text-2xl font-black text-[var(--text-main)] tracking-tighter uppercase">Crear cuenta</h2>
            </div>
            
            <div className="bg-[var(--panel-bg)] p-5 rounded-[2.5rem] border border-[var(--panel-border)] space-y-3 shadow-xl md:overflow-y-auto custom-scrollbar md:flex-1">
@@ -3454,7 +3456,7 @@ case Step.WORKER_TOOLS: return (
                </div>
              </div>
 
-             <button type="button" disabled={loading} aria-busy={loading} onClick={handleRegistration} className="w-full bg-[#15803D] hover:bg-[#16A34A] text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg shadow-[#15803D]/10 shrink-0">{loading ? 'Enviando solicitud…' : 'Registrarme'}</button>
+             <button type="button" disabled={loading} aria-busy={loading} onClick={handleRegistration} className="w-full ovlane-primary    font-black py-4 rounded-2xl uppercase tracking-widest text-xs mt-4 active:scale-95 shadow-lg  shrink-0">{loading ? 'Enviando solicitud…' : 'Registrarme'}</button>
            </div>
         </div>
       );
@@ -3514,7 +3516,7 @@ case Step.WORKER_TOOLS: return (
       {showAdminLogin && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
           <div className="bg-[var(--modal-bg)] w-full max-w-sm rounded-[2.5rem] border border-[var(--modal-border)] p-8 shadow-2xl relative overflow-hidden">
-             <div className="flex justify-between items-center mb-6"><div className="flex items-center gap-3"><div className="p-2 bg-blue-600/10 rounded-xl text-blue-500"><Shield size={24}/></div><h2 className="text-xl font-black text-[var(--modal-text-main)] uppercase tracking-tighter">Admin Login</h2></div><button onClick={() => setShowAdminLogin(false)} className="text-[var(--modal-text-muted)] hover:text-[var(--modal-text-main)]"><X size={20}/></button></div>
+             <div className="flex justify-between items-center mb-6"><div className="flex items-center gap-3"><div className="p-2 bg-blue-600/10 rounded-xl text-blue-500"><Shield size={24}/></div><h2 className="text-xl font-black text-[var(--modal-text-main)] uppercase tracking-tighter">Acceso de administración</h2></div><button onClick={() => setShowAdminLogin(false)} className="text-[var(--modal-text-muted)] hover:text-[var(--modal-text-main)]"><X size={20}/></button></div>
              <div className="space-y-4">
                 <input type="text" placeholder="Usuario" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-[var(--input-text)] outline-none focus:border-blue-500" value={adminUsernameInput} onChange={(e) => setAdminUsernameInput(e.target.value)}/>
                 <input type="password" placeholder="Contraseña" className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-4 text-[var(--input-text)] outline-none focus:border-blue-500" value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)}/>
@@ -3526,7 +3528,7 @@ case Step.WORKER_TOOLS: return (
       )}
       {error && (
         <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md max-h-[75dvh] overflow-y-auto z-[200] px-1" role="alert">
-          <div className="bg-rose-600/95 text-white px-5 py-4 rounded-2xl border border-white/15 shadow-2xl backdrop-blur-xl flex items-start gap-3">
+          <div className="ovlane-alert text-white px-5 py-4 rounded-2xl border border-white/15 shadow-2xl backdrop-blur-xl flex items-start gap-3">
             <div className="mt-0.5 bg-white/15 p-2 rounded-xl shrink-0"><ShieldAlert size={18}/></div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Aviso importante</p>
@@ -3593,7 +3595,7 @@ case Step.WORKER_TOOLS: return (
                   </label>
                   <input 
                     type="email" 
-                    placeholder="ejemplo@carmagne.com" 
+                    placeholder="nombre@empresa.com" 
                     className="w-full bg-zinc-900/80 border border-zinc-800 text-white rounded-xl p-4 text-sm outline-none focus:border-[#15803D] transition-colors font-semibold font-sans" 
                     value={forceEmailInput} 
                     onChange={(e) => {
@@ -3615,7 +3617,7 @@ case Step.WORKER_TOOLS: return (
                 <button 
                   onClick={handleSaveForceEmail} 
                   disabled={loading}
-                  className="w-full bg-[#15803D] hover:bg-[#16A34A] disabled:opacity-50 text-black font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all duration-300 active:scale-95 shadow-lg shadow-[#15803D]/10 font-sans"
+                  className="w-full ovlane-primary   disabled:opacity-50  font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all duration-300 active:scale-95 shadow-lg  font-sans"
                 >
                   {loading ? 'Guardando...' : 'GUARDAR Y CONTINUAR'}
                 </button>

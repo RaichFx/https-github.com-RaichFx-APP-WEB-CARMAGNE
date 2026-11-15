@@ -1,6 +1,6 @@
 {
-  "name": "CARMAGNE INSTAL SL",
-  "description": "Sistema integral de control de presencia, fichaje, partes semanales con IA y gestión de nóminas.",
+  "name": "OVLANE",
+  "description": "Workforce & Operations Platform. Work, in sync.",
   "requestFramePermissions": [
     "camera",
     "microphone",

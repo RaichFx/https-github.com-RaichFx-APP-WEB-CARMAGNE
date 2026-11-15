@@ -1742,18 +1742,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
 
   const sidebarItems = useMemo(() => {
     const baseItems = [
-      { id: 'dashboard', icon: BarChart3, label: 'Panel' },
-      { id: 'approvals', icon: CheckCircle2, label: pendingWorkers.length > 0 ? `Solicitudes (${pendingWorkers.length})` : 'Solicitudes' },
-      { id: 'workers', icon: Users, label: 'Personal' },
-      { id: 'hours', icon: History, label: 'Horas' },
-      { id: 'reports', icon: ClipboardList, label: 'Partes' },
-      { id: 'payslips', icon: FileText, label: 'Nóminas' },
-      { id: 'chat', icon: MessageSquare, label: 'Chat' },
-      { id: 'sites', icon: MapPin, label: 'Obras' },
-      { id: 'logs', icon: ClipboardList, label: 'Registros' },
-      { id: 'tools', icon: Wrench, label: 'Equipos' },
+      { id: 'dashboard', module: undefined, icon: BarChart3, label: 'Panel' },
+      { id: 'approvals', module: 'Ovlane People', icon: CheckCircle2, label: pendingWorkers.length > 0 ? `Solicitudes (${pendingWorkers.length})` : 'Solicitudes' },
+      { id: 'workers', module: 'Ovlane People', icon: Users, label: 'Personal' },
+      { id: 'hours', module: 'Ovlane Time', icon: History, label: 'Horas' },
+      { id: 'reports', module: 'Ovlane Field', icon: ClipboardList, label: 'Partes' },
+      { id: 'payslips', module: 'Ovlane Docs', icon: FileText, label: 'Nóminas' },
+      { id: 'chat', module: undefined, icon: MessageSquare, label: 'Chat' },
+      { id: 'sites', module: 'Ovlane Field', icon: MapPin, label: 'Obras' },
+      { id: 'logs', module: 'Ovlane Time', icon: ClipboardList, label: 'Registros' },
+      { id: 'tools', module: 'Ovlane Field', icon: Wrench, label: 'Equipos' },
     ];
-    if (isSuperAdmin) { baseItems.push({ id: 'admins', icon: Shield, label: 'Admins' }, { id: 'settings', icon: Settings, label: 'Ajustes' }); }
+    if (isSuperAdmin) { baseItems.push({ id: 'admins', module: 'Ovlane People', icon: Shield, label: 'Admins' }, { id: 'settings', module: undefined, icon: Settings, label: 'Ajustes' }); }
     return baseItems;
   }, [isSuperAdmin, pendingWorkers.length]);
 
@@ -2044,7 +2044,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       )}
 
       <div className="overflow-x-auto bg-[var(--panel-bg)] rounded-3xl border border-[var(--panel-border)]">
-        <table className="w-full text-left text-xs">
+        <table className="ovlane-table w-full text-left text-xs">
           <thead className="bg-[var(--input-bg)] border-b border-[var(--panel-border)]">
             <tr>
               <th className="p-4 font-black uppercase text-[var(--text-muted)]">Fecha/Hora</th>
@@ -3223,7 +3223,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tighter">Configuración General</h2>
-          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Personalización de CARMAGNE INSTAL SL</p>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Personalización de OVLANE</p>
         </div>
       </div>
 
@@ -3333,10 +3333,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
         </div>
       )}
 
-      <aside className="hidden md:flex flex-col w-64 border-r border-[var(--panel-border)] p-6 gap-8 bg-[var(--panel-bg)]">
+      <aside className="ovlane-sidebar hidden md:flex flex-col w-64 border-r border-[var(--panel-border)] p-6 gap-8 bg-[var(--panel-bg)]">
         <div className="flex items-center gap-3">
           <AppLogo size="sm" logoUrl={config.logoUrl} scale={config.logoScaleDashboard} theme={theme} />
-          <h1 className="text-xs font-black tracking-tighter uppercase leading-tight">CARMAGNE<br/>INSTAL SL</h1>
+          <div><h1 className="ovlane-name ovlane-name--compact">ovlane</h1><p className="ovlane-descriptor">Administración</p></div>
         </div>
         <nav ref={desktopMenuRef} className="relative">
           <p className="text-[8px] font-black uppercase tracking-[0.28em] text-[var(--text-muted)] mb-2 ml-1">Navegación</p>
@@ -3390,7 +3390,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       }`}>
                         <item.icon size={17} />
                       </span>
-                      <span className="min-w-0 flex-1 text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
+                      <span className="min-w-0 flex-1 ovlane-nav-label">{item.label}{item.module && <small className="ovlane-nav-module">{item.module}</small>}</span>
                       {unreadCount > 0 && (
                         <span className="bg-[#15803D] text-black text-[8px] font-black min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(21,128,61,0.4)]">{unreadCount}</span>
                       )}
@@ -3408,10 +3408,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-14 border-b border-[var(--panel-border)] flex items-center justify-between px-6 bg-[var(--panel-bg)] backdrop-blur-md shrink-0">
+        <header className="ovlane-header min-h-14 border-b border-[var(--panel-border)] flex items-center justify-between gap-3 px-4 sm:px-6 bg-[var(--panel-bg)] shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsLogoutConfirmOpen(true)} className="md:hidden p-2 bg-[var(--panel-bg)] rounded-xl text-[var(--text-muted)]"><ArrowLeft size={18}/></button>
-            <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-widest leading-none">{activeSidebarItem.label}</span>
+            <div className="min-w-0"><small className="ovlane-header-module">{activeSidebarItem.module ?? "OVLANE"}</small><span className="ovlane-section-title">{activeSidebarItem.label}</span></div>
           </div>
           <div className="flex items-center gap-3">
              {theme && setTheme && (
@@ -3437,7 +3437,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+        <div className="ovlane-admin-content flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'approvals' && (
             <div className="space-y-6 animate-fadeIn pb-32">
@@ -3681,7 +3681,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, currentUser, the
                       }`}>
                         <item.icon size={17} />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
+                      <span className="min-w-0 ovlane-nav-label">{item.label}{item.module && <small className="ovlane-nav-module">{item.module}</small>}</span>
                       {unreadCount > 0 && (
                         <span className="absolute top-2 right-2 bg-[#15803D] text-black text-[8px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(21,128,61,0.5)]">
                           {unreadCount}

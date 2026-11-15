@@ -1,92 +1,110 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-/* Dynamic Theme variables */
+/* OVLANE: brand primitives and semantic aliases consumed by existing screens. */
 :root {
-  --bg-color: #F4F5F7;
-  --bg-gradient: radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.12) 0%, transparent 45%),
-                 radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
-                 radial-gradient(circle at 50% 50%, #F4F5F7 0%, #FFFFFF 100%);
-  --glow-1: rgba(59, 130, 246, 0.12);
-  --glow-2: rgba(16, 185, 129, 0.12);
-  --panel-bg: rgba(255, 255, 255, 0.45);
-  --panel-border: rgba(0, 0, 0, 0.08);
-  --panel-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
-  --text-main: #1C1C1E;
-  --text-muted: #8E8E93;
-  --accent-color: #3B82F6; /* Professional Brand Blue */
-  --accent-text: #FFFFFF;
-  --btn-glass-bg: rgba(0, 0, 0, 0.04);
-  --btn-glass-border: rgba(0, 0, 0, 0.08);
-  --btn-glass-text: #1C1C1E;
-  --input-bg: rgba(255, 255, 255, 0.9);
-  --input-border: rgba(0, 0, 0, 0.12);
-  --input-text: #1C1C1E;
-  --scrollbar-track: #F4F5F7;
-  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
-  --island-bg: rgba(0, 0, 0, 0.08);
-  --island-text: #1C1C1E;
-  --modal-bg: #FFFFFF;
-  --modal-border: rgba(0, 0, 0, 0.08);
-  --modal-text-main: #1C1C1E;
-  --modal-text-muted: #3A3A3C;
-  --push-glass-bg: rgba(255, 255, 255, 0.76);
-  --push-glass-bg-strong: rgba(255, 255, 255, 0.92);
-  --push-glass-border: rgba(15, 23, 42, 0.12);
-  --push-glass-text: #111827;
-  --push-glass-muted: #475569;
-  --push-glass-soft: rgba(15, 23, 42, 0.06);
-  --push-glass-shadow: 0 24px 55px -24px rgba(15, 23, 42, 0.45), 0 8px 22px -18px rgba(15, 23, 42, 0.35);
+  --ov-navy: #0F172A;
+  --ov-primary: #1E40AF;
+  --ov-blue: #3B82F6;
+  --ov-background: #F8FAFC;
+  --ov-white: #FFFFFF;
+  --ov-secondary: #475569;
+  --ov-border: #E2E8F0;
+  --ov-muted: #F1F5F9;
+  --ov-success: #15803D;
+  --ov-warning: #A16207;
+  --ov-error: #B91C1C;
+  --ov-font: 'Inter', system-ui, sans-serif;
+  --ov-control-radius: 10px;
+  --ov-panel-radius: 16px;
+  --ov-control-border: #64748b;
+  --ov-link: var(--ov-primary);
+  --ov-focus: var(--ov-primary);
+  --ov-soft-blue: #DBEAFE;
+  --ov-success-text: var(--ov-success);
+  --ov-warning-text: var(--ov-warning);
+  --ov-error-text: var(--ov-error);
+
+  color-scheme: light;
+  --bg-color: var(--ov-background);
+  --bg-gradient: var(--bg-color);
+  --panel-bg: var(--ov-white);
+  --panel-border: var(--ov-border);
+  --panel-shadow: 0 1px 2px rgb(15 23 42 / .05);
+  --text-main: var(--ov-navy);
+  --text-muted: var(--ov-secondary);
+  --accent-color: var(--ov-primary);
+  --accent-text: var(--ov-white);
+  --btn-glass-bg: var(--ov-muted);
+  --btn-glass-border: var(--panel-border);
+  --btn-glass-text: var(--text-main);
+  --input-bg: var(--panel-bg);
+  --input-border: var(--ov-control-border);
+  --input-text: var(--text-main);
+  --scrollbar-track: var(--bg-color);
+  --scrollbar-thumb: var(--ov-control-border);
+  --island-bg: var(--btn-glass-bg);
+  --island-text: var(--text-main);
+  --modal-bg: var(--panel-bg);
+  --modal-border: var(--panel-border);
+  --modal-text-main: var(--text-main);
+  --modal-text-muted: var(--text-muted);
+  --push-glass-bg: var(--panel-bg);
+  --push-glass-bg-strong: var(--panel-bg);
+  --push-glass-border: var(--panel-border);
+  --push-glass-text: var(--text-main);
+  --push-glass-muted: var(--text-muted);
+  --push-glass-soft: var(--btn-glass-bg);
+  --push-glass-shadow: 0 10px 24px rgb(15 23 42 / .15);
 }
 
 .dark-theme {
-  --bg-color: #050505;
-  --bg-gradient: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 40%),
-                 radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 40%),
-                 radial-gradient(circle at 50% 50%, #050505 0%, #0D0D0E 100%);
-  --glow-1: rgba(59, 130, 246, 0.06);
-  --glow-2: rgba(16, 185, 129, 0.06);
-  --panel-bg: rgba(255, 255, 255, 0.04);
-  --panel-border: rgba(255, 255, 255, 0.1);
-  --panel-shadow: 0 24px 80px rgba(0, 0, 0, 0.8);
-  --text-main: #FFFFFF;
-  --text-muted: #8E8E93;
-  --accent-color: #3B82F6; /* Professional Brand Blue */
-  --accent-text: #FFFFFF;
-  --btn-glass-bg: rgba(255, 255, 255, 0.05);
-  --btn-glass-border: rgba(255, 255, 255, 0.1);
-  --btn-glass-text: #FFFFFF;
-  --input-bg: rgba(10, 10, 10, 0.8);
-  --input-border: rgba(255, 255, 255, 0.1);
-  --input-text: #FFFFFF;
-  --scrollbar-track: #050505;
-  --scrollbar-thumb: rgba(59, 130, 246, 0.2);
-  --island-bg: rgba(0, 0, 0, 0.6);
-  --island-text: #FFFFFF;
-  --modal-bg: #0D0D0E;
-  --modal-border: rgba(255, 255, 255, 0.1);
-  --modal-text-main: #FFFFFF;
-  --modal-text-muted: #A1A1AA;
-  --push-glass-bg: rgba(12, 14, 18, 0.68);
-  --push-glass-bg-strong: rgba(18, 22, 28, 0.92);
-  --push-glass-border: rgba(255, 255, 255, 0.16);
-  --push-glass-text: #F8FAFC;
-  --push-glass-muted: #CBD5E1;
-  --push-glass-soft: rgba(255, 255, 255, 0.08);
-  --push-glass-shadow: 0 26px 70px -22px rgba(0, 0, 0, 0.88), 0 0 34px -20px rgba(21, 128, 61, 0.28);
+  color-scheme: dark;
+  --bg-gradient: var(--bg-color);
+  --accent-color: var(--ov-primary);
+  --accent-text: var(--ov-white);
+  --btn-glass-border: var(--panel-border);
+  --btn-glass-text: var(--text-main);
+  --input-border: var(--ov-control-border);
+  --input-text: var(--text-main);
+  --scrollbar-track: var(--bg-color);
+  --scrollbar-thumb: var(--ov-control-border);
+  --island-bg: var(--btn-glass-bg);
+  --island-text: var(--text-main);
+  --modal-bg: var(--panel-bg);
+  --modal-border: var(--panel-border);
+  --modal-text-main: var(--text-main);
+  --modal-text-muted: var(--text-muted);
+  --push-glass-bg: var(--panel-bg);
+  --push-glass-bg-strong: var(--panel-bg);
+  --push-glass-border: var(--panel-border);
+  --push-glass-text: var(--text-main);
+  --push-glass-muted: var(--text-muted);
+  --push-glass-soft: var(--btn-glass-bg);
+
+  --bg-color: #0B1220;
+  --panel-bg: var(--ov-navy);
+  --panel-border: #334155;
+  --panel-shadow: 0 1px 2px rgb(0 0 0 / .22);
+  --text-main: var(--ov-background);
+  --text-muted: #CBD5E1;
+  --btn-glass-bg: #1E293B;
+  --input-bg: #111C30;
+  --ov-control-border: #64748B;
+  --ov-link: #93C5FD;
+  --ov-focus: var(--ov-blue);
+  --ov-soft-blue: #192F56;
+  --ov-success-text: #86EFAC;
+  --ov-warning-text: #FCD34D;
+  --ov-error-text: #FCA5A5;
+  --push-glass-shadow: 0 10px 24px rgb(0 0 0 / .3);
 }
 
-/* Font pairing settings */
-.font-bebas {
-  font-family: 'Bebas Neue', sans-serif;
-  letter-spacing: 0.05em;
-}
-
-.font-inter {
-  font-family: 'Inter', sans-serif;
+.font-bebas, .font-inter, #root .font-sans {
+  font-family: var(--ov-font);
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ov-font);
   background-color: var(--bg-color) !important;
   color: var(--text-main);
   overflow-x: hidden;
@@ -434,3 +452,77 @@ button {
   background: var(--push-glass-soft);
 }
 
+
+/* Product surfaces: keep the old logo subtree and its geometry untouched. */
+.liquid-bg { background: var(--bg-color); }
+.liquid-glow-1, .liquid-glow-2 { display: none; }
+.glass-panel, .mirror-panel, .push-toast { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.push-toast { background: var(--panel-bg); border-inline-start: 3px solid var(--push-accent); }
+.push-toast::before, .push-toast__shine { display: none; }
+.push-toast__icon, .dark-theme .push-toast__icon { background: var(--btn-glass-bg); box-shadow: none; }
+.push-toast--chat, .push-toast--system,
+.dark-theme .push-toast--chat, .dark-theme .push-toast--system { --push-accent: var(--ov-link); }
+.push-toast--log, .dark-theme .push-toast--log { --push-accent: var(--ov-success-text); }
+.text-neon { color: var(--ov-link); text-shadow: none; }
+.text-neon-green { color: var(--ov-success-text); }
+.shadow-neon, .btn-neon { box-shadow: var(--panel-shadow); }
+.btn-neon:hover { background: var(--ov-primary); }
+#root :where(h1, h2, h3) {
+  text-transform: none;
+  letter-spacing: -.025em;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+#root :where(label, button) { letter-spacing: normal; text-transform: none; }
+#root :where(button, label)[class*="text-[8px]"],
+#root :where(button, label)[class*="text-[9px]"],
+#root :where(button, label)[class*="text-[10px]"] { font-size: .75rem; }
+#root :where(button, input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  border-radius: var(--ov-control-radius);
+}
+#root :where(input, textarea)::placeholder { color: var(--text-muted); opacity: 1; }
+#root :where(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ov-focus);
+  outline-offset: 2px;
+}
+#root :where(input, select, textarea):focus {
+  border-color: var(--ov-focus) !important;
+  box-shadow: 0 0 0 2px var(--ov-soft-blue) !important;
+}
+#root .ovlane-name { font-size: clamp(2.65rem, 7vw, 4rem); letter-spacing: -.075em; line-height: 1; }
+#root .ovlane-name--compact { font-size: 1.65rem; }
+.ovlane-tagline { margin-top: .45rem; font-size: 1.125rem; font-weight: 600; }
+.ovlane-descriptor { margin-top: .35rem; color: var(--text-muted); font-size: .8125rem; }
+.ovlane-access-brand > div { margin-bottom: 1rem; }
+.ovlane-primary { background: var(--ov-primary); color: var(--ov-white); box-shadow: none; }
+.ovlane-primary:hover:not(:disabled) { background: #1E3A8A; }
+.ovlane-primary:disabled { opacity: .65; }
+.ovlane-alert { background: var(--ov-error); }
+.ovlane-sidebar { flex-shrink: 0; }
+.ovlane-header { min-height: 3.5rem; }
+.ovlane-header-module, .ovlane-nav-module { display: block; font-size: .6875rem; font-weight: 500; }
+.ovlane-header-module { color: var(--ov-link); }
+.ovlane-section-title { display: block; font-size: .9375rem; font-weight: 700; overflow-wrap: anywhere; }
+.ovlane-nav-label { font-size: .875rem; font-weight: 600; line-height: 1.3; }
+.ovlane-nav-module { margin-top: .15rem; }
+.ovlane-admin-content { background: var(--bg-color); }
+.ovlane-admin-content > * { max-width: 90rem; margin-inline: auto; }
+.ovlane-table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.ovlane-table th { background: var(--btn-glass-bg); color: var(--text-main); font-weight: 600; }
+.ovlane-table :is(th, td) { padding-block: .75rem; border-bottom: 1px solid var(--panel-border); }
+.ovlane-table tbody tr:hover { background: var(--btn-glass-bg); }
+#root .ovlane-dialog { border-radius: var(--ov-panel-radius); }
+.ovlane-module { font-size: .6875rem; font-weight: 600; color: var(--ov-link); }
+@media (pointer: coarse) {
+  .ovlane-header button, .ovlane-nav-label { min-block-size: 2.75rem; }
+  .ovlane-nav-label { display: flex; flex-direction: column; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root *, #root *::before, #root *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
